@@ -58,7 +58,6 @@ export function RevenueWidget({ content, onContentChange }: RevenueWidgetProps) 
   const [newYear, setNewYear] = useState(new Date().getFullYear().toString());
   const [newAmount, setNewAmount] = useState("");
   const [newDescription, setNewDescription] = useState("");
-  const [newDate, setNewDate] = useState(new Date().toISOString().split("T")[0]);
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string; label: string }>({
     open: false,
     id: "",
@@ -171,18 +170,12 @@ export function RevenueWidget({ content, onContentChange }: RevenueWidgetProps) 
 
   const handleAddRevenue = () => {
     if (newAmount && selectedVentureId) {
-      // Parse date to get month/year for chart aggregation
-      const dateObj = new Date(newDate);
-      const month = months[dateObj.getMonth()];
-      const year = dateObj.getFullYear();
-      
       addRevenue.mutate({
         ventureId: selectedVentureId,
-        month,
-        year,
+        month: newMonth,
+        year: parseInt(newYear),
         amount: parseFloat(newAmount),
         description: newDescription || undefined,
-        date: newDate,
       });
     }
   };
@@ -244,17 +237,17 @@ export function RevenueWidget({ content, onContentChange }: RevenueWidgetProps) 
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
                   <DialogHeader>
-                    <DialogTitle>Add Revenue Entry</DialogTitle>
+                    <DialogTitle>Add Customer Payment</DialogTitle>
                     <DialogDescription>
-                      Add a payment or revenue entry for {selectedVenture?.name}
+                      Add a customer payment for {selectedVenture?.name}
                     </DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
                     <div className="space-y-2">
-                      <Label htmlFor="description">Description (optional)</Label>
+                      <Label htmlFor="description">Customer Name</Label>
                       <Input
                         id="description"
-                        placeholder="e.g., Customer A - Invoice #123"
+                        placeholder="e.g., Acme Corp"
                         value={newDescription}
                         onChange={(e) => setNewDescription(e.target.value)}
                         data-testid="input-revenue-description"
@@ -262,33 +255,50 @@ export function RevenueWidget({ content, onContentChange }: RevenueWidgetProps) 
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="date">Date</Label>
-                        <Input
-                          id="date"
-                          type="date"
-                          value={newDate}
-                          onChange={(e) => setNewDate(e.target.value)}
-                          data-testid="input-revenue-date"
-                        />
+                        <Label>Month</Label>
+                        <Select value={newMonth} onValueChange={setNewMonth}>
+                          <SelectTrigger data-testid="select-revenue-month">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {months.map((m) => (
+                              <SelectItem key={m} value={m}>{m}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="amount">Amount ($)</Label>
-                        <Input
-                          id="amount"
-                          type="number"
-                          placeholder="10000"
-                          value={newAmount}
-                          onChange={(e) => setNewAmount(e.target.value)}
-                          data-testid="input-revenue-amount"
-                        />
+                        <Label>Year</Label>
+                        <Select value={newYear} onValueChange={setNewYear}>
+                          <SelectTrigger data-testid="select-revenue-year">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {yearOptions.map((y) => (
+                              <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="amount">Amount ($)</Label>
+                      <Input
+                        id="amount"
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="10000"
+                        value={newAmount}
+                        onChange={(e) => setNewAmount(e.target.value.replace(/[^0-9.]/g, ''))}
+                        data-testid="input-revenue-amount"
+                      />
                     </div>
                     <Button 
                       onClick={handleAddRevenue} 
                       disabled={!newAmount || addRevenue.isPending}
                       data-testid="button-submit-revenue"
                     >
-                      Add Entry
+                      Add Payment
                     </Button>
                   </div>
                 </DialogContent>
@@ -311,49 +321,48 @@ export function RevenueWidget({ content, onContentChange }: RevenueWidgetProps) 
               {sortedData.map((entry) => (
                 <div 
                   key={entry.id} 
-                  className="flex flex-col gap-2 p-3 rounded-md border border-border"
+                  className="flex items-center gap-2 p-2 rounded-md border border-border"
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground min-w-[70px]">
-                      {entry.date || `${entry.month} ${entry.year}`}
-                    </span>
+                  <span className="text-xs text-muted-foreground shrink-0 w-[60px]">
+                    {entry.month} {entry.year}
+                  </span>
+                  <Input
+                    type="text"
+                    defaultValue={entry.description || ""}
+                    placeholder="Customer name..."
+                    className="flex-1 h-8 text-sm"
+                    onBlur={(e) => {
+                      if (e.target.value !== (entry.description || "")) {
+                        updateRevenue.mutate({ id: entry.id, description: e.target.value });
+                      }
+                    }}
+                    data-testid={`input-revenue-desc-${entry.id}`}
+                  />
+                  <div className="flex items-center shrink-0">
+                    <span className="text-xs text-muted-foreground mr-1">$</span>
                     <Input
                       type="text"
-                      defaultValue={entry.description || ""}
-                      placeholder="Description..."
-                      className="flex-1 h-8 text-sm"
-                      onBlur={(e) => {
-                        if (e.target.value !== (entry.description || "")) {
-                          updateRevenue.mutate({ id: entry.id, description: e.target.value });
-                        }
-                      }}
-                      data-testid={`input-revenue-desc-${entry.id}`}
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground min-w-[70px]">Amount</span>
-                    <Input
-                      type="number"
+                      inputMode="decimal"
                       defaultValue={entry.amount}
-                      className="flex-1 h-8"
+                      className="w-24 h-8 text-sm"
                       onBlur={(e) => {
                         const newValue = parseFloat(e.target.value);
-                        if (newValue !== entry.amount) {
+                        if (!isNaN(newValue) && newValue !== entry.amount) {
                           updateRevenue.mutate({ id: entry.id, amount: newValue });
                         }
                       }}
                       data-testid={`input-revenue-edit-${entry.id}`}
                     />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-muted-foreground hover:text-destructive shrink-0 h-8 w-8"
-                      onClick={() => handleDeleteClick(entry)}
-                      data-testid={`button-delete-revenue-${entry.id}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-destructive shrink-0 h-8 w-8"
+                    onClick={() => handleDeleteClick(entry)}
+                    data-testid={`button-delete-revenue-${entry.id}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               ))}
             </div>
