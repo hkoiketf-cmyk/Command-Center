@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import GridLayout from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
@@ -38,6 +38,7 @@ const defaultWidgetSizes: Record<WidgetType, { w: number; h: number; minW: numbe
 
 export default function Dashboard() {
   const { toast } = useToast();
+  const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(1200);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -47,16 +48,29 @@ export default function Dashboard() {
 
   useEffect(() => {
     const handleResize = () => {
-      const container = document.getElementById("dashboard-container");
-      if (container) {
-        setContainerWidth(container.offsetWidth);
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.offsetWidth);
       }
       setIsMobile(window.innerWidth < 768);
     };
 
     handleResize();
     window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    
+    const resizeObserver = new ResizeObserver(() => {
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.offsetWidth);
+      }
+    });
+    
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+    
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      resizeObserver.disconnect();
+    };
   }, []);
 
   const gridCols = isMobile ? 1 : 12;
@@ -242,7 +256,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main id="dashboard-container" className="px-4 py-6">
+      <main ref={containerRef} className="px-4 py-6">
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
             <div className="animate-pulse text-muted-foreground">Loading dashboard...</div>
@@ -265,11 +279,14 @@ export default function Dashboard() {
             cols={gridCols}
             rowHeight={ROW_HEIGHT}
             width={containerWidth}
-            onLayoutChange={handleLayoutChange}
+            onDragStop={(layout) => handleLayoutChange(layout)}
+            onResizeStop={(layout) => handleLayoutChange(layout)}
             draggableHandle=".widget-drag-handle"
             compactType="vertical"
             preventCollision={false}
-            margin={[16, 16]}
+            margin={[12, 12]}
+            useCSSTransforms={true}
+            resizeHandles={['s', 'w', 'e', 'n', 'sw', 'nw', 'se', 'ne']}
           >
             {widgets.map((widget) => (
               <div key={widget.id} data-testid={`widget-${widget.id}`}>

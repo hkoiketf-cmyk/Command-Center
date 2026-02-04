@@ -37,9 +37,9 @@ export function WidgetWrapper({
     <>
       <Card className={cn("h-full flex flex-col overflow-hidden", className)}>
         <CardHeader className="flex flex-row items-center justify-between gap-2 py-3 px-4 border-b border-border shrink-0">
-          <div className="flex items-center gap-2">
-            <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab widget-drag-handle" />
-            <CardTitle className="text-sm font-medium">{title}</CardTitle>
+          <div className="flex items-center gap-2 cursor-grab active:cursor-grabbing widget-drag-handle flex-1">
+            <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
+            <CardTitle className="text-sm font-medium truncate">{title}</CardTitle>
           </div>
           <div className="flex items-center gap-1">
             <Button

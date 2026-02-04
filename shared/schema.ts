@@ -114,6 +114,7 @@ export type DashboardLayout = typeof dashboardLayouts.$inferSelect;
 // Notes content type
 export type NotesContent = {
   markdown: string;
+  backgroundColor?: string;
 };
 
 // Priorities content type
