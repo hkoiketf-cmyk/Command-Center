@@ -78,11 +78,14 @@ shared/
 
 ## Features
 - Drag-and-drop widget positioning
-- Widget resizing
+- Widget resizing (can stretch to full screen width)
 - Collapse/expand widgets
 - Dark/light theme toggle
 - Layout persistence
 - Venture management with color coding
+- Revenue data editing (add/edit/delete entries)
+- Mobile responsive layout (single column on small screens)
+- Confirmation dialogs before deletions
 
 ## Running the App
 ```bash
