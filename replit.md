@@ -10,7 +10,7 @@ HunterOS is a modular personal dashboard web application for tracking:
 ## Tech Stack
 - **Frontend**: React + TypeScript + Vite
 - **Backend**: Express.js
-- **Storage**: In-memory storage (MemStorage)
+- **Storage**: PostgreSQL with Drizzle ORM (persistent storage)
 - **UI Components**: shadcn/ui + Tailwind CSS
 - **Grid Layout**: react-grid-layout for drag & drop
 - **Charts**: Chart.js via react-chartjs-2
