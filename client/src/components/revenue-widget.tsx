@@ -57,6 +57,8 @@ export function RevenueWidget({ content, onContentChange }: RevenueWidgetProps) 
   const [newMonth, setNewMonth] = useState(months[new Date().getMonth()]);
   const [newYear, setNewYear] = useState(new Date().getFullYear().toString());
   const [newAmount, setNewAmount] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newDate, setNewDate] = useState(new Date().toISOString().split("T")[0]);
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string; label: string }>({
     open: false,
     id: "",
@@ -73,19 +75,20 @@ export function RevenueWidget({ content, onContentChange }: RevenueWidgetProps) 
   });
 
   const addRevenue = useMutation({
-    mutationFn: async (data: { ventureId: string; month: string; year: number; amount: number }) => {
+    mutationFn: async (data: { ventureId: string; month: string; year: number; amount: number; description?: string; date?: string }) => {
       return apiRequest("POST", "/api/revenue", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/revenue", selectedVentureId] });
       setAddDialogOpen(false);
       setNewAmount("");
+      setNewDescription("");
     },
   });
 
   const updateRevenue = useMutation({
-    mutationFn: async ({ id, amount }: { id: string; amount: number }) => {
-      return apiRequest("PATCH", `/api/revenue/${id}`, { amount });
+    mutationFn: async ({ id, amount, description }: { id: string; amount?: number; description?: string }) => {
+      return apiRequest("PATCH", `/api/revenue/${id}`, { amount, description });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/revenue", selectedVentureId] });
@@ -168,17 +171,25 @@ export function RevenueWidget({ content, onContentChange }: RevenueWidgetProps) 
 
   const handleAddRevenue = () => {
     if (newAmount && selectedVentureId) {
+      // Parse date to get month/year for chart aggregation
+      const dateObj = new Date(newDate);
+      const month = months[dateObj.getMonth()];
+      const year = dateObj.getFullYear();
+      
       addRevenue.mutate({
         ventureId: selectedVentureId,
-        month: newMonth,
-        year: parseInt(newYear),
+        month,
+        year,
         amount: parseFloat(newAmount),
+        description: newDescription || undefined,
+        date: newDate,
       });
     }
   };
 
   const handleDeleteClick = (data: RevenueData) => {
-    setDeleteConfirm({ open: true, id: data.id, label: `${data.month} ${data.year}` });
+    const label = data.description || `${data.month} ${data.year}`;
+    setDeleteConfirm({ open: true, id: data.id, label });
   };
 
   const confirmDelete = () => {
@@ -235,55 +246,49 @@ export function RevenueWidget({ content, onContentChange }: RevenueWidgetProps) 
                   <DialogHeader>
                     <DialogTitle>Add Revenue Entry</DialogTitle>
                     <DialogDescription>
-                      Add a new revenue data point for {selectedVenture?.name}
+                      Add a payment or revenue entry for {selectedVenture?.name}
                     </DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="description">Description (optional)</Label>
+                      <Input
+                        id="description"
+                        placeholder="e.g., Customer A - Invoice #123"
+                        value={newDescription}
+                        onChange={(e) => setNewDescription(e.target.value)}
+                        data-testid="input-revenue-description"
+                      />
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="month">Month</Label>
-                        <Select value={newMonth} onValueChange={setNewMonth}>
-                          <SelectTrigger data-testid="select-revenue-month">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {months.map((m) => (
-                              <SelectItem key={m} value={m}>{m}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Label htmlFor="date">Date</Label>
+                        <Input
+                          id="date"
+                          type="date"
+                          value={newDate}
+                          onChange={(e) => setNewDate(e.target.value)}
+                          data-testid="input-revenue-date"
+                        />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="year">Year</Label>
-                        <Select value={newYear} onValueChange={setNewYear}>
-                          <SelectTrigger data-testid="select-revenue-year">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {yearOptions.map((y) => (
-                              <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Label htmlFor="amount">Amount ($)</Label>
+                        <Input
+                          id="amount"
+                          type="number"
+                          placeholder="10000"
+                          value={newAmount}
+                          onChange={(e) => setNewAmount(e.target.value)}
+                          data-testid="input-revenue-amount"
+                        />
                       </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="amount">Amount ($)</Label>
-                      <Input
-                        id="amount"
-                        type="number"
-                        placeholder="10000"
-                        value={newAmount}
-                        onChange={(e) => setNewAmount(e.target.value)}
-                        data-testid="input-revenue-amount"
-                      />
                     </div>
                     <Button 
                       onClick={handleAddRevenue} 
                       disabled={!newAmount || addRevenue.isPending}
                       data-testid="button-submit-revenue"
                     >
-                      Add Revenue
+                      Add Entry
                     </Button>
                   </div>
                 </DialogContent>
@@ -306,32 +311,49 @@ export function RevenueWidget({ content, onContentChange }: RevenueWidgetProps) 
               {sortedData.map((entry) => (
                 <div 
                   key={entry.id} 
-                  className="flex items-center gap-3 p-2 rounded-md border border-border"
+                  className="flex flex-col gap-2 p-3 rounded-md border border-border"
                 >
-                  <span className="text-sm font-medium min-w-[80px]">
-                    {entry.month} {entry.year}
-                  </span>
-                  <Input
-                    type="number"
-                    defaultValue={entry.amount}
-                    className="flex-1"
-                    onBlur={(e) => {
-                      const newValue = parseFloat(e.target.value);
-                      if (newValue !== entry.amount) {
-                        updateRevenue.mutate({ id: entry.id, amount: newValue });
-                      }
-                    }}
-                    data-testid={`input-revenue-edit-${entry.id}`}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground hover:text-destructive shrink-0"
-                    onClick={() => handleDeleteClick(entry)}
-                    data-testid={`button-delete-revenue-${entry.id}`}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground min-w-[70px]">
+                      {entry.date || `${entry.month} ${entry.year}`}
+                    </span>
+                    <Input
+                      type="text"
+                      defaultValue={entry.description || ""}
+                      placeholder="Description..."
+                      className="flex-1 h-8 text-sm"
+                      onBlur={(e) => {
+                        if (e.target.value !== (entry.description || "")) {
+                          updateRevenue.mutate({ id: entry.id, description: e.target.value });
+                        }
+                      }}
+                      data-testid={`input-revenue-desc-${entry.id}`}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground min-w-[70px]">Amount</span>
+                    <Input
+                      type="number"
+                      defaultValue={entry.amount}
+                      className="flex-1 h-8"
+                      onBlur={(e) => {
+                        const newValue = parseFloat(e.target.value);
+                        if (newValue !== entry.amount) {
+                          updateRevenue.mutate({ id: entry.id, amount: newValue });
+                        }
+                      }}
+                      data-testid={`input-revenue-edit-${entry.id}`}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-destructive shrink-0 h-8 w-8"
+                      onClick={() => handleDeleteClick(entry)}
+                      data-testid={`button-delete-revenue-${entry.id}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

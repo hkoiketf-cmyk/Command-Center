@@ -88,6 +88,8 @@ export const revenueData = pgTable("revenue_data", {
   month: text("month").notNull(),
   amount: real("amount").notNull().default(0),
   year: integer("year").notNull(),
+  description: text("description"),
+  date: text("date"),
 });
 
 export const insertRevenueDataSchema = createInsertSchema(revenueData).omit({

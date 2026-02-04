@@ -172,6 +172,13 @@ export default function Dashboard() {
     });
   };
 
+  const handleTitleChange = (widget: Widget, newTitle: string) => {
+    updateWidget.mutate({
+      id: widget.id,
+      updates: { title: newTitle },
+    });
+  };
+
   const currentLayout: GridLayoutItem[] = widgets.map((widget, index) => {
     const layout = widget.layout as LayoutItem | undefined;
     const size = defaultWidgetSizes[widget.type as WidgetType];
@@ -295,6 +302,7 @@ export default function Dashboard() {
                   collapsed={widget.collapsed || false}
                   onToggleCollapse={() => handleToggleCollapse(widget)}
                   onRemove={() => deleteWidget.mutate(widget.id)}
+                  onTitleChange={(newTitle) => handleTitleChange(widget, newTitle)}
                 >
                   {renderWidgetContent(widget)}
                 </WidgetWrapper>

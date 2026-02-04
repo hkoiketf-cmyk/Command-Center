@@ -16,16 +16,21 @@ interface NotesWidgetProps {
 }
 
 const NOTE_COLORS = [
-  { name: "Default", value: "" },
-  { name: "Yellow", value: "#FEF3C7" },
-  { name: "Green", value: "#D1FAE5" },
-  { name: "Blue", value: "#DBEAFE" },
-  { name: "Pink", value: "#FCE7F3" },
-  { name: "Purple", value: "#EDE9FE" },
-  { name: "Orange", value: "#FFEDD5" },
-  { name: "Red", value: "#FEE2E2" },
-  { name: "Teal", value: "#CCFBF1" },
+  { name: "Default", value: "", textColor: "" },
+  { name: "Yellow", value: "#FEF3C7", textColor: "#713F12" },
+  { name: "Green", value: "#D1FAE5", textColor: "#14532D" },
+  { name: "Blue", value: "#DBEAFE", textColor: "#1E3A5F" },
+  { name: "Pink", value: "#FCE7F3", textColor: "#831843" },
+  { name: "Purple", value: "#EDE9FE", textColor: "#4C1D95" },
+  { name: "Orange", value: "#FFEDD5", textColor: "#7C2D12" },
+  { name: "Red", value: "#FEE2E2", textColor: "#7F1D1D" },
+  { name: "Teal", value: "#CCFBF1", textColor: "#134E4A" },
 ];
+
+function getTextColorForBackground(bgColor: string): string {
+  const color = NOTE_COLORS.find(c => c.value === bgColor);
+  return color?.textColor || "";
+}
 
 export function NotesWidget({ content, onContentChange }: NotesWidgetProps) {
   const [markdown, setMarkdown] = useState(content?.markdown || "");
@@ -47,10 +52,14 @@ export function NotesWidget({ content, onContentChange }: NotesWidgetProps) {
     onContentChange({ markdown, backgroundColor: color });
   };
 
-  const bgStyle = backgroundColor ? { backgroundColor } : {};
+  const textColor = getTextColorForBackground(backgroundColor);
+  const containerStyle = {
+    ...(backgroundColor ? { backgroundColor } : {}),
+    ...(textColor ? { color: textColor } : {}),
+  };
 
   return (
-    <div className="h-full flex flex-col rounded-md" style={bgStyle}>
+    <div className="h-full flex flex-col rounded-md" style={containerStyle}>
       <div className="flex items-center justify-between mb-2">
         <Tabs
           value={activeTab}
@@ -106,13 +115,14 @@ export function NotesWidget({ content, onContentChange }: NotesWidgetProps) {
               value={markdown}
               onChange={(e) => handleChange(e.target.value)}
               placeholder="Write notes in Markdown...&#10;&#10;Tip: Use ```html for HTML code blocks&#10;Use ```javascript for JS code blocks"
-              className="h-full min-h-[180px] font-mono text-sm resize-none bg-transparent"
+              className="h-full min-h-[180px] font-mono text-sm resize-none bg-transparent border-current/20"
+              style={{ color: textColor || "inherit" }}
               data-testid="textarea-notes"
             />
           </TabsContent>
 
           <TabsContent value="preview" className="flex-1 mt-2 overflow-auto">
-            <div className="prose prose-sm dark:prose-invert max-w-none">
+            <div className="prose prose-sm dark:prose-invert max-w-none" style={{ color: textColor || "inherit" }}>
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
