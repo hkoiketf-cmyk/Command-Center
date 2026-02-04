@@ -12,7 +12,7 @@ export async function seedDatabase() {
   // Check if already seeded
   const existingVentures = await storage.getVentures();
   if (existingVentures.length > 0) {
-    console.log("Database already seeded, skipping...");
+    console.log("Database already has data, skipping seed...");
     return;
   }
 
@@ -39,7 +39,7 @@ export async function seedDatabase() {
   for (let i = 0; i < createdVentures.length; i++) {
     const venture = createdVentures[i];
     const pattern = revenuePatterns[i];
-    
+
     for (let j = 0; j < 12; j++) {
       await storage.createRevenueData({
         ventureId: venture.id,
@@ -51,13 +51,27 @@ export async function seedDatabase() {
   }
 
   // Create sample priorities for each venture
-  const priorityData = [
-    { text: "Launch MVP by end of month", order: 0 },
-    { text: "Close funding round", order: 1 },
-    { text: "Hire senior engineer", order: 2 },
+  const prioritySets = [
+    [
+      { text: "Launch MVP by end of month", order: 0 },
+      { text: "Close funding round", order: 1 },
+      { text: "Hire senior engineer", order: 2 },
+    ],
+    [
+      { text: "Deliver client project on time", order: 0 },
+      { text: "Expand design team", order: 1 },
+      { text: "Update portfolio website", order: 2 },
+    ],
+    [
+      { text: "Optimize checkout conversion", order: 0 },
+      { text: "Add 50 new products", order: 1 },
+      { text: "Set up holiday promotions", order: 2 },
+    ],
   ];
 
-  for (const venture of createdVentures) {
+  for (let i = 0; i < createdVentures.length; i++) {
+    const venture = createdVentures[i];
+    const priorityData = prioritySets[i];
     for (const priority of priorityData) {
       await storage.createPriority({
         ventureId: venture.id,

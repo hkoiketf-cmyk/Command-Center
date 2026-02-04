@@ -1,7 +1,15 @@
-import { 
-  type User, 
-  type InsertUser, 
-  type Widget, 
+import { eq } from "drizzle-orm";
+import { db } from "./db";
+import {
+  users,
+  widgets,
+  ventures,
+  priorities,
+  revenueData,
+  dashboardLayouts,
+  type User,
+  type InsertUser,
+  type Widget,
   type InsertWidget,
   type Venture,
   type InsertVenture,
@@ -10,230 +18,176 @@ import {
   type RevenueData,
   type InsertRevenueData,
   type DashboardLayout,
-  type InsertDashboardLayout,
   type LayoutItem,
 } from "@shared/schema";
-import { randomUUID } from "crypto";
 
 export interface IStorage {
   // Users
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  
+
   // Widgets
   getWidgets(): Promise<Widget[]>;
   getWidget(id: string): Promise<Widget | undefined>;
   createWidget(widget: InsertWidget): Promise<Widget>;
   updateWidget(id: string, updates: Partial<Widget>): Promise<Widget | undefined>;
   deleteWidget(id: string): Promise<boolean>;
-  
+
   // Dashboard Layouts
   getLayout(userId: string): Promise<DashboardLayout | undefined>;
   saveLayout(userId: string, layouts: LayoutItem[]): Promise<DashboardLayout>;
-  
+
   // Ventures
   getVentures(): Promise<Venture[]>;
   getVenture(id: string): Promise<Venture | undefined>;
   createVenture(venture: InsertVenture): Promise<Venture>;
   deleteVenture(id: string): Promise<boolean>;
-  
+
   // Priorities
   getPriorities(ventureId: string): Promise<Priority[]>;
   createPriority(priority: InsertPriority): Promise<Priority>;
   updatePriority(id: string, updates: Partial<Priority>): Promise<Priority | undefined>;
   deletePriority(id: string): Promise<boolean>;
-  
+
   // Revenue Data
   getRevenueData(ventureId: string): Promise<RevenueData[]>;
   createRevenueData(data: InsertRevenueData): Promise<RevenueData>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-  private widgets: Map<string, Widget>;
-  private layouts: Map<string, DashboardLayout>;
-  private ventures: Map<string, Venture>;
-  private priorities: Map<string, Priority>;
-  private revenueData: Map<string, RevenueData>;
-
-  constructor() {
-    this.users = new Map();
-    this.widgets = new Map();
-    this.layouts = new Map();
-    this.ventures = new Map();
-    this.priorities = new Map();
-    this.revenueData = new Map();
-  }
-
+export class DatabaseStorage implements IStorage {
   // Users
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const result = await db.select().from(users).where(eq(users.id, id));
+    return result[0];
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const result = await db.select().from(users).where(eq(users.username, username));
+    return result[0];
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+  async createUser(user: InsertUser): Promise<User> {
+    const result = await db.insert(users).values(user).returning();
+    return result[0];
   }
 
   // Widgets
   async getWidgets(): Promise<Widget[]> {
-    return Array.from(this.widgets.values());
+    return await db.select().from(widgets);
   }
 
   async getWidget(id: string): Promise<Widget | undefined> {
-    return this.widgets.get(id);
+    const result = await db.select().from(widgets).where(eq(widgets.id, id));
+    return result[0];
   }
 
-  async createWidget(insertWidget: InsertWidget): Promise<Widget> {
-    const id = randomUUID();
-    const widget: Widget = { 
-      id, 
-      type: insertWidget.type as "notes" | "priorities" | "revenue" | "iframe",
-      title: insertWidget.title,
-      content: insertWidget.content ?? {},
-      collapsed: insertWidget.collapsed ?? false,
-      layout: insertWidget.layout as LayoutItem | null,
-    };
-    this.widgets.set(id, widget);
-    return widget;
+  async createWidget(widget: InsertWidget): Promise<Widget> {
+    const result = await db.insert(widgets).values(widget).returning();
+    return result[0];
   }
 
   async updateWidget(id: string, updates: Partial<Widget>): Promise<Widget | undefined> {
-    const widget = this.widgets.get(id);
-    if (!widget) return undefined;
-    const updated = { ...widget, ...updates };
-    this.widgets.set(id, updated);
-    return updated;
+    const result = await db
+      .update(widgets)
+      .set(updates)
+      .where(eq(widgets.id, id))
+      .returning();
+    return result[0];
   }
 
   async deleteWidget(id: string): Promise<boolean> {
-    return this.widgets.delete(id);
+    const result = await db.delete(widgets).where(eq(widgets.id, id)).returning();
+    return result.length > 0;
   }
 
   // Dashboard Layouts
   async getLayout(userId: string): Promise<DashboardLayout | undefined> {
-    return this.layouts.get(userId);
+    const result = await db
+      .select()
+      .from(dashboardLayouts)
+      .where(eq(dashboardLayouts.userId, userId));
+    return result[0];
   }
 
   async saveLayout(userId: string, layouts: LayoutItem[]): Promise<DashboardLayout> {
-    const existing = this.layouts.get(userId);
+    const existing = await this.getLayout(userId);
     if (existing) {
-      const updated = { ...existing, layouts };
-      this.layouts.set(userId, updated);
-      return updated;
+      const result = await db
+        .update(dashboardLayouts)
+        .set({ layouts })
+        .where(eq(dashboardLayouts.id, existing.id))
+        .returning();
+      return result[0];
     }
-    const layout: DashboardLayout = {
-      id: randomUUID(),
-      userId,
-      layouts,
-    };
-    this.layouts.set(userId, layout);
-    return layout;
+    const result = await db
+      .insert(dashboardLayouts)
+      .values({ userId, layouts })
+      .returning();
+    return result[0];
   }
 
   // Ventures
   async getVentures(): Promise<Venture[]> {
-    return Array.from(this.ventures.values());
+    return await db.select().from(ventures);
   }
 
   async getVenture(id: string): Promise<Venture | undefined> {
-    return this.ventures.get(id);
+    const result = await db.select().from(ventures).where(eq(ventures.id, id));
+    return result[0];
   }
 
-  async createVenture(insertVenture: InsertVenture): Promise<Venture> {
-    const id = randomUUID();
-    const venture: Venture = { 
-      id, 
-      name: insertVenture.name,
-      color: insertVenture.color ?? "#3B82F6",
-    };
-    this.ventures.set(id, venture);
-    return venture;
+  async createVenture(venture: InsertVenture): Promise<Venture> {
+    const result = await db.insert(ventures).values(venture).returning();
+    return result[0];
   }
 
   async deleteVenture(id: string): Promise<boolean> {
-    // Also delete associated priorities and revenue data
-    const prioritiesToDelete: string[] = [];
-    const revenueToDelete: string[] = [];
-    
-    this.priorities.forEach((priority, priorityId) => {
-      if (priority.ventureId === id) {
-        prioritiesToDelete.push(priorityId);
-      }
-    });
-    
-    this.revenueData.forEach((revenue, revenueId) => {
-      if (revenue.ventureId === id) {
-        revenueToDelete.push(revenueId);
-      }
-    });
-    
-    prioritiesToDelete.forEach(pid => this.priorities.delete(pid));
-    revenueToDelete.forEach(rid => this.revenueData.delete(rid));
-    
-    return this.ventures.delete(id);
+    // Priorities and revenue data will be cascade deleted due to FK constraints
+    const result = await db.delete(ventures).where(eq(ventures.id, id)).returning();
+    return result.length > 0;
   }
 
   // Priorities
   async getPriorities(ventureId: string): Promise<Priority[]> {
-    return Array.from(this.priorities.values())
-      .filter((p) => p.ventureId === ventureId)
-      .sort((a, b) => a.order - b.order);
+    return await db
+      .select()
+      .from(priorities)
+      .where(eq(priorities.ventureId, ventureId))
+      .orderBy(priorities.order);
   }
 
-  async createPriority(insertPriority: InsertPriority): Promise<Priority> {
-    const id = randomUUID();
-    const priority: Priority = { 
-      id, 
-      ventureId: insertPriority.ventureId,
-      text: insertPriority.text,
-      completed: insertPriority.completed ?? false,
-      order: insertPriority.order ?? 0,
-    };
-    this.priorities.set(id, priority);
-    return priority;
+  async createPriority(priority: InsertPriority): Promise<Priority> {
+    const result = await db.insert(priorities).values(priority).returning();
+    return result[0];
   }
 
   async updatePriority(id: string, updates: Partial<Priority>): Promise<Priority | undefined> {
-    const priority = this.priorities.get(id);
-    if (!priority) return undefined;
-    const updated = { ...priority, ...updates };
-    this.priorities.set(id, updated);
-    return updated;
+    const result = await db
+      .update(priorities)
+      .set(updates)
+      .where(eq(priorities.id, id))
+      .returning();
+    return result[0];
   }
 
   async deletePriority(id: string): Promise<boolean> {
-    return this.priorities.delete(id);
+    const result = await db.delete(priorities).where(eq(priorities.id, id)).returning();
+    return result.length > 0;
   }
 
   // Revenue Data
   async getRevenueData(ventureId: string): Promise<RevenueData[]> {
-    return Array.from(this.revenueData.values()).filter(
-      (r) => r.ventureId === ventureId
-    );
+    return await db
+      .select()
+      .from(revenueData)
+      .where(eq(revenueData.ventureId, ventureId));
   }
 
-  async createRevenueData(insertData: InsertRevenueData): Promise<RevenueData> {
-    const id = randomUUID();
-    const data: RevenueData = { 
-      id, 
-      ventureId: insertData.ventureId,
-      month: insertData.month,
-      amount: insertData.amount ?? 0,
-      year: insertData.year,
-    };
-    this.revenueData.set(id, data);
-    return data;
+  async createRevenueData(data: InsertRevenueData): Promise<RevenueData> {
+    const result = await db.insert(revenueData).values(data).returning();
+    return result[0];
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
