@@ -71,18 +71,21 @@ shared/
 - `POST /api/revenue` - Create revenue data point
 
 ## Widget Types
-1. **Notes** - Markdown editor with syntax highlighting for code blocks
+1. **Notes** - Markdown editor with syntax highlighting for code blocks, color-coded backgrounds with auto-adjusting text colors
 2. **Priorities** - Track top 3 priorities per business venture
-3. **Revenue** - Line/bar charts showing revenue data
+3. **Revenue** - Line/bar charts showing revenue data with individual transaction support
 4. **Iframe** - Embed external tools and websites
 
 ## Features
-- Drag-and-drop widget positioning
-- Widget resizing (can stretch to full screen width)
+- Drag-and-drop widget positioning (drag via grip icon)
+- Widget resizing from all 8 directions (corners and sides)
+- Editable widget titles (click title to edit)
 - Collapse/expand widgets
 - Dark/light theme toggle
 - Layout persistence
 - Venture management with color coding
+- Notes color-coding with 9 color options (auto-adjusting text contrast)
+- Revenue data with descriptions (add customer payments, invoices, etc.)
 - Revenue data editing (add/edit/delete entries)
 - Mobile responsive layout (single column on small screens)
 - Confirmation dialogs before deletions
