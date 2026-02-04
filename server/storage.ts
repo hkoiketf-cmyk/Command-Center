@@ -97,11 +97,11 @@ export class MemStorage implements IStorage {
     const id = randomUUID();
     const widget: Widget = { 
       id, 
-      type: insertWidget.type,
+      type: insertWidget.type as "notes" | "priorities" | "revenue" | "iframe",
       title: insertWidget.title,
       content: insertWidget.content ?? {},
       collapsed: insertWidget.collapsed ?? false,
-      layout: insertWidget.layout ?? null,
+      layout: insertWidget.layout as LayoutItem | null,
     };
     this.widgets.set(id, widget);
     return widget;
@@ -162,16 +162,24 @@ export class MemStorage implements IStorage {
 
   async deleteVenture(id: string): Promise<boolean> {
     // Also delete associated priorities and revenue data
-    for (const [priorityId, priority] of this.priorities.entries()) {
+    const prioritiesToDelete: string[] = [];
+    const revenueToDelete: string[] = [];
+    
+    this.priorities.forEach((priority, priorityId) => {
       if (priority.ventureId === id) {
-        this.priorities.delete(priorityId);
+        prioritiesToDelete.push(priorityId);
       }
-    }
-    for (const [revenueId, revenue] of this.revenueData.entries()) {
+    });
+    
+    this.revenueData.forEach((revenue, revenueId) => {
       if (revenue.ventureId === id) {
-        this.revenueData.delete(revenueId);
+        revenueToDelete.push(revenueId);
       }
-    }
+    });
+    
+    prioritiesToDelete.forEach(pid => this.priorities.delete(pid));
+    revenueToDelete.forEach(rid => this.revenueData.delete(rid));
+    
     return this.ventures.delete(id);
   }
 

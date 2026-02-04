@@ -118,7 +118,7 @@ export function PrioritiesWidget({ content, onContentChange }: PrioritiesWidgetP
                     {index + 1}
                   </span>
                   <Checkbox
-                    checked={priority.completed}
+                    checked={priority.completed ?? false}
                     onCheckedChange={(checked) =>
                       togglePriority.mutate({
                         id: priority.id,

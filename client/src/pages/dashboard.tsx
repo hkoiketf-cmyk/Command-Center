@@ -1,6 +1,6 @@
 import { useCallback, useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import GridLayout, { Layout } from "react-grid-layout";
+import GridLayout from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import { Zap } from "lucide-react";
@@ -15,6 +15,17 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Widget, WidgetType, LayoutItem, NotesContent, PrioritiesContent, RevenueContent, IframeContent } from "@shared/schema";
+
+type GridLayoutItem = {
+  i: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  minW?: number;
+  minH?: number;
+  isResizable?: boolean;
+};
 
 const GRID_COLS = 12;
 const ROW_HEIGHT = 50;
@@ -108,7 +119,7 @@ export default function Dashboard() {
   });
 
   const handleLayoutChange = useCallback(
-    (newLayout: Layout[]) => {
+    (newLayout: GridLayoutItem[]) => {
       const updates = newLayout.map((l) => ({
         id: l.i,
         layout: {
@@ -140,7 +151,7 @@ export default function Dashboard() {
     });
   };
 
-  const currentLayout: Layout[] = widgets.map((widget) => {
+  const currentLayout: GridLayoutItem[] = widgets.map((widget) => {
     const layout = widget.layout as LayoutItem | undefined;
     const size = defaultWidgetSizes[widget.type as WidgetType];
     return {
@@ -233,7 +244,7 @@ export default function Dashboard() {
             cols={GRID_COLS}
             rowHeight={ROW_HEIGHT}
             width={containerWidth}
-            onLayoutChange={handleLayoutChange}
+            onLayoutChange={handleLayoutChange as any}
             draggableHandle=".widget-drag-handle"
             compactType="vertical"
             preventCollision={false}
