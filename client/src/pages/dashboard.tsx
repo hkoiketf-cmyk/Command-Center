@@ -27,23 +27,39 @@ type GridLayoutItem = {
   isResizable?: boolean;
 };
 
-const GRID_COLS = 12;
 const ROW_HEIGHT = 50;
 
 const defaultWidgetSizes: Record<WidgetType, { w: number; h: number; minW: number; minH: number }> = {
-  notes: { w: 4, h: 6, minW: 2, minH: 4 },
-  priorities: { w: 4, h: 6, minW: 3, minH: 5 },
-  revenue: { w: 6, h: 7, minW: 4, minH: 5 },
-  iframe: { w: 6, h: 8, minW: 3, minH: 4 },
+  notes: { w: 4, h: 6, minW: 1, minH: 3 },
+  priorities: { w: 4, h: 6, minW: 1, minH: 4 },
+  revenue: { w: 6, h: 7, minW: 2, minH: 4 },
+  iframe: { w: 6, h: 8, minW: 1, minH: 3 },
 };
 
 export default function Dashboard() {
   const { toast } = useToast();
   const [containerWidth, setContainerWidth] = useState(1200);
+  const [isMobile, setIsMobile] = useState(false);
 
   const { data: widgets = [], isLoading } = useQuery<Widget[]>({
     queryKey: ["/api/widgets"],
   });
+
+  useEffect(() => {
+    const handleResize = () => {
+      const container = document.getElementById("dashboard-container");
+      if (container) {
+        setContainerWidth(container.offsetWidth);
+      }
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const gridCols = isMobile ? 1 : 12;
 
   const addWidget = useMutation({
     mutationFn: async (data: { type: WidgetType; title: string }) => {
@@ -92,19 +108,6 @@ export default function Dashboard() {
     },
   });
 
-  useEffect(() => {
-    const handleResize = () => {
-      const container = document.getElementById("dashboard-container");
-      if (container) {
-        setContainerWidth(container.offsetWidth);
-      }
-    };
-
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
   const updateWidgetLayout = useMutation({
     mutationFn: async (updates: { id: string; layout: LayoutItem }[]) => {
       await Promise.all(
@@ -120,21 +123,25 @@ export default function Dashboard() {
 
   const handleLayoutChange = useCallback(
     (newLayout: GridLayoutItem[]) => {
-      const updates = newLayout.map((l) => ({
-        id: l.i,
-        layout: {
-          i: l.i,
-          x: l.x,
-          y: l.y,
-          w: l.w,
-          h: l.h,
-          minW: l.minW,
-          minH: l.minH,
-        },
-      }));
+      const updates = newLayout.map((l) => {
+        const widget = widgets.find(w => w.id === l.i);
+        const size = widget ? defaultWidgetSizes[widget.type as WidgetType] : defaultWidgetSizes.notes;
+        return {
+          id: l.i,
+          layout: {
+            i: l.i,
+            x: l.x,
+            y: l.y,
+            w: l.w,
+            h: l.h,
+            minW: size.minW,
+            minH: size.minH,
+          },
+        };
+      });
       updateWidgetLayout.mutate(updates);
     },
-    [updateWidgetLayout]
+    [updateWidgetLayout, widgets]
   );
 
   const handleToggleCollapse = (widget: Widget) => {
@@ -151,9 +158,23 @@ export default function Dashboard() {
     });
   };
 
-  const currentLayout: GridLayoutItem[] = widgets.map((widget) => {
+  const currentLayout: GridLayoutItem[] = widgets.map((widget, index) => {
     const layout = widget.layout as LayoutItem | undefined;
     const size = defaultWidgetSizes[widget.type as WidgetType];
+    
+    if (isMobile) {
+      return {
+        i: widget.id,
+        x: 0,
+        y: index * (widget.collapsed ? 1 : (layout?.h ?? size.h)),
+        w: 1,
+        h: widget.collapsed ? 1 : (layout?.h ?? size.h),
+        minW: 1,
+        minH: widget.collapsed ? 1 : 3,
+        isResizable: !widget.collapsed,
+      };
+    }
+    
     return {
       i: widget.id,
       x: layout?.x ?? 0,
@@ -204,7 +225,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
@@ -221,7 +242,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main id="dashboard-container" className="container mx-auto px-4 py-6">
+      <main id="dashboard-container" className="px-4 py-6">
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
             <div className="animate-pulse text-muted-foreground">Loading dashboard...</div>
@@ -241,10 +262,10 @@ export default function Dashboard() {
           <GridLayout
             className="layout"
             layout={currentLayout}
-            cols={GRID_COLS}
+            cols={gridCols}
             rowHeight={ROW_HEIGHT}
             width={containerWidth}
-            onLayoutChange={handleLayoutChange as any}
+            onLayoutChange={handleLayoutChange}
             draggableHandle=".widget-drag-handle"
             compactType="vertical"
             preventCollision={false}

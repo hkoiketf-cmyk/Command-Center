@@ -207,5 +207,31 @@ export async function registerRoutes(
     }
   });
 
+  // Update revenue data
+  app.patch("/api/revenue/:id", async (req, res) => {
+    try {
+      const data = await storage.updateRevenueData(req.params.id, req.body);
+      if (!data) {
+        return res.status(404).json({ error: "Revenue data not found" });
+      }
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update revenue data" });
+    }
+  });
+
+  // Delete revenue data
+  app.delete("/api/revenue/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteRevenueData(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Revenue data not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete revenue data" });
+    }
+  });
+
   return httpServer;
 }

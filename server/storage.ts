@@ -53,6 +53,8 @@ export interface IStorage {
   // Revenue Data
   getRevenueData(ventureId: string): Promise<RevenueData[]>;
   createRevenueData(data: InsertRevenueData): Promise<RevenueData>;
+  updateRevenueData(id: string, updates: Partial<RevenueData>): Promise<RevenueData | undefined>;
+  deleteRevenueData(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -187,6 +189,20 @@ export class DatabaseStorage implements IStorage {
   async createRevenueData(data: InsertRevenueData): Promise<RevenueData> {
     const result = await db.insert(revenueData).values(data).returning();
     return result[0];
+  }
+
+  async updateRevenueData(id: string, updates: Partial<RevenueData>): Promise<RevenueData | undefined> {
+    const result = await db
+      .update(revenueData)
+      .set(updates)
+      .where(eq(revenueData.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteRevenueData(id: string): Promise<boolean> {
+    const result = await db.delete(revenueData).where(eq(revenueData.id, id)).returning();
+    return result.length > 0;
   }
 }
 
