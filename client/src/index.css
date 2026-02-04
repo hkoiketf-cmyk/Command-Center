@@ -197,6 +197,31 @@
  */
 @layer utilities {
 
+  /* React Grid Layout styles */
+  .react-grid-item.react-grid-placeholder {
+    @apply bg-primary/20 rounded-lg border-2 border-dashed border-primary;
+  }
+
+  .react-grid-item > .react-resizable-handle {
+    @apply opacity-0 transition-opacity;
+  }
+
+  .react-grid-item:hover > .react-resizable-handle {
+    @apply opacity-100;
+  }
+
+  .react-grid-item > .react-resizable-handle::after {
+    @apply border-muted-foreground;
+  }
+
+  .widget-drag-handle {
+    cursor: grab;
+  }
+
+  .widget-drag-handle:active {
+    cursor: grabbing;
+  }
+
   /* Hide ugly search cancel button in Chrome until we can style it properly */
   input[type="search"]::-webkit-search-cancel-button {
     @apply hidden;
