@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3.2.1 FitLabs - Science-Based Transformation for Women in Midlife</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #3A3A3A;
+            background-color: #F7F7F7;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Hero Section */
+        .hero {
+            background-color: #6B8B9E;
+            color: white;
+            padding: 80px 20px;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            font-weight: 700;
+            line-height: 1.2;
+            color: #FFFFFF;
+        }
+
+        .hero .subtitle {
+            font-size: 1.5rem;
+            margin-bottom: 30px;
+            font-weight: 300;
+            color: #FFFFFF;
+            opacity: 0.95;
+        }
+
+        .hero .benefits {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin: 40px 0;
+            flex-wrap: wrap;
+        }
+
+        .benefit-item {
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: #FFFFFF;
+        }
+
+        .benefit-item::before {
+            content: "✓ ";
+            color: #8F9F87;
+            font-weight: 700;
+            margin-right: 8px;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background-color: #6B8B9E;
+            color: #FFFFFF;
+            padding: 18px 40px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            text-decoration: none;
+            border-radius: 50px;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+
+        .cta-button:hover {
+            background-color: #5A7A8E;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        }
+
+        .cta-button-secondary {
+            background-color: transparent;
+            border: 2px solid #FFFFFF;
+            color: #FFFFFF;
+        }
+
+        .cta-button-secondary:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-color: #FFFFFF;
+        }
+
+        /* Stats Section */
+        .stats {
+            background-color: #FFFFFF;
+            padding: 60px 20px;
+            border-bottom: 1px solid #E5DCCA;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 40px;
+            text-align: center;
+        }
+
+        .stat-item h3 {
+            font-size: 3rem;
+            color: #6B8B9E;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .stat-item p {
+            font-size: 1.1rem;
+            color: #5A5A5A;
+        }
+
+        /* Protocol Journey Section */
+        .protocol {
+            padding: 80px 20px;
+            background-color: #F7F7F7;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 2.5rem;
+            color: #1C1C1E;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+
+        .section-subtitle {
+            text-align: center;
+            font-size: 1.2rem;
+            color: #5A5A5A;
+            margin-bottom: 60px;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .journey-path {
+            position: relative;
+            max-width: 1000px;
+            margin: 60px auto 0;
+            padding: 40px 20px;
+        }
+
+        /* Journey Steps */
+        .journey-steps {
+            position: relative;
+            z-index: 2;
+        }
+
+        .journey-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 30px;
+            margin-bottom: 100px;
+            opacity: 0;
+            animation: fadeInUp 0.6s ease forwards;
+            position: relative;
+        }
+
+        .journey-step:nth-child(1) { animation-delay: 0.1s; }
+        .journey-step:nth-child(2) { animation-delay: 0.2s; margin-left: auto; flex-direction: row-reverse; }
+        .journey-step:nth-child(3) { animation-delay: 0.3s; }
+        .journey-step:nth-child(4) { animation-delay: 0.4s; margin-left: auto; flex-direction: row-reverse; }
+        .journey-step:nth-child(5) { animation-delay: 0.5s; }
+        .journey-step:nth-child(6) { animation-delay: 0.6s; margin-left: auto; flex-direction: row-reverse; }
+        .journey-step:nth-child(7) { animation-delay: 0.7s; margin-bottom: 0; }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .journey-number {
+            flex-shrink: 0;
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #6B8B9E 0%, #5A7A8E 100%);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.2rem;
+            font-weight: 800;
+            box-shadow: 0 8px 24px rgba(107, 139, 158, 0.3);
+            position: relative;
+        }
+
+        .journey-number::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 3px solid #8F9F87;
+            opacity: 0.3;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                opacity: 0.3;
+            }
+            50% {
+                transform: scale(1.15);
+                opacity: 0;
+            }
+        }
+
+        .journey-content {
+            flex: 1;
+            max-width: 500px;
+        }
+
+        .journey-step:nth-child(even) .journey-content {
+            text-align: right;
+        }
+
+        .journey-content h3 {
+            font-size: 1.6rem;
+            color: #1C1C1E;
+            margin-bottom: 12px;
+            font-weight: 700;
+        }
+
+        .journey-content p {
+            color: #3A3A3A;
+            font-size: 15.5px;
+            line-height: 1.7;
+        }
+
+        /* Desktop Arrow Connectors */
+        .journey-step::after {
+            content: '⤵';
+            position: absolute;
+            font-size: 4rem;
+            color: #8F9F87;
+            opacity: 0.5;
+            bottom: -70px;
+            z-index: 1;
+        }
+
+        .journey-step:nth-child(odd)::after {
+            right: 35%;
+        }
+
+        .journey-step:nth-child(even)::after {
+            left: 35%;
+            transform: scaleX(-1);
+        }
+
+        .journey-step:nth-child(7)::after {
+            display: none;
+        }
+
+        /* Mobile Journey Layout */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 1.75rem;
+            }
+
+            .hero .subtitle {
+                font-size: 1.1rem;
+            }
+
+            .hero .benefits {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .section-title {
+                font-size: 1.75rem;
+            }
+
+            .section-subtitle {
+                font-size: 1rem;
+                padding: 0 10px;
+            }
+
+            .journey-path {
+                padding: 20px 10px;
+            }
+
+            .journey-step {
+                flex-direction: column !important;
+                align-items: center;
+                text-align: center;
+                margin-left: 0 !important;
+                margin-bottom: 70px !important;
+                gap: 20px;
+            }
+
+            .journey-step:nth-child(even) .journey-content {
+                text-align: center;
+            }
+
+            .journey-content {
+                max-width: 100%;
+                padding: 0 10px;
+            }
+
+            .journey-number {
+                width: 70px;
+                height: 70px;
+                font-size: 1.8rem;
+            }
+
+            .journey-content h3 {
+                font-size: 1.3rem;
+            }
+
+            .journey-content p {
+                font-size: 14px;
+            }
+
+            /* Mobile Arrow - Simple Down Arrow */
+            .journey-step::after {
+                content: '↓';
+                font-size: 2.5rem !important;
+                left: 50% !important;
+                right: auto !important;
+                transform: translateX(-50%) !important;
+                bottom: -50px !important;
+            }
+
+            .journey-step:nth-child(7)::after {
+                display: none;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 30px;
+            }
+
+            .stat-item h3 {
+                font-size: 2.2rem;
+            }
+
+            .stat-item p {
+                font-size: 0.95rem;
+            }
+        }
+
+        /* Extra small mobile */
+        @media (max-width: 480px) {
+            .hero {
+                padding: 60px 15px;
+            }
+
+            .hero h1 {
+                font-size: 1.5rem;
+            }
+
+            .hero .subtitle {
+                font-size: 1rem;
+            }
+
+            .cta-button {
+                padding: 15px 30px;
+                font-size: 1rem;
+                width: 100%;
+            }
+
+            .section-title {
+                font-size: 1.5rem;
+            }
+
+            .journey-number {
+                width: 60px;
+                height: 60px;
+                font-size: 1.5rem;
+            }
+
+            .journey-content h3 {
+                font-size: 1.2rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Founders Section */
+        .founders {
+            background-color: #1C1C1E;
+            color: #F7F7F7;
+            padding: 60px 20px;
+            text-align: center;
+        }
+
+        .founders-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .founders-content h2 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            color: #FFFFFF;
+        }
+
+        .founders-content p {
+            font-size: 1.2rem;
+            line-height: 1.8;
+            color: #F7F7F7;
+            margin-bottom: 30px;
+        }
+
+        .founders-link {
+            display: inline-block;
+            color: #8F9F87;
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-decoration: none;
+            border-bottom: 2px solid #8F9F87;
+            transition: all 0.3s ease;
+            padding-bottom: 5px;
+        }
+
+        .founders-link:hover {
+            color: #FFFFFF;
+            border-bottom-color: #FFFFFF;
+        }
+
+        /* Lead Magnet Section */
+        .lead-magnet {
+            background-color: #F0F5F0;
+            padding: 80px 20px;
+            text-align: center;
+            border-top: 1px solid #E5DCCA;
+            border-bottom: 1px solid #E5DCCA;
+        }
+
+        .lead-magnet h2 {
+            font-size: 2.5rem;
+            color: #1C1C1E;
+            margin-bottom: 20px;
+        }
+
+        .lead-magnet p {
+            font-size: 1.3rem;
+            color: #3A3A3A;
+            margin-bottom: 40px;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .assessment-cta {
+            display: inline-block;
+            background-color: #6B8B9E;
+            color: white;
+            padding: 20px 50px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.3rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+
+        .assessment-cta:hover {
+            background-color: #5A7A8E;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        }
+
+        @media (max-width: 768px) {
+            .founders-content h2 {
+                font-size: 1.75rem;
+            }
+
+            .founders-content p {
+                font-size: 1rem;
+            }
+
+            .lead-magnet h2 {
+                font-size: 1.75rem;
+            }
+
+            .lead-magnet p {
+                font-size: 1rem;
+                padding: 0 15px;
+            }
+
+            .assessment-cta {
+                padding: 18px 35px;
+                font-size: 1.1rem;
+            }
+        }
+
+        /* Testimonials */
+        .testimonials {
+            padding: 80px 20px;
+            background-color: #FFFFFF;
+        }
+
+        .testimonial-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 40px;
+            margin-top: 40px;
+        }
+
+        .testimonial-card {
+            background: #F7F7F7;
+            padding: 35px;
+            border-radius: 8px;
+            border-left: 5px solid #8F9F87;
+        }
+
+        .testimonial-quote {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: #3A3A3A;
+            margin-bottom: 20px;
+            font-style: italic;
+        }
+
+        .testimonial-author {
+            font-weight: 600;
+            color: #1C1C1E;
+            font-size: 1.1rem;
+        }
+
+        .testimonial-meta {
+            color: #5A5A5A;
+            font-size: 0.95rem;
+        }
+
+        .stars {
+            color: #6B8B9E;
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+        }
+
+        @media (max-width: 768px) {
+            .testimonials {
+                padding: 60px 20px;
+            }
+
+            .testimonial-grid {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+
+            .testimonial-card {
+                padding: 25px;
+            }
+
+            .testimonial-quote {
+                font-size: 1rem;
+            }
+        }
+
+        /* Community Section */
+        .community {
+            background-color: #8F9F87;
+            color: #FFFFFF;
+            padding: 80px 20px;
+            text-align: center;
+        }
+
+        .community-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 40px;
+            margin: 50px 0;
+        }
+
+        .community-feature {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 30px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .community-feature h3 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: #FFFFFF;
+        }
+
+        .community-feature p {
+            color: #FFFFFF;
+        }
+
+        @media (max-width: 768px) {
+            .community {
+                padding: 60px 20px;
+            }
+
+            .community-features {
+                grid-template-columns: 1fr;
+                gap: 25px;
+                margin: 40px 0;
+            }
+
+            .community-feature {
+                padding: 25px;
+            }
+
+            .community-feature h3 {
+                font-size: 1.3rem;
+            }
+        }
+
+        /* Footer */
+        .footer {
+            background-color: #1C1C1E;
+            color: #A3A9B0;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .footer-links a {
+            color: #A3A9B0;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .footer-links a:hover {
+            color: #FFFFFF;
+        }
+
+        @media (max-width: 768px) {
+            .footer-links {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .footer-links a {
+                font-size: 0.95rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <h1>Science-Based Transformation for Women in Midlife</h1>
+            <p class="subtitle">A 6-week protocol that helps women ages 40-50 lose fat, gain strength and energy—without burnout</p>
+            
+            <div class="benefits">
+                <div class="benefit-item">Science-Based</div>
+                <div class="benefit-item">Habit-Stacking</div>
+                <div class="benefit-item">Sustainable Results</div>
+            </div>
+
+            <div style="margin-top: 40px; display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
+                <a href="https://www.321fitlabs.com/3-2-1-protocol-free-assessment" class="cta-button">Get Your Free Assessment</a>
+                <a href="#protocol" class="cta-button cta-button-secondary">Learn How It Works</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="stats">
+        <div class="container">
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <h3>1000+</h3>
+                    <p>Women Transformed</p>
+                </div>
+                <div class="stat-item">
+                    <h3>92%</h3>
+                    <p>Success Rate</p>
+                </div>
+                <div class="stat-item">
+                    <h3>15lbs</h3>
+                    <p>Average Weight Loss</p>
+                </div>
+                <div class="stat-item">
+                    <h3>6 Weeks</h3>
+                    <p>To Transformation</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Protocol Journey Section -->
+    <section class="protocol" id="protocol">
+        <div class="container">
+            <h2 class="section-title">The 3.2.1 Protocol: Your 7-Step Journey</h2>
+            <p class="section-subtitle">Our scientifically-designed system works with your body, not against it</p>
+
+            <div class="journey-path">
+                <div class="journey-steps">
+                    <div class="journey-step">
+                        <div class="journey-number">1</div>
+                        <div class="journey-content">
+                            <h3>Meet You Where You Are</h3>
+                            <p>Personalized assessment of your current fitness, energy levels, and lifestyle to create your custom starting point.</p>
+                        </div>
+                    </div>
+
+                    <div class="journey-step">
+                        <div class="journey-number">2</div>
+                        <div class="journey-content">
+                            <h3>Set the Foundation</h3>
+                            <p>Establish sustainable habits around sleep, hydration, and stress management that support lasting change.</p>
+                        </div>
+                    </div>
+
+                    <div class="journey-step">
+                        <div class="journey-number">3</div>
+                        <div class="journey-content">
+                            <h3>Train Your Way</h3>
+                            <p>Adaptive workouts designed for your body's needs—building strength without overwhelming your system.</p>
+                        </div>
+                    </div>
+
+                    <div class="journey-step">
+                        <div class="journey-number">4</div>
+                        <div class="journey-content">
+                            <h3>Stack Smart Habits</h3>
+                            <p>Layer new behaviors onto existing routines, making healthy choices automatic and effortless.</p>
+                        </div>
+                    </div>
+
+                    <div class="journey-step">
+                        <div class="journey-number">5</div>
+                        <div class="journey-content">
+                            <h3>Stay Accountable</h3>
+                            <p>Regular check-ins, progress tracking, and community support to keep you on track.</p>
+                        </div>
+                    </div>
+
+                    <div class="journey-step">
+                        <div class="journey-number">6</div>
+                        <div class="journey-content">
+                            <h3>Learn While You Go</h3>
+                            <p>Weekly "Knowledge Power Hours" that educate you on the science behind your transformation.</p>
+                        </div>
+                    </div>
+
+                    <div class="journey-step">
+                        <div class="journey-number">7</div>
+                        <div class="journey-content">
+                            <h3>Finish Strong</h3>
+                            <p>Celebrate your results and establish a maintenance plan that keeps you energized for life.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Founders Section -->
+    <section class="founders">
+        <div class="container">
+            <div class="founders-content">
+                <h2>Meet Your Transformation Guides</h2>
+                <p>The 3.2.1 Protocol was created by a unique partnership combining years of fitness expertise with engineering precision. Our approach blends real-world coaching experience with systematic design to create a program that delivers sustainable, science-based results.</p>
+                <a href="https://www.321fitlabs.com/about-us" class="founders-link">Learn More About Our Story →</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Assessment CTA Section -->
+    <section class="lead-magnet" id="assessment">
+        <div class="container">
+            <h2>Get Your Free 30-Day Personalized Assessment</h2>
+            <p>Discover your custom transformation plan with our comprehensive assessment. We'll analyze your current fitness level, lifestyle, and goals to create your personalized roadmap to success.</p>
+
+            <a href="https://www.321fitlabs.com/3-2-1-protocol-free-assessment" class="assessment-cta">Take Your Free Assessment Now</a>
+
+            <p style="margin-top: 30px; font-size: 0.95rem; color: #5A5A5A;">No credit card required. Get your personalized recommendations in minutes.</p>
+        </div>
+    </section>
+
+    <!-- Testimonials Section -->
+    <section class="testimonials">
+        <div class="container">
+            <h2 class="section-title">Real Women, Real Results</h2>
+            <p class="section-subtitle">See how the 3.2.1 Protocol has transformed lives</p>
+
+            <div class="testimonial-grid">
+                <div class="testimonial-card">
+                    <div class="stars">★★★★★</div>
+                    <p class="testimonial-quote">"After trying every diet and workout program out there, the 3.2.1 Protocol was the first thing that actually worked with my body instead of fighting against it. I lost 18 pounds and gained energy I haven't had in years!"</p>
+                    <p class="testimonial-author">Sarah M.</p>
+                    <p class="testimonial-meta">Age 47, Lost 18 lbs</p>
+                </div>
+
+                <div class="testimonial-card">
+                    <div class="stars">★★★★★</div>
+                    <p class="testimonial-quote">"The habit-stacking approach made everything feel doable. I'm not just thinner—I'm stronger, more confident, and I finally understand how to maintain these results for life."</p>
+                    <p class="testimonial-author">Jennifer K.</p>
+                    <p class="testimonial-meta">Age 43, Lost 14 lbs</p>
+                </div>
+
+                <div class="testimonial-card">
+                    <div class="stars">★★★★★</div>
+                    <p class="testimonial-quote">"I loved the weekly Knowledge Power Hours. Understanding the science behind what I was doing made me feel empowered and in control of my health for the first time in decades."</p>
+                    <p class="testimonial-author">Lisa R.</p>
+                    <p class="testimonial-meta">Age 49, Lost 12 lbs</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Community Section -->
+    <section class="community">
+        <div class="container">
+            <h2 class="section-title" style="color: white;">Join a Supportive Community</h2>
+            <p class="section-subtitle" style="color: #FFFFFF;">You're not alone on this journey</p>
+
+            <div class="community-features">
+                <div class="community-feature">
+                    <h3>🎯 Weekly Power Hours</h3>
+                    <p>Live knowledge sessions where you learn the science behind your transformation</p>
+                </div>
+
+                <div class="community-feature">
+                    <h3>💪 Group Support</h3>
+                    <p>Connect with other women going through the same journey in our private community</p>
+                </div>
+
+                <div class="community-feature">
+                    <h3>📱 Direct Coach Access</h3>
+                    <p>Get your questions answered by our experienced coaching team</p>
+                </div>
+
+                <div class="community-feature">
+                    <h3>🎉 Accountability Partners</h3>
+                    <p>Buddy challenge option to transform alongside a friend or family member</p>
+                </div>
+            </div>
+
+            <div style="margin-top: 50px;">
+                <a href="https://www.321fitlabs.com/3-2-1-protocol-free-assessment" class="cta-button">Start Your Transformation Today</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-links">
+                <a href="#protocol">Six-Week Protocol</a>
+                <a href="#">Longevity Protocol</a>
+                <a href="https://www.321fitlabs.com/3-2-1-protocol-free-assessment">Assessment</a>
+                <a href="https://www.321fitlabs.com/about-us">About Us</a>
+                <a href="#">Gym Partners</a>
+                <a href="#">Blog</a>
+                <a href="#">Contact</a>
+            </div>
+            <p style="margin-top: 20px; color: #A3A9B0;">&copy; 2025 3.2.1 FitLabs. All rights reserved.</p>
+        </div>
+    </footer>
+</body>
+</html>
