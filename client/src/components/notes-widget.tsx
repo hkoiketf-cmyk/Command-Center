@@ -1,13 +1,7 @@
-import { useState, useEffect } from "react";
-import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Palette } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { Palette, Bold, Italic, Heading1, Heading2, List, ListOrdered, Minus } from "lucide-react";
 import type { NotesContent } from "@shared/schema";
 
 interface NotesWidgetProps {
@@ -33,26 +27,50 @@ function getTextColorForBackground(bgColor: string): string {
 }
 
 export function NotesWidget({ content, onContentChange }: NotesWidgetProps) {
-  const [markdown, setMarkdown] = useState(content?.markdown || "");
-  const [backgroundColor, setBackgroundColor] = useState(content?.backgroundColor || "");
-  const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
+  const editorRef = useRef<HTMLDivElement>(null);
+  const backgroundColor = content?.backgroundColor || "";
+  const textColor = getTextColorForBackground(backgroundColor);
+  const isInitialized = useRef(false);
 
   useEffect(() => {
-    setMarkdown(content?.markdown || "");
-    setBackgroundColor(content?.backgroundColor || "");
-  }, [content?.markdown, content?.backgroundColor]);
+    if (editorRef.current && !isInitialized.current) {
+      editorRef.current.innerHTML = content?.markdown || "";
+      isInitialized.current = true;
+    }
+  }, []);
 
-  const handleChange = (value: string) => {
-    setMarkdown(value);
-    onContentChange({ markdown: value, backgroundColor });
-  };
+  useEffect(() => {
+    if (editorRef.current && content?.markdown !== undefined) {
+      const currentHtml = editorRef.current.innerHTML;
+      if (currentHtml !== content.markdown && !document.activeElement?.isSameNode(editorRef.current)) {
+        editorRef.current.innerHTML = content.markdown;
+      }
+    }
+  }, [content?.markdown]);
+
+  const handleInput = useCallback(() => {
+    if (editorRef.current) {
+      const html = editorRef.current.innerHTML;
+      onContentChange({ markdown: html, backgroundColor });
+    }
+  }, [onContentChange, backgroundColor]);
 
   const handleColorChange = (color: string) => {
-    setBackgroundColor(color);
-    onContentChange({ markdown, backgroundColor: color });
+    onContentChange({ markdown: content?.markdown || "", backgroundColor: color });
   };
 
-  const textColor = getTextColorForBackground(backgroundColor);
+  const execCommand = (command: string, value?: string) => {
+    document.execCommand(command, false, value);
+    editorRef.current?.focus();
+    handleInput();
+  };
+
+  const formatHeading = (tag: string) => {
+    document.execCommand("formatBlock", false, tag);
+    editorRef.current?.focus();
+    handleInput();
+  };
+
   const containerStyle = {
     ...(backgroundColor ? { backgroundColor } : {}),
     ...(textColor ? { color: textColor } : {}),
@@ -60,108 +78,124 @@ export function NotesWidget({ content, onContentChange }: NotesWidgetProps) {
 
   return (
     <div className="h-full flex flex-col rounded-md" style={containerStyle}>
-      <div className="flex items-center justify-between mb-2">
-        <Tabs
-          value={activeTab}
-          onValueChange={(v) => setActiveTab(v as "edit" | "preview")}
-          className="flex-1"
+      <div className="flex items-center gap-1 mb-2 flex-wrap">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          onClick={() => execCommand("bold")}
+          title="Bold"
+          data-testid="button-format-bold"
         >
-          <div className="flex items-center justify-between gap-2">
-            <TabsList className="h-8">
-              <TabsTrigger value="edit" className="text-xs px-3" data-testid="tab-notes-edit">
-                Edit
-              </TabsTrigger>
-              <TabsTrigger value="preview" className="text-xs px-3" data-testid="tab-notes-preview">
-                Preview
-              </TabsTrigger>
-            </TabsList>
-            
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8"
-                  data-testid="button-note-color"
-                >
-                  <Palette className="h-4 w-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-48 p-2" align="end">
-                <div className="grid grid-cols-3 gap-1">
-                  {NOTE_COLORS.map((color) => (
-                    <button
-                      key={color.name}
-                      onClick={() => handleColorChange(color.value)}
-                      className={`h-8 rounded-md border-2 transition-all ${
-                        backgroundColor === color.value 
-                          ? "border-primary ring-2 ring-primary/20" 
-                          : "border-border hover:border-primary/50"
-                      }`}
-                      style={{ 
-                        backgroundColor: color.value || "var(--background)",
-                      }}
-                      title={color.name}
-                      data-testid={`button-color-${color.name.toLowerCase()}`}
-                    />
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <TabsContent value="edit" className="flex-1 mt-2">
-            <Textarea
-              value={markdown}
-              onChange={(e) => handleChange(e.target.value)}
-              placeholder="Write notes in Markdown...&#10;&#10;Tip: Use ```html for HTML code blocks&#10;Use ```javascript for JS code blocks"
-              className="h-full min-h-[180px] font-mono text-sm resize-none bg-transparent border-current/20"
-              style={{ color: textColor || "inherit" }}
-              data-testid="textarea-notes"
-            />
-          </TabsContent>
-
-          <TabsContent value="preview" className="flex-1 mt-2 overflow-auto">
-            <div className="prose prose-sm dark:prose-invert max-w-none" style={{ color: textColor || "inherit" }}>
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  code({ node, className, children, ...props }) {
-                    const match = /language-(\w+)/.exec(className || "");
-                    const language = match?.[1] || "";
-                    const isInline = !match && !className;
-                    
-                    if (isInline) {
-                      return (
-                        <code
-                          className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono"
-                          {...props}
-                        >
-                          {children}
-                        </code>
-                      );
-                    }
-                    
-                    return (
-                      <SyntaxHighlighter
-                        style={oneDark}
-                        language={language || "text"}
-                        PreTag="div"
-                        className="rounded-md text-sm"
-                        showLineNumbers={language !== ""}
-                      >
-                        {String(children).replace(/\n$/, "")}
-                      </SyntaxHighlighter>
-                    );
-                  },
-                }}
-              >
-                {markdown || "*No content yet...*"}
-              </ReactMarkdown>
+          <Bold className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          onClick={() => execCommand("italic")}
+          title="Italic"
+          data-testid="button-format-italic"
+        >
+          <Italic className="h-3.5 w-3.5" />
+        </Button>
+        <div className="w-px h-5 bg-border mx-1" />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          onClick={() => formatHeading("h1")}
+          title="Heading 1"
+          data-testid="button-format-h1"
+        >
+          <Heading1 className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          onClick={() => formatHeading("h2")}
+          title="Heading 2"
+          data-testid="button-format-h2"
+        >
+          <Heading2 className="h-3.5 w-3.5" />
+        </Button>
+        <div className="w-px h-5 bg-border mx-1" />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          onClick={() => execCommand("insertUnorderedList")}
+          title="Bullet List"
+          data-testid="button-format-ul"
+        >
+          <List className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          onClick={() => execCommand("insertOrderedList")}
+          title="Numbered List"
+          data-testid="button-format-ol"
+        >
+          <ListOrdered className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          onClick={() => execCommand("insertHorizontalRule")}
+          title="Divider"
+          data-testid="button-format-hr"
+        >
+          <Minus className="h-3.5 w-3.5" />
+        </Button>
+        <div className="flex-1" />
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              data-testid="button-note-color"
+            >
+              <Palette className="h-3.5 w-3.5" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-48 p-2" align="end">
+            <div className="grid grid-cols-3 gap-1">
+              {NOTE_COLORS.map((color) => (
+                <button
+                  key={color.name}
+                  onClick={() => handleColorChange(color.value)}
+                  className={`h-8 rounded-md border-2 transition-all ${
+                    backgroundColor === color.value
+                      ? "border-primary ring-2 ring-primary/20"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                  style={{
+                    backgroundColor: color.value || "var(--background)",
+                  }}
+                  title={color.name}
+                  data-testid={`button-color-${color.name.toLowerCase()}`}
+                />
+              ))}
             </div>
-          </TabsContent>
-        </Tabs>
+          </PopoverContent>
+        </Popover>
       </div>
+
+      <div
+        ref={editorRef}
+        contentEditable
+        className="flex-1 overflow-auto p-2 rounded-md border border-current/20 focus:outline-none focus:ring-1 focus:ring-primary/50 min-h-[150px] prose prose-sm dark:prose-invert max-w-none"
+        style={{ color: textColor || "inherit" }}
+        onInput={handleInput}
+        onBlur={handleInput}
+        data-testid="editor-notes"
+        suppressContentEditableWarning
+      />
     </div>
   );
 }

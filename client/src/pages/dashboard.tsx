@@ -9,12 +9,13 @@ import { NotesWidget } from "@/components/notes-widget";
 import { PrioritiesWidget } from "@/components/priorities-widget";
 import { RevenueWidget } from "@/components/revenue-widget";
 import { IframeWidget } from "@/components/iframe-widget";
+import { CodeWidget } from "@/components/code-widget";
 import { AddWidgetDialog } from "@/components/add-widget-dialog";
 import { VentureManager } from "@/components/venture-manager";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Widget, WidgetType, LayoutItem, NotesContent, PrioritiesContent, RevenueContent, IframeContent } from "@shared/schema";
+import type { Widget, WidgetType, LayoutItem, NotesContent, PrioritiesContent, RevenueContent, IframeContent, CodeContent } from "@shared/schema";
 
 type GridLayoutItem = {
   i: string;
@@ -34,6 +35,7 @@ const defaultWidgetSizes: Record<WidgetType, { w: number; h: number; minW: numbe
   priorities: { w: 4, h: 6, minW: 1, minH: 4 },
   revenue: { w: 6, h: 7, minW: 2, minH: 4 },
   iframe: { w: 6, h: 8, minW: 1, minH: 3 },
+  code: { w: 6, h: 8, minW: 2, minH: 4 },
 };
 
 export default function Dashboard() {
@@ -235,6 +237,13 @@ export default function Dashboard() {
         return (
           <IframeWidget
             content={(widget.content as IframeContent) || { url: "" }}
+            onContentChange={(content) => handleContentChange(widget, content)}
+          />
+        );
+      case "code":
+        return (
+          <CodeWidget
+            content={(widget.content as CodeContent) || { code: "", language: "html" }}
             onContentChange={(content) => handleContentChange(widget, content)}
           />
         );

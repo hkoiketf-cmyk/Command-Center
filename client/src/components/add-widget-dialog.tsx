@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, Target, TrendingUp, Globe, Plus } from "lucide-react";
+import { FileText, Target, TrendingUp, Globe, Plus, Code } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -21,8 +21,14 @@ const widgetOptions: { type: WidgetType; label: string; description: string; ico
   {
     type: "notes",
     label: "Notes",
-    description: "Markdown notes with code block support",
+    description: "Sticky notes with formatting",
     icon: FileText,
+  },
+  {
+    type: "code",
+    label: "Code Block",
+    description: "Display code with syntax highlighting",
+    icon: Code,
   },
   {
     type: "priorities",
@@ -33,7 +39,7 @@ const widgetOptions: { type: WidgetType; label: string; description: string; ico
   {
     type: "revenue",
     label: "Revenue",
-    description: "Simple revenue graphs",
+    description: "Customer payments tracking",
     icon: TrendingUp,
   },
   {

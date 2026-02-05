@@ -18,7 +18,7 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
 // Widget types enum
-export const widgetTypes = ["notes", "priorities", "revenue", "iframe"] as const;
+export const widgetTypes = ["notes", "priorities", "revenue", "iframe", "code"] as const;
 export type WidgetType = typeof widgetTypes[number];
 
 // Layout item for react-grid-layout
@@ -133,4 +133,10 @@ export type RevenueContent = {
 // Iframe content type
 export type IframeContent = {
   url: string;
+};
+
+// Code block content type
+export type CodeContent = {
+  code: string;
+  language?: string;
 };
