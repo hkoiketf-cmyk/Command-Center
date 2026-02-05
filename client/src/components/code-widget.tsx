@@ -1,10 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Pencil, Check, Copy } from "lucide-react";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { Code, Eye, Copy, Pencil, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { CodeContent } from "@shared/schema";
 
@@ -13,29 +10,16 @@ interface CodeWidgetProps {
   onContentChange: (content: CodeContent) => void;
 }
 
-const LANGUAGES = [
-  { value: "html", label: "HTML" },
-  { value: "javascript", label: "JavaScript" },
-  { value: "typescript", label: "TypeScript" },
-  { value: "css", label: "CSS" },
-  { value: "python", label: "Python" },
-  { value: "json", label: "JSON" },
-  { value: "sql", label: "SQL" },
-  { value: "bash", label: "Bash" },
-  { value: "text", label: "Plain Text" },
-];
-
 export function CodeWidget({ content, onContentChange }: CodeWidgetProps) {
   const [isEditing, setIsEditing] = useState(!content?.code);
+  const [showCode, setShowCode] = useState(false);
   const [localCode, setLocalCode] = useState(content?.code || "");
-  const [language, setLanguage] = useState(content?.language || "html");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     setLocalCode(content?.code || "");
-    setLanguage(content?.language || "html");
-  }, [content?.code, content?.language]);
+  }, [content?.code]);
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -44,13 +28,8 @@ export function CodeWidget({ content, onContentChange }: CodeWidgetProps) {
   }, [isEditing]);
 
   const handleSave = () => {
-    onContentChange({ code: localCode, language });
+    onContentChange({ code: localCode, language: "html" });
     setIsEditing(false);
-  };
-
-  const handleLanguageChange = (newLang: string) => {
-    setLanguage(newLang);
-    onContentChange({ code: localCode, language: newLang });
   };
 
   const handleCopy = async () => {
@@ -62,39 +41,77 @@ export function CodeWidget({ content, onContentChange }: CodeWidgetProps) {
     }
   };
 
+  const wrapCodeInHtml = (code: string): string => {
+    const trimmed = code.trim();
+    if (trimmed.toLowerCase().startsWith("<!doctype") || trimmed.toLowerCase().startsWith("<html")) {
+      return code;
+    }
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { box-sizing: border-box; }
+    body { 
+      margin: 0; 
+      padding: 16px; 
+      font-family: system-ui, -apple-system, sans-serif;
+      background: transparent;
+    }
+  </style>
+</head>
+<body>
+${code}
+</body>
+</html>`;
+  };
+
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center gap-2 mb-2">
-        <Select value={language} onValueChange={handleLanguageChange}>
-          <SelectTrigger className="w-32 h-8" data-testid="select-code-language">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {LANGUAGES.map((lang) => (
-              <SelectItem key={lang.value} value={lang.value}>
-                {lang.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="flex items-center gap-1 mb-2">
+        {!isEditing && localCode && (
+          <>
+            <Button
+              variant={showCode ? "ghost" : "secondary"}
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => setShowCode(false)}
+              data-testid="button-view-preview"
+            >
+              <Eye className="h-3 w-3 mr-1" />
+              Preview
+            </Button>
+            <Button
+              variant={showCode ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => setShowCode(true)}
+              data-testid="button-view-code"
+            >
+              <Code className="h-3 w-3 mr-1" />
+              Code
+            </Button>
+          </>
+        )}
         <div className="flex-1" />
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8"
+          className="h-7 w-7"
           onClick={handleCopy}
           data-testid="button-copy-code"
         >
-          <Copy className="h-4 w-4" />
+          <Copy className="h-3.5 w-3.5" />
         </Button>
         <Button
           variant={isEditing ? "default" : "ghost"}
           size="icon"
-          className="h-8 w-8"
+          className="h-7 w-7"
           onClick={isEditing ? handleSave : () => setIsEditing(true)}
           data-testid="button-edit-code"
         >
-          {isEditing ? <Check className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+          {isEditing ? <Check className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
         </Button>
       </div>
 
@@ -104,33 +121,31 @@ export function CodeWidget({ content, onContentChange }: CodeWidgetProps) {
           value={localCode}
           onChange={(e) => setLocalCode(e.target.value)}
           onBlur={() => {
-            onContentChange({ code: localCode, language });
+            onContentChange({ code: localCode, language: "html" });
           }}
-          placeholder="Paste your code here..."
+          placeholder="Paste your HTML/JavaScript code here..."
           className="flex-1 font-mono text-sm resize-none min-h-[200px]"
           data-testid="textarea-code"
         />
+      ) : showCode ? (
+        <div className="flex-1 overflow-auto rounded-md bg-zinc-900 p-3">
+          <pre className="text-xs text-zinc-300 font-mono whitespace-pre-wrap break-all">
+            {localCode}
+          </pre>
+        </div>
+      ) : localCode ? (
+        <div className="flex-1 overflow-hidden rounded-md border bg-white">
+          <iframe
+            srcDoc={wrapCodeInHtml(localCode)}
+            className="w-full h-full border-0"
+            sandbox="allow-scripts allow-same-origin"
+            title="Code Preview"
+            data-testid="iframe-code-preview"
+          />
+        </div>
       ) : (
-        <div className="flex-1 overflow-auto rounded-md">
-          {localCode ? (
-            <SyntaxHighlighter
-              style={oneDark}
-              language={language}
-              showLineNumbers
-              customStyle={{
-                margin: 0,
-                borderRadius: "0.375rem",
-                fontSize: "0.75rem",
-                height: "100%",
-              }}
-            >
-              {localCode}
-            </SyntaxHighlighter>
-          ) : (
-            <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
-              Click edit to add code
-            </div>
-          )}
+        <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+          Click edit to add HTML/JavaScript code
         </div>
       )}
     </div>
