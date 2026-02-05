@@ -110,12 +110,20 @@ export function RevenueWidget({ content, onContentChange }: RevenueWidgetProps) 
     return months.indexOf(a.month) - months.indexOf(b.month);
   });
 
+  const monthlyTotals = sortedData.reduce((acc, entry) => {
+    const key = `${entry.month} ${entry.year}`;
+    acc[key] = (acc[key] || 0) + entry.amount;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const uniqueMonths = Array.from(new Set(sortedData.map((d) => `${d.month} ${d.year}`)));
+
   const chartData = {
-    labels: sortedData.map((d) => `${d.month} ${d.year}`),
+    labels: uniqueMonths,
     datasets: [
       {
         label: "Revenue",
-        data: sortedData.map((d) => d.amount),
+        data: uniqueMonths.map((m) => monthlyTotals[m]),
         borderColor: selectedVenture?.color || "hsl(217, 91%, 35%)",
         backgroundColor: chartType === "line" 
           ? `${selectedVenture?.color || "hsl(217, 91%, 35%)"}33`
