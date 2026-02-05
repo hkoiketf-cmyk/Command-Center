@@ -26,6 +26,7 @@ client/
 │   │   ├── theme-toggle.tsx
 │   │   ├── widget-wrapper.tsx
 │   │   ├── notes-widget.tsx
+│   │   ├── code-widget.tsx
 │   │   ├── priorities-widget.tsx
 │   │   ├── revenue-widget.tsx
 │   │   ├── iframe-widget.tsx
@@ -71,10 +72,11 @@ shared/
 - `POST /api/revenue` - Create revenue data point
 
 ## Widget Types
-1. **Notes** - Markdown editor with syntax highlighting for code blocks, color-coded backgrounds with auto-adjusting text colors
-2. **Priorities** - Track top 3 priorities per business venture
-3. **Revenue** - Line/bar charts showing revenue data with individual transaction support
-4. **Iframe** - Embed external tools and websites
+1. **Notes** - Sticky notes with rich text formatting toolbar (bold, italic, headings, lists), color-coded backgrounds with auto-adjusting text colors
+2. **Code Block** - Display code/HTML with syntax highlighting, language selection, and copy functionality
+3. **Priorities** - Track top 3 priorities per business venture
+4. **Revenue** - Customer payment tracking per month with charts
+5. **Iframe** - Embed external tools and websites
 
 ## Features
 - Drag-and-drop widget positioning (drag via grip icon)
