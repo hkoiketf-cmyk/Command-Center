@@ -56,7 +56,8 @@ export function NotesWidget({ content, onContentChange }: NotesWidgetProps) {
   }, [onContentChange, backgroundColor]);
 
   const handleColorChange = (color: string) => {
-    onContentChange({ markdown: content?.markdown || "", backgroundColor: color });
+    const currentContent = editorRef.current?.innerHTML || content?.markdown || "";
+    onContentChange({ markdown: currentContent, backgroundColor: color });
   };
 
   const execCommand = (command: string, value?: string) => {

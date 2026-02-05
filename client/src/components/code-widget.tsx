@@ -103,6 +103,9 @@ export function CodeWidget({ content, onContentChange }: CodeWidgetProps) {
           ref={textareaRef}
           value={localCode}
           onChange={(e) => setLocalCode(e.target.value)}
+          onBlur={() => {
+            onContentChange({ code: localCode, language });
+          }}
           placeholder="Paste your code here..."
           className="flex-1 font-mono text-sm resize-none min-h-[200px]"
           data-testid="textarea-code"
