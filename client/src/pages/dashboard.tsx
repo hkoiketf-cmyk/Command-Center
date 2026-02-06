@@ -3,13 +3,14 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import GridLayout from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
-import { Zap, Plus, Monitor, Trash2, Pencil, Check, X as XIcon } from "lucide-react";
+import { Zap, Plus, Monitor, Trash2, Pencil, Check, X as XIcon, Settings } from "lucide-react";
 import { WidgetWrapper } from "@/components/widget-wrapper";
 import { NotesWidget } from "@/components/notes-widget";
 import { PrioritiesWidget } from "@/components/priorities-widget";
 import { RevenueWidget } from "@/components/revenue-widget";
 import { IframeWidget } from "@/components/iframe-widget";
 import { CodeWidget } from "@/components/code-widget";
+import { ContextModeWidget } from "@/components/context-mode-widget";
 import { AddWidgetDialog } from "@/components/add-widget-dialog";
 import { VentureManager } from "@/components/venture-manager";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -17,9 +18,37 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Widget, WidgetType, LayoutItem, NotesContent, PrioritiesContent, RevenueContent, IframeContent, CodeContent, Desktop } from "@shared/schema";
+import type { Widget, WidgetType, LayoutItem, NotesContent, PrioritiesContent, RevenueContent, IframeContent, CodeContent, Desktop, FocusContract, AppSettings, ExitGuardMode } from "@shared/schema";
 
 type GridLayoutItem = {
   i: string;
@@ -40,6 +69,7 @@ const defaultWidgetSizes: Record<WidgetType, { w: number; h: number; minW: numbe
   revenue: { w: 6, h: 7, minW: 2, minH: 4 },
   iframe: { w: 6, h: 8, minW: 1, minH: 3 },
   code: { w: 6, h: 8, minW: 2, minH: 4 },
+  context_mode: { w: 5, h: 10, minW: 3, minH: 6 },
 };
 
 const BG_COLORS = [
@@ -67,9 +97,55 @@ export default function Dashboard() {
   const [editingDesktopName, setEditingDesktopName] = useState("");
   const [deleteDesktopId, setDeleteDesktopId] = useState<string | null>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
+  const [showContextModal, setShowContextModal] = useState(false);
+  const [pendingDesktopId, setPendingDesktopId] = useState<string | null>(null);
+  const [showExitWarning, setShowExitWarning] = useState(false);
+  const [exitReason, setExitReason] = useState("");
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
 
   const { data: desktopList = [], isLoading: desktopsLoading } = useQuery<Desktop[]>({
     queryKey: ["/api/desktops"],
+  });
+
+  const { data: appSettingsData } = useQuery<AppSettings>({
+    queryKey: ["/api/settings"],
+  });
+
+  const todayDate = new Date().toISOString().split("T")[0];
+
+  const { data: currentContract } = useQuery<FocusContract | null>({
+    queryKey: ["/api/focus-contracts", activeDesktopId, todayDate],
+    queryFn: async () => {
+      if (!activeDesktopId) return null;
+      const res = await fetch(`/api/focus-contracts?desktopId=${activeDesktopId}&date=${todayDate}`);
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    enabled: !!activeDesktopId,
+  });
+
+  const { data: pendingContract } = useQuery<FocusContract | null>({
+    queryKey: ["/api/focus-contracts", pendingDesktopId, todayDate],
+    queryFn: async () => {
+      if (!pendingDesktopId) return null;
+      const res = await fetch(`/api/focus-contracts?desktopId=${pendingDesktopId}&date=${todayDate}`);
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    enabled: !!pendingDesktopId,
+  });
+
+  const { data: pinnedWidgets = [] } = useQuery<Widget[]>({
+    queryKey: ["/api/widgets/pinned"],
+  });
+
+  const updateSettings = useMutation({
+    mutationFn: async (updates: Partial<AppSettings>) => {
+      return apiRequest("PATCH", "/api/settings", updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
+    },
   });
 
   useEffect(() => {
@@ -83,7 +159,7 @@ export default function Dashboard() {
 
   const activeDesktop = desktopList.find(d => d.id === activeDesktopId);
 
-  const { data: widgets = [], isLoading: widgetsLoading } = useQuery<Widget[]>({
+  const { data: desktopWidgets = [], isLoading: widgetsLoading } = useQuery<Widget[]>({
     queryKey: ["/api/widgets", activeDesktopId],
     queryFn: async () => {
       if (!activeDesktopId) return [];
@@ -93,6 +169,61 @@ export default function Dashboard() {
     },
     enabled: !!activeDesktopId,
   });
+
+  const widgets = [
+    ...desktopWidgets,
+    ...pinnedWidgets.filter(pw => pw.desktopId !== activeDesktopId && !desktopWidgets.some(dw => dw.id === pw.id)),
+  ];
+
+  const hasContextModeWidget = widgets.some(w => w.type === "context_mode");
+
+  const handleDesktopSwitch = useCallback(async (targetDesktopId: string) => {
+    if (targetDesktopId === activeDesktopId) return;
+
+    const exitGuardMode = appSettingsData?.exitGuardMode || "soft_warn";
+    const showModal = appSettingsData?.showContextModal !== false;
+
+    if (hasContextModeWidget && exitGuardMode !== "off" && currentContract) {
+      const top3 = (currentContract.top3 as { text: string; done: boolean }[]) || [];
+      const hasIncomplete = top3.some(item => item.text && !item.done);
+      if (hasIncomplete) {
+        setPendingDesktopId(targetDesktopId);
+        setShowExitWarning(true);
+        setExitReason("");
+        return;
+      }
+    }
+
+    const targetHasPinnedContextMode = pinnedWidgets.some(w => w.type === "context_mode");
+
+    let targetHasOwnContextMode = false;
+    if (!targetHasPinnedContextMode) {
+      try {
+        const res = await fetch(`/api/widgets?desktopId=${targetDesktopId}`);
+        if (res.ok) {
+          const targetWidgets: Widget[] = await res.json();
+          targetHasOwnContextMode = targetWidgets.some(w => w.type === "context_mode");
+        }
+      } catch {}
+    }
+
+    if (showModal && (targetHasPinnedContextMode || targetHasOwnContextMode)) {
+      setPendingDesktopId(targetDesktopId);
+      setShowContextModal(true);
+    } else {
+      setActiveDesktopId(targetDesktopId);
+    }
+  }, [activeDesktopId, appSettingsData, hasContextModeWidget, currentContract, pinnedWidgets]);
+
+  const confirmDesktopSwitch = () => {
+    if (pendingDesktopId) {
+      setActiveDesktopId(pendingDesktopId);
+    }
+    setShowContextModal(false);
+    setShowExitWarning(false);
+    setPendingDesktopId(null);
+    setExitReason("");
+  };
 
   const isLoading = desktopsLoading || widgetsLoading;
 
@@ -283,6 +414,21 @@ export default function Dashboard() {
     });
   };
 
+  const handlePinToggle = (widget: Widget, pinned: boolean) => {
+    updateWidget.mutate(
+      {
+        id: widget.id,
+        updates: { pinnedAllDesktops: pinned },
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["/api/widgets/pinned"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/widgets", activeDesktopId] });
+        },
+      }
+    );
+  };
+
   const handleDesktopRename = (desktopId: string) => {
     if (editingDesktopName.trim()) {
       updateDesktop.mutate({
@@ -359,6 +505,13 @@ export default function Dashboard() {
             onContentChange={(content) => handleContentChange(widget, content)}
           />
         );
+      case "context_mode":
+        return (
+          <ContextModeWidget
+            desktopId={activeDesktopId || ""}
+            desktopName={activeDesktop?.name || ""}
+          />
+        );
       default:
         return <div>Unknown widget type</div>;
     }
@@ -403,7 +556,7 @@ export default function Dashboard() {
                     variant={activeDesktopId === desktop.id ? "default" : "ghost"}
                     size="sm"
                     className="text-xs gap-1.5 px-3 shrink-0"
-                    onClick={() => setActiveDesktopId(desktop.id)}
+                    onClick={() => handleDesktopSwitch(desktop.id)}
                     onDoubleClick={() => {
                       setEditingDesktopId(desktop.id);
                       setEditingDesktopName(desktop.name);
@@ -497,6 +650,16 @@ export default function Dashboard() {
                 )}
               </>
             )}
+            {hasContextModeWidget && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowSettingsDialog(true)}
+                data-testid="button-context-settings"
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            )}
             <VentureManager />
             <AddWidgetDialog onAddWidget={(type, title) => addWidget.mutate({ type, title })} />
             <ThemeToggle />
@@ -544,6 +707,7 @@ export default function Dashboard() {
             onDragStop={(layout) => handleLayoutChange(layout)}
             onResizeStop={(layout) => handleLayoutChange(layout)}
             draggableHandle=".widget-drag-handle"
+            draggableCancel=".draggable-cancel"
             compactType="vertical"
             preventCollision={false}
             margin={[12, 12]}
@@ -560,6 +724,9 @@ export default function Dashboard() {
                   onTitleChange={(newTitle) => handleTitleChange(widget, newTitle)}
                   onCardColorChange={(color) => handleCardColorChange(widget, color)}
                   cardColor={widget.cardColor}
+                  pinnedAllDesktops={widget.pinnedAllDesktops || false}
+                  onTogglePin={(pinned) => handlePinToggle(widget, pinned)}
+                  showPinOption={widget.type === "context_mode"}
                 >
                   {renderWidgetContent(widget)}
                 </WidgetWrapper>
@@ -582,6 +749,139 @@ export default function Dashboard() {
         }}
         confirmText="Delete Desktop"
       />
+
+      <Dialog open={showContextModal} onOpenChange={setShowContextModal}>
+        <DialogContent className="sm:max-w-md" data-testid="enter-context-modal">
+          <DialogHeader>
+            <DialogTitle className="text-lg" data-testid="text-entering-context">
+              Entering {desktopList.find(d => d.id === pendingDesktopId)?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {pendingContract?.objective ? (
+              <div className="space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Today's Objective</p>
+                <p className="text-sm" data-testid="text-modal-objective">{pendingContract.objective}</p>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground" data-testid="text-no-objective">No objective set yet. Set one in the Context Mode widget.</p>
+            )}
+            {pendingContract?.top3 && (pendingContract.top3 as { text: string; done: boolean }[]).some(t => t.text) && (
+              <div className="space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Top 3 Actions</p>
+                {(pendingContract.top3 as { text: string; done: boolean }[]).map((item, i) => (
+                  item.text ? (
+                    <div key={i} className="flex items-center gap-2 text-sm">
+                      <Checkbox checked={item.done} disabled />
+                      <span className={item.done ? "line-through text-muted-foreground" : ""} data-testid={`text-modal-top3-${i}`}>
+                        {item.text}
+                      </span>
+                    </div>
+                  ) : null
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowContextModal(false);
+                setPendingDesktopId(null);
+              }}
+              data-testid="button-cancel-context"
+            >
+              Cancel
+            </Button>
+            <Button onClick={confirmDesktopSwitch} data-testid="button-start-focus">
+              Start Focus
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={showExitWarning} onOpenChange={setShowExitWarning}>
+        <AlertDialogContent data-testid="exit-warning-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Leaving {activeDesktop?.name}</AlertDialogTitle>
+            <AlertDialogDescription>
+              You're leaving {activeDesktop?.name} before today's exit condition is met.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {appSettingsData?.exitGuardMode === "strict" && (
+            <div className="space-y-2">
+              <Label className="text-sm">Reason for leaving</Label>
+              <Textarea
+                value={exitReason}
+                onChange={(e) => setExitReason(e.target.value)}
+                placeholder="Why are you leaving early?"
+                className="resize-none text-sm"
+                rows={2}
+                data-testid="input-exit-reason"
+              />
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-stay">Stay</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const targetDesktopId = pendingDesktopId;
+                setShowExitWarning(false);
+                setPendingDesktopId(null);
+                const showModal = appSettingsData?.showContextModal !== false;
+                if (showModal && targetDesktopId) {
+                  setPendingDesktopId(targetDesktopId);
+                  setShowContextModal(true);
+                } else if (targetDesktopId) {
+                  setActiveDesktopId(targetDesktopId);
+                }
+              }}
+              disabled={appSettingsData?.exitGuardMode === "strict" && !exitReason.trim()}
+              data-testid="button-leave-anyway"
+            >
+              Leave anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
+        <DialogContent className="sm:max-w-sm" data-testid="settings-dialog">
+          <DialogHeader>
+            <DialogTitle>Context Mode Settings</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <Label className="text-sm">Show context modal on switch</Label>
+                <p className="text-xs text-muted-foreground">Show focus prompt when switching desktops</p>
+              </div>
+              <Switch
+                checked={appSettingsData?.showContextModal !== false}
+                onCheckedChange={(checked) => updateSettings.mutate({ showContextModal: checked })}
+                data-testid="switch-context-modal"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm">Exit guard mode</Label>
+              <p className="text-xs text-muted-foreground">Control warnings when leaving with incomplete tasks</p>
+              <Select
+                value={appSettingsData?.exitGuardMode || "soft_warn"}
+                onValueChange={(val) => updateSettings.mutate({ exitGuardMode: val as ExitGuardMode })}
+              >
+                <SelectTrigger data-testid="select-exit-guard">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="off">Off</SelectItem>
+                  <SelectItem value="soft_warn">Soft warning (default)</SelectItem>
+                  <SelectItem value="strict">Strict (requires reason)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

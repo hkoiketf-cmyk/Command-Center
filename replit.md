@@ -83,6 +83,7 @@ shared/
 3. **Priorities** - Track top 3 priorities per business venture
 4. **Revenue** - Customer payment tracking per month with charts
 5. **Iframe** - Embed external tools and websites
+6. **Context Mode** - Focused work sessions with objective, top 3 actions, ignore list, exit condition, and timebox timer
 
 ## Features
 - **Multiple Desktops**: Create separate desktop layouts (e.g., "Business", "Personal") with tab switching
@@ -101,6 +102,20 @@ shared/
 - Revenue data editing (add/edit/delete entries)
 - Mobile responsive layout (single column on small screens)
 - Confirmation dialogs before deletions
+- **Context Mode**: Focus contracts per desktop/day, pin-to-all-desktops, enter context modal, exit warnings, configurable exit guard modes (off/soft_warn/strict)
+
+## API Endpoints (Context Mode)
+
+### Focus Contracts
+- `GET /api/focus-contracts/:desktopId/:date` - Get focus contract for desktop on date
+- `PUT /api/focus-contracts` - Upsert focus contract (desktopId, date, objective, top3, ignoreList, exitCondition, timeboxMinutes)
+
+### App Settings
+- `GET /api/settings` - Get app settings
+- `PATCH /api/settings` - Update app settings (showContextModal, exitGuardMode)
+
+### Pinned Widgets
+- `GET /api/widgets/pinned` - Get all widgets pinned to all desktops
 
 ## Running the App
 ```bash

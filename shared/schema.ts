@@ -33,7 +33,7 @@ export type InsertDesktop = z.infer<typeof insertDesktopSchema>;
 export type Desktop = typeof desktops.$inferSelect;
 
 // Widget types enum
-export const widgetTypes = ["notes", "priorities", "revenue", "iframe", "code"] as const;
+export const widgetTypes = ["notes", "priorities", "revenue", "iframe", "code", "context_mode"] as const;
 export type WidgetType = typeof widgetTypes[number];
 
 // Layout item for react-grid-layout
@@ -59,6 +59,7 @@ export const widgets = pgTable("widgets", {
   layout: jsonb("layout").$type<LayoutItem>(),
   desktopId: varchar("desktop_id"),
   cardColor: text("card_color"),
+  pinnedAllDesktops: boolean("pinned_all_desktops").default(false),
 });
 
 export const insertWidgetSchema = createInsertSchema(widgets).omit({
@@ -157,3 +158,45 @@ export type CodeContent = {
   code: string;
   language?: string;
 };
+
+// Context Mode content type
+export type ContextModeContent = {};
+
+// Focus contracts for context mode widget
+export const focusContracts = pgTable("focus_contracts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  desktopId: varchar("desktop_id").notNull().references(() => desktops.id, { onDelete: "cascade" }),
+  date: text("date").notNull(),
+  objective: text("objective").default(""),
+  top3: jsonb("top3").$type<{ text: string; done: boolean }[]>().default([
+    { text: "", done: false },
+    { text: "", done: false },
+    { text: "", done: false },
+  ]),
+  ignoreList: jsonb("ignore_list").$type<string[]>().default([]),
+  exitCondition: text("exit_condition").default(""),
+  timeboxMinutes: integer("timebox_minutes"),
+});
+
+export const insertFocusContractSchema = createInsertSchema(focusContracts).omit({
+  id: true,
+});
+
+export type InsertFocusContract = z.infer<typeof insertFocusContractSchema>;
+export type FocusContract = typeof focusContracts.$inferSelect;
+
+// App settings (single row)
+export type ExitGuardMode = "off" | "soft_warn" | "strict";
+
+export const appSettings = pgTable("app_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  showContextModal: boolean("show_context_modal").default(true),
+  exitGuardMode: text("exit_guard_mode").$type<ExitGuardMode>().default("soft_warn"),
+});
+
+export const insertAppSettingsSchema = createInsertSchema(appSettings).omit({
+  id: true,
+});
+
+export type InsertAppSettings = z.infer<typeof insertAppSettingsSchema>;
+export type AppSettings = typeof appSettings.$inferSelect;

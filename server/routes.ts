@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertWidgetSchema, insertVentureSchema, insertPrioritySchema, insertRevenueDataSchema, insertDesktopSchema } from "@shared/schema";
+import { insertWidgetSchema, insertVentureSchema, insertPrioritySchema, insertRevenueDataSchema, insertDesktopSchema, insertFocusContractSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(
@@ -70,6 +70,15 @@ export async function registerRoutes(
       }
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch widgets" });
+    }
+  });
+
+  app.get("/api/widgets/pinned", async (req, res) => {
+    try {
+      const pinnedWidgets = await storage.getPinnedWidgets();
+      res.json(pinnedWidgets);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch pinned widgets" });
     }
   });
 
@@ -266,6 +275,54 @@ export async function registerRoutes(
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete revenue data" });
+    }
+  });
+
+  // ============ FOCUS CONTRACTS ============
+
+  app.get("/api/focus-contracts", async (req, res) => {
+    try {
+      const { desktopId, date } = req.query;
+      if (!desktopId || !date) {
+        return res.status(400).json({ error: "desktopId and date are required" });
+      }
+      const contract = await storage.getFocusContract(desktopId as string, date as string);
+      res.json(contract || null);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch focus contract" });
+    }
+  });
+
+  app.put("/api/focus-contracts", async (req, res) => {
+    try {
+      const parsed = insertFocusContractSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.message });
+      }
+      const contract = await storage.upsertFocusContract(parsed.data);
+      res.json(contract);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to save focus contract" });
+    }
+  });
+
+  // ============ APP SETTINGS ============
+
+  app.get("/api/settings", async (req, res) => {
+    try {
+      const settings = await storage.getAppSettings();
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch settings" });
+    }
+  });
+
+  app.patch("/api/settings", async (req, res) => {
+    try {
+      const settings = await storage.updateAppSettings(req.body);
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update settings" });
     }
   });
 

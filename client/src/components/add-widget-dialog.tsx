@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, Target, TrendingUp, Globe, Plus, Code } from "lucide-react";
+import { FileText, Target, TrendingUp, Globe, Plus, Code, Crosshair } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -47,6 +47,12 @@ const widgetOptions: { type: WidgetType; label: string; description: string; ico
     label: "Embed",
     description: "Embed external tools and websites",
     icon: Globe,
+  },
+  {
+    type: "context_mode",
+    label: "Context Mode",
+    description: "Focus contract for intentional work",
+    icon: Crosshair,
   },
 ];
 

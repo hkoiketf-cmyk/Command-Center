@@ -1,0 +1,172 @@
+FEATURE SPEC — CONTEXT MODE (FOCUS CONTRACT) for HunterOS
+
+You are building a feature for an existing web app called HunterOS.
+
+HunterOS already supports:
+- Multiple “Desktops” (dashboard layouts) such as TWC, 321, Proteus, Personal
+- Widgets per desktop (notes, priorities, revenue, iframe, code blocks)
+- Drag/resizable widgets with layouts saved per desktop
+
+GOAL
+Add an OPTIONAL widget called “Context Mode” that helps users focus when switching between desktops by prompting intentional work sessions.
+
+This widget acts as a lightweight “focus contract”:
+- It asks the right questions
+- It defines what success looks like
+- It reduces context switching
+- It gives permission to stop
+
+This is NOT a task manager and should stay simple.
+
+--------------------------------
+CORE CONCEPT
+Each Desktop = a Context (venture / mode).
+
+Context Mode:
+- Helps the user decide what they are doing *in this context today*
+- Is OPTIONAL (some users won’t want it)
+- Can be pinned globally (appears on all desktops if enabled)
+
+--------------------------------
+WIDGET AVAILABILITY
+- Add a new widget type: CONTEXT_MODE
+- User can add/remove it like any other widget
+- App must work normally if the widget is not present
+
+--------------------------------
+GLOBAL / PINNED BEHAVIOR
+Inside the widget’s menu (3-dot menu), include:
+- Toggle: “Pin to all desktops” (default OFF)
+
+Behavior:
+- If OFF → widget only exists on the current desktop
+- If ON → widget appears on ALL desktops automatically
+- If a new desktop is created later, widget auto-appears there
+- If user removes a pinned widget, prompt:
+  “This widget is pinned to all desktops. Remove everywhere or unpin?”
+
+Pinned widgets may share data but can have different layout positions per desktop.
+
+--------------------------------
+CONTEXT MODE WIDGET UI (IMPORTANT)
+This widget must PROMPT the user with questions and microcopy.
+Do not use generic labels or empty fields.
+
+UI CONTENT (minimum):
+
+HEADER:
+- “ACTIVE CONTEXT: {Desktop Name}”
+
+1) OBJECTIVE
+Label:
+- “What would make today a win in this context?”
+Subtext:
+- “One sentence. This defines success.”
+Placeholder:
+- “If I did nothing else, this would still move things forward…”
+
+2) TOP 3 ACTIONS (exactly 3 slots)
+Label:
+- “Top 3 Actions (no more, no less)”
+Subtext:
+- “If these are done, you’re allowed to leave.”
+Each slot placeholder:
+- “Action that directly supports the objective”
+
+Checkbox per item.
+
+3) IGNORE LIST
+Label:
+- “Ignore Today”
+Subtext:
+- “Things that feel productive but will dilute focus.”
+Examples as placeholder text:
+- “Pricing tweaks”
+- “Tool cleanup”
+- “Inbox zero”
+
+4) EXIT CONDITION
+Label:
+- “Exit Condition”
+Subtext:
+- “When this is true, you can leave this context guilt-free.”
+Placeholder:
+- “All 3 follow-ups sent”
+
+5) OPTIONAL TIMEBOX
+- Buttons: 30 / 45 / 60 minutes
+- Start / Pause / Reset
+- Optional auto-start on enter
+
+All fields auto-save (debounced).
+
+--------------------------------
+ENTER CONTEXT MODAL (ON DESKTOP SWITCH)
+If Context Mode widget exists:
+
+When user switches desktops:
+- Show a small modal (not full screen)
+
+Modal content:
+- Title: “Entering {Desktop Name}”
+- Show current Objective + Top 3
+- If Objective is empty, prompt user to set it
+- Button: “Start Focus”
+
+Settings toggle:
+- “Show context modal on switch” (default ON)
+
+--------------------------------
+EXIT WARNING (SOFT BY DEFAULT)
+If user tries to leave a desktop and:
+- Top 3 are not complete
+
+Show warning:
+“You’re leaving {Desktop Name} before today’s exit condition is met.”
+
+Buttons:
+- Stay
+- Leave anyway
+- Optional: “Leave + add reason” (1-line note)
+
+Settings:
+- Exit guard mode:
+  - OFF
+  - SOFT_WARN (default)
+  - STRICT (requires reason to leave)
+
+--------------------------------
+LOGIC RULES (KEEP SIMPLE)
+- Exit condition is considered met when all 3 Top 3 items are checked
+- No complex dependencies or parsing
+
+--------------------------------
+DATA MODEL (PREFERRED)
+FocusContract:
+- userId
+- desktopId
+- date
+- objective (text)
+- top3 (JSON: 3 items with text + done)
+- ignoreList (JSON)
+- exitCondition (text)
+- timeboxMinutes (nullable)
+- updatedAt
+
+Unique per (userId, desktopId, date)
+
+--------------------------------
+UX REQUIREMENTS
+- Dark mode
+- Minimal, fast, no heavy animations
+- Inputs should NOT interfere with drag (use draggableCancel)
+- Widget should feel like a gentle coach, not a form
+
+--------------------------------
+ACCEPTANCE CRITERIA
+1) Widget is optional and removable
+2) Can be pinned globally across desktops
+3) Prompts clearly explain why each field matters
+4) Switching desktops loads correct context for today
+5) Exit warnings only appear if widget exists
+6) App functions normally if widget is never installed

@@ -1,9 +1,19 @@
 import { useState, useRef, useEffect } from "react";
-import { ChevronDown, ChevronUp, X, GripVertical, Palette } from "lucide-react";
+import { ChevronDown, ChevronUp, X, GripVertical, Palette, Pin, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +41,9 @@ interface WidgetWrapperProps {
   onTitleChange?: (newTitle: string) => void;
   onCardColorChange?: (color: string) => void;
   cardColor?: string | null;
+  pinnedAllDesktops?: boolean;
+  onTogglePin?: (pinned: boolean) => void;
+  showPinOption?: boolean;
   children: React.ReactNode;
   className?: string;
 }
@@ -43,6 +56,9 @@ export function WidgetWrapper({
   onTitleChange,
   onCardColorChange,
   cardColor,
+  pinnedAllDesktops,
+  onTogglePin,
+  showPinOption,
   children,
   className,
 }: WidgetWrapperProps) {
@@ -87,8 +103,14 @@ export function WidgetWrapper({
     }
   };
 
+  const [showPinnedDeletePrompt, setShowPinnedDeletePrompt] = useState(false);
+
   const handleRemove = () => {
-    setShowDeleteConfirm(true);
+    if (pinnedAllDesktops && onTogglePin) {
+      setShowPinnedDeletePrompt(true);
+    } else {
+      setShowDeleteConfirm(true);
+    }
   };
 
   const confirmRemove = () => {
@@ -138,6 +160,31 @@ export function WidgetWrapper({
             )}
           </div>
           <div className="flex items-center gap-1">
+            {showPinOption && onTogglePin && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    data-testid="button-widget-menu"
+                  >
+                    <MoreVertical className={cn("h-4 w-4", hasCustomColor ? "text-white/70" : "")} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => onTogglePin(!pinnedAllDesktops)}
+                    data-testid="button-toggle-pin"
+                  >
+                    <Pin className={cn("h-4 w-4 mr-2", pinnedAllDesktops && "text-primary")} />
+                    {pinnedAllDesktops ? "Unpin from all desktops" : "Pin to all desktops"}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             {onCardColorChange && (
               <Popover>
                 <PopoverTrigger asChild>
@@ -218,6 +265,42 @@ export function WidgetWrapper({
         onConfirm={confirmRemove}
         confirmText="Delete"
       />
+
+      {showPinnedDeletePrompt && (
+        <AlertDialog open={showPinnedDeletePrompt} onOpenChange={setShowPinnedDeletePrompt}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Pinned Widget</AlertDialogTitle>
+              <AlertDialogDescription>
+                This widget is pinned to all desktops. What would you like to do?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+              <AlertDialogCancel data-testid="button-pinned-cancel">Cancel</AlertDialogCancel>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowPinnedDeletePrompt(false);
+                  onTogglePin?.(false);
+                }}
+                data-testid="button-pinned-unpin"
+              >
+                Unpin only
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  setShowPinnedDeletePrompt(false);
+                  onRemove();
+                }}
+                data-testid="button-pinned-remove-all"
+              >
+                Remove everywhere
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </>
   );
 }

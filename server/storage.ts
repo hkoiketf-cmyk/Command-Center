@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
@@ -8,6 +8,8 @@ import {
   revenueData,
   dashboardLayouts,
   desktops,
+  focusContracts,
+  appSettings,
   type User,
   type InsertUser,
   type Widget,
@@ -22,6 +24,9 @@ import {
   type LayoutItem,
   type Desktop,
   type InsertDesktop,
+  type FocusContract,
+  type InsertFocusContract,
+  type AppSettings,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -66,6 +71,17 @@ export interface IStorage {
   createRevenueData(data: InsertRevenueData): Promise<RevenueData>;
   updateRevenueData(id: string, updates: Partial<RevenueData>): Promise<RevenueData | undefined>;
   deleteRevenueData(id: string): Promise<boolean>;
+
+  // Focus Contracts
+  getFocusContract(desktopId: string, date: string): Promise<FocusContract | undefined>;
+  upsertFocusContract(data: InsertFocusContract): Promise<FocusContract>;
+
+  // App Settings
+  getAppSettings(): Promise<AppSettings>;
+  updateAppSettings(updates: Partial<AppSettings>): Promise<AppSettings>;
+
+  // Pinned widgets
+  getPinnedWidgets(): Promise<Widget[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -130,7 +146,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createWidget(widget: InsertWidget): Promise<Widget> {
-    const result = await db.insert(widgets).values(widget).returning();
+    const result = await db.insert(widgets).values(widget as any).returning();
     return result[0];
   }
 
@@ -247,6 +263,59 @@ export class DatabaseStorage implements IStorage {
   async deleteRevenueData(id: string): Promise<boolean> {
     const result = await db.delete(revenueData).where(eq(revenueData.id, id)).returning();
     return result.length > 0;
+  }
+
+  // Focus Contracts
+  async getFocusContract(desktopId: string, date: string): Promise<FocusContract | undefined> {
+    const result = await db
+      .select()
+      .from(focusContracts)
+      .where(and(eq(focusContracts.desktopId, desktopId), eq(focusContracts.date, date)));
+    return result[0];
+  }
+
+  async upsertFocusContract(data: InsertFocusContract): Promise<FocusContract> {
+    const existing = await this.getFocusContract(data.desktopId, data.date);
+    const values = {
+      ...data,
+      top3: data.top3 as { text: string; done: boolean }[] | undefined,
+      ignoreList: data.ignoreList as string[] | undefined,
+    };
+    if (existing) {
+      const result = await db
+        .update(focusContracts)
+        .set(values)
+        .where(eq(focusContracts.id, existing.id))
+        .returning();
+      return result[0];
+    }
+    const result = await db.insert(focusContracts).values(values).returning();
+    return result[0];
+  }
+
+  // App Settings
+  async getAppSettings(): Promise<AppSettings> {
+    const result = await db.select().from(appSettings);
+    if (result.length === 0) {
+      const created = await db.insert(appSettings).values({}).returning();
+      return created[0];
+    }
+    return result[0];
+  }
+
+  async updateAppSettings(updates: Partial<AppSettings>): Promise<AppSettings> {
+    const current = await this.getAppSettings();
+    const result = await db
+      .update(appSettings)
+      .set(updates)
+      .where(eq(appSettings.id, current.id))
+      .returning();
+    return result[0];
+  }
+
+  // Pinned widgets
+  async getPinnedWidgets(): Promise<Widget[]> {
+    return await db.select().from(widgets).where(eq(widgets.pinnedAllDesktops, true));
   }
 }
 
