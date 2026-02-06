@@ -17,6 +17,21 @@ export const insertUserSchema = createInsertSchema(users).pick({
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
+// Desktops table
+export const desktops = pgTable("desktops", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  backgroundColor: text("background_color").notNull().default("#09090b"),
+  order: integer("order").notNull().default(0),
+});
+
+export const insertDesktopSchema = createInsertSchema(desktops).omit({
+  id: true,
+});
+
+export type InsertDesktop = z.infer<typeof insertDesktopSchema>;
+export type Desktop = typeof desktops.$inferSelect;
+
 // Widget types enum
 export const widgetTypes = ["notes", "priorities", "revenue", "iframe", "code"] as const;
 export type WidgetType = typeof widgetTypes[number];
@@ -42,6 +57,8 @@ export const widgets = pgTable("widgets", {
   content: jsonb("content").default({}),
   collapsed: boolean("collapsed").default(false),
   layout: jsonb("layout").$type<LayoutItem>(),
+  desktopId: varchar("desktop_id"),
+  cardColor: text("card_color"),
 });
 
 export const insertWidgetSchema = createInsertSchema(widgets).omit({
