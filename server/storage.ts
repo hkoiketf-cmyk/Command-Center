@@ -7,6 +7,7 @@ import {
   priorities,
   revenueData,
   dashboardLayouts,
+  desktops,
   type User,
   type InsertUser,
   type Widget,
@@ -19,6 +20,8 @@ import {
   type InsertRevenueData,
   type DashboardLayout,
   type LayoutItem,
+  type Desktop,
+  type InsertDesktop,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -27,8 +30,16 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
 
+  // Desktops
+  getDesktops(): Promise<Desktop[]>;
+  getDesktop(id: string): Promise<Desktop | undefined>;
+  createDesktop(desktop: InsertDesktop): Promise<Desktop>;
+  updateDesktop(id: string, updates: Partial<Desktop>): Promise<Desktop | undefined>;
+  deleteDesktop(id: string): Promise<boolean>;
+
   // Widgets
   getWidgets(): Promise<Widget[]>;
+  getWidgetsByDesktop(desktopId: string): Promise<Widget[]>;
   getWidget(id: string): Promise<Widget | undefined>;
   createWidget(widget: InsertWidget): Promise<Widget>;
   updateWidget(id: string, updates: Partial<Widget>): Promise<Widget | undefined>;
@@ -74,9 +85,43 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
+  // Desktops
+  async getDesktops(): Promise<Desktop[]> {
+    return await db.select().from(desktops).orderBy(desktops.order);
+  }
+
+  async getDesktop(id: string): Promise<Desktop | undefined> {
+    const result = await db.select().from(desktops).where(eq(desktops.id, id));
+    return result[0];
+  }
+
+  async createDesktop(desktop: InsertDesktop): Promise<Desktop> {
+    const result = await db.insert(desktops).values(desktop).returning();
+    return result[0];
+  }
+
+  async updateDesktop(id: string, updates: Partial<Desktop>): Promise<Desktop | undefined> {
+    const result = await db
+      .update(desktops)
+      .set(updates)
+      .where(eq(desktops.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteDesktop(id: string): Promise<boolean> {
+    await db.delete(widgets).where(eq(widgets.desktopId, id));
+    const result = await db.delete(desktops).where(eq(desktops.id, id)).returning();
+    return result.length > 0;
+  }
+
   // Widgets
   async getWidgets(): Promise<Widget[]> {
     return await db.select().from(widgets);
+  }
+
+  async getWidgetsByDesktop(desktopId: string): Promise<Widget[]> {
+    return await db.select().from(widgets).where(eq(widgets.desktopId, desktopId));
   }
 
   async getWidget(id: string): Promise<Widget | undefined> {
@@ -145,7 +190,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteVenture(id: string): Promise<boolean> {
-    // Priorities and revenue data will be cascade deleted due to FK constraints
     const result = await db.delete(ventures).where(eq(ventures.id, id)).returning();
     return result.length > 0;
   }
