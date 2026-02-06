@@ -9,6 +9,32 @@ const sampleVentures = [
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export async function seedDatabase() {
+  // Ensure at least one desktop exists and orphan widgets are assigned
+  const existingDesktops = await storage.getDesktops();
+  if (existingDesktops.length === 0) {
+    const defaultDesktop = await storage.createDesktop({
+      name: "Main",
+      backgroundColor: "#09090b",
+      order: 0,
+    });
+    // Assign any orphaned widgets to this desktop
+    const allWidgets = await storage.getWidgets();
+    for (const w of allWidgets) {
+      if (!w.desktopId) {
+        await storage.updateWidget(w.id, { desktopId: defaultDesktop.id });
+      }
+    }
+    console.log("Created default desktop and assigned orphaned widgets.");
+  } else {
+    // Still check for orphaned widgets and assign to first desktop
+    const allWidgets = await storage.getWidgets();
+    for (const w of allWidgets) {
+      if (!w.desktopId) {
+        await storage.updateWidget(w.id, { desktopId: existingDesktops[0].id });
+      }
+    }
+  }
+
   // Check if already seeded
   const existingVentures = await storage.getVentures();
   if (existingVentures.length > 0) {
@@ -82,6 +108,13 @@ export async function seedDatabase() {
     }
   }
 
+  // Create default desktop
+  const defaultDesktop = await storage.createDesktop({
+    name: "Main",
+    backgroundColor: "#09090b",
+    order: 0,
+  });
+
   // Create sample widgets
   await storage.createWidget({
     type: "notes",
@@ -107,6 +140,7 @@ const trackProgress = () => {
     },
     collapsed: false,
     layout: { i: "notes-1", x: 0, y: 0, w: 4, h: 8, minW: 2, minH: 4 },
+    desktopId: defaultDesktop.id,
   });
 
   await storage.createWidget({
@@ -115,6 +149,7 @@ const trackProgress = () => {
     content: { ventureId: createdVentures[0].id },
     collapsed: false,
     layout: { i: "priorities-1", x: 4, y: 0, w: 4, h: 6, minW: 3, minH: 5 },
+    desktopId: defaultDesktop.id,
   });
 
   await storage.createWidget({
@@ -123,6 +158,7 @@ const trackProgress = () => {
     content: { ventureId: createdVentures[0].id, chartType: "line" },
     collapsed: false,
     layout: { i: "revenue-1", x: 8, y: 0, w: 4, h: 7, minW: 4, minH: 5 },
+    desktopId: defaultDesktop.id,
   });
 
   console.log("Database seeded successfully!");

@@ -46,9 +46,15 @@ shared/
 
 ## API Endpoints
 
+### Desktops
+- `GET /api/desktops` - Get all desktops (ordered by order field)
+- `POST /api/desktops` - Create desktop (name, backgroundColor, order)
+- `PATCH /api/desktops/:id` - Update desktop (name, backgroundColor)
+- `DELETE /api/desktops/:id` - Delete desktop and all its widgets
+
 ### Widgets
-- `GET /api/widgets` - Get all widgets
-- `POST /api/widgets` - Create widget
+- `GET /api/widgets` - Get all widgets (optionally filter by `?desktopId=`)
+- `POST /api/widgets` - Create widget (includes desktopId, cardColor)
 - `PATCH /api/widgets/:id` - Update widget
 - `DELETE /api/widgets/:id` - Delete widget
 
@@ -79,9 +85,13 @@ shared/
 5. **Iframe** - Embed external tools and websites
 
 ## Features
+- **Multiple Desktops**: Create separate desktop layouts (e.g., "Business", "Personal") with tab switching
+- **Desktop Background Colors**: Customizable background color per desktop (presets + custom color picker)
+- **Widget Card Colors**: Per-widget card color customization (palette icon in widget header)
 - Drag-and-drop widget positioning (drag via grip icon)
 - Widget resizing from all 8 directions (corners and sides)
 - Editable widget titles (click title to edit)
+- Desktop rename (double-click desktop tab)
 - Collapse/expand widgets
 - Dark/light theme toggle
 - Layout persistence
