@@ -84,6 +84,18 @@ const BG_COLORS = [
   { label: "Neutral", value: "#171717" },
   { label: "Deep Red", value: "#1a0a0a" },
   { label: "Ocean", value: "#0a192f" },
+  { label: "Dark Teal", value: "#0d2b2b" },
+  { label: "Pastel Blue", value: "#dbeafe" },
+  { label: "Pastel Green", value: "#dcfce7" },
+  { label: "Pastel Pink", value: "#fce7f3" },
+  { label: "Pastel Purple", value: "#ede9fe" },
+  { label: "Pastel Yellow", value: "#fef9c3" },
+  { label: "Pastel Peach", value: "#fff1e6" },
+  { label: "Pastel Mint", value: "#d1fae5" },
+  { label: "Pastel Lavender", value: "#e8e0f0" },
+  { label: "Soft Gray", value: "#e5e7eb" },
+  { label: "Warm Cream", value: "#faf5ef" },
+  { label: "Soft Rose", value: "#ffe4e6" },
   { label: "Light", value: "#f8fafc" },
 ];
 
@@ -597,9 +609,9 @@ export default function Dashboard() {
                       />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-52 p-2" align="end">
+                  <PopoverContent className="w-64 p-2" align="end">
                     <p className="text-xs font-medium text-muted-foreground mb-2 px-1">Background Color</p>
-                    <div className="grid grid-cols-4 gap-1.5">
+                    <div className="grid grid-cols-6 gap-1.5">
                       {BG_COLORS.map((c) => (
                         <button
                           key={c.value}

@@ -19,6 +19,15 @@ const NOTE_COLORS = [
   { name: "Orange", value: "#FFEDD5", textColor: "#7C2D12" },
   { name: "Red", value: "#FEE2E2", textColor: "#7F1D1D" },
   { name: "Teal", value: "#CCFBF1", textColor: "#134E4A" },
+  { name: "Lavender", value: "#E8E0F0", textColor: "#4A3560" },
+  { name: "Mint", value: "#C6F6D5", textColor: "#22543D" },
+  { name: "Peach", value: "#FFF1E6", textColor: "#7C4A1E" },
+  { name: "Sky", value: "#BAE6FD", textColor: "#0C4A6E" },
+  { name: "Rose", value: "#FFE4E6", textColor: "#881337" },
+  { name: "Cream", value: "#FAF5EF", textColor: "#57534E" },
+  { name: "Coral", value: "#FECDD3", textColor: "#9F1239" },
+  { name: "Lime", value: "#D9F99D", textColor: "#365314" },
+  { name: "Lilac", value: "#DDD6FE", textColor: "#5B21B6" },
 ];
 
 function getTextColorForBackground(bgColor: string): string {
@@ -164,8 +173,8 @@ export function NotesWidget({ content, onContentChange }: NotesWidgetProps) {
               <Palette className="h-3.5 w-3.5" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-48 p-2" align="end">
-            <div className="grid grid-cols-3 gap-1">
+          <PopoverContent className="w-56 p-2" align="end">
+            <div className="grid grid-cols-4 gap-1">
               {NOTE_COLORS.map((color) => (
                 <button
                   key={color.name}

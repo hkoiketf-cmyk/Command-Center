@@ -17,6 +17,16 @@ import {
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { cn } from "@/lib/utils";
 
+function isLightColor(hex: string): boolean {
+  if (!hex) return false;
+  const c = hex.replace("#", "");
+  const r = parseInt(c.substring(0, 2), 16);
+  const g = parseInt(c.substring(2, 4), 16);
+  const b = parseInt(c.substring(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.6;
+}
+
 const CARD_COLORS = [
   { label: "Default", value: "" },
   { label: "Slate", value: "#1e293b" },
@@ -31,6 +41,18 @@ const CARD_COLORS = [
   { label: "Indigo", value: "#312e81" },
   { label: "Purple", value: "#3b0764" },
   { label: "Pink", value: "#831843" },
+  { label: "Soft Blue", value: "#bfdbfe" },
+  { label: "Soft Green", value: "#bbf7d0" },
+  { label: "Soft Pink", value: "#fbcfe8" },
+  { label: "Soft Purple", value: "#ddd6fe" },
+  { label: "Soft Yellow", value: "#fef08a" },
+  { label: "Soft Peach", value: "#fed7aa" },
+  { label: "Soft Mint", value: "#a7f3d0" },
+  { label: "Soft Lavender", value: "#c4b5fd" },
+  { label: "Soft Rose", value: "#fecdd3" },
+  { label: "Soft Sky", value: "#bae6fd" },
+  { label: "Soft Coral", value: "#fda4af" },
+  { label: "Soft Lime", value: "#d9f99d" },
 ];
 
 interface WidgetWrapperProps {
@@ -120,6 +142,10 @@ export function WidgetWrapper({
 
   const cardStyle = cardColor ? { backgroundColor: cardColor, borderColor: `${cardColor}cc` } : {};
   const hasCustomColor = !!cardColor;
+  const isLight = hasCustomColor && isLightColor(cardColor!);
+  const customTextClass = hasCustomColor ? (isLight ? "text-gray-800/60" : "text-white/60") : "text-muted-foreground";
+  const customTextBoldClass = hasCustomColor ? (isLight ? "text-gray-900" : "text-white") : "";
+  const customIconClass = hasCustomColor ? (isLight ? "text-gray-700/70" : "text-white/70") : "";
 
   return (
     <>
@@ -130,7 +156,7 @@ export function WidgetWrapper({
         <CardHeader className="flex flex-row items-center justify-between gap-2 py-3 px-4 border-b border-border shrink-0">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <div className="cursor-grab active:cursor-grabbing widget-drag-handle p-1 -m-1">
-              <GripVertical className={cn("h-4 w-4 shrink-0", hasCustomColor ? "text-white/60" : "text-muted-foreground")} />
+              <GripVertical className={cn("h-4 w-4 shrink-0", customTextClass)} />
             </div>
             {isEditingTitle ? (
               <Input
@@ -149,7 +175,7 @@ export function WidgetWrapper({
                 className={cn(
                   "text-sm font-medium truncate",
                   onTitleChange && "cursor-text hover:bg-muted/50 px-1 rounded",
-                  hasCustomColor && "text-white"
+                  customTextBoldClass
                 )}
                 onClick={handleTitleClick}
                 onMouseDown={(e) => e.stopPropagation()}
@@ -171,7 +197,7 @@ export function WidgetWrapper({
                     onMouseDown={(e) => e.stopPropagation()}
                     data-testid="button-widget-menu"
                   >
-                    <MoreVertical className={cn("h-4 w-4", hasCustomColor ? "text-white/70" : "")} />
+                    <MoreVertical className={cn("h-4 w-4", customIconClass)} />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -196,11 +222,11 @@ export function WidgetWrapper({
                     onMouseDown={(e) => e.stopPropagation()}
                     data-testid="button-widget-color"
                   >
-                    <Palette className={cn("h-4 w-4", hasCustomColor ? "text-white/70" : "")} />
+                    <Palette className={cn("h-4 w-4", customIconClass)} />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-48 p-2" align="end">
-                  <div className="grid grid-cols-4 gap-1.5">
+                <PopoverContent className="w-56 p-2" align="end">
+                  <div className="grid grid-cols-5 gap-1.5">
                     {CARD_COLORS.map((c) => (
                       <button
                         key={c.value || "default"}
@@ -234,9 +260,9 @@ export function WidgetWrapper({
               data-testid={`button-widget-collapse-${title.toLowerCase().replace(/\s+/g, "-")}`}
             >
               {collapsed ? (
-                <ChevronDown className={cn("h-4 w-4", hasCustomColor && "text-white/70")} />
+                <ChevronDown className={cn("h-4 w-4", customIconClass)} />
               ) : (
-                <ChevronUp className={cn("h-4 w-4", hasCustomColor && "text-white/70")} />
+                <ChevronUp className={cn("h-4 w-4", customIconClass)} />
               )}
             </Button>
             <Button
@@ -251,7 +277,7 @@ export function WidgetWrapper({
           </div>
         </CardHeader>
         {!collapsed && (
-          <CardContent className={cn("flex-1 p-4 overflow-auto", hasCustomColor && "text-white/90")}>
+          <CardContent className={cn("flex-1 p-4 overflow-auto", hasCustomColor && (isLight ? "text-gray-800" : "text-white/90"))}>
             {children}
           </CardContent>
         )}
