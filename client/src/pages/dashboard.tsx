@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import GridLayout from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
-import { Zap, Plus, Monitor, Trash2, Pencil, Check, X as XIcon, Settings } from "lucide-react";
+import { Zap, Plus, Monitor, Trash2, Pencil, Check, X as XIcon, Settings, Menu, Palette, Moon, Sun } from "lucide-react";
 import { WidgetWrapper } from "@/components/widget-wrapper";
 import { NotesWidget } from "@/components/notes-widget";
 import { PrioritiesWidget } from "@/components/priorities-widget";
@@ -46,6 +46,13 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Widget, WidgetType, LayoutItem, NotesContent, PrioritiesContent, RevenueContent, IframeContent, CodeContent, Desktop, FocusContract, AppSettings, ExitGuardMode } from "@shared/schema";
@@ -114,6 +121,7 @@ export default function Dashboard() {
   const [showExitWarning, setShowExitWarning] = useState(false);
   const [exitReason, setExitReason] = useState("");
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   const { data: desktopList = [], isLoading: desktopsLoading } = useQuery<Desktop[]>({
     queryKey: ["/api/desktops"],
@@ -534,152 +542,283 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: bgColor }}>
-      <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="px-4 h-14 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
+      {isMobile ? (
+        <>
+          <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <div className="px-3 h-14 flex items-center justify-between gap-2">
+              <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center shrink-0">
                 <Zap className="h-5 w-5 text-primary-foreground" />
               </div>
-              <h1 className="text-xl font-bold tracking-tight hidden sm:block">HunterOS</h1>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5 overflow-x-auto flex-1 justify-center px-2">
-            {desktopList.map((desktop) => (
-              <div key={desktop.id} className="flex items-center">
-                {editingDesktopId === desktop.id ? (
-                  <div className="flex items-center gap-1">
-                    <Input
-                      ref={editInputRef}
-                      value={editingDesktopName}
-                      onChange={(e) => setEditingDesktopName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleDesktopRename(desktop.id);
-                        if (e.key === "Escape") setEditingDesktopId(null);
-                      }}
-                      onBlur={() => handleDesktopRename(desktop.id)}
-                      className="h-7 w-28 text-xs px-2"
-                      data-testid="input-desktop-name"
-                    />
-                  </div>
-                ) : (
-                  <Button
-                    variant={activeDesktopId === desktop.id ? "default" : "ghost"}
-                    size="sm"
-                    className="text-xs gap-1.5 px-3 shrink-0"
-                    onClick={() => handleDesktopSwitch(desktop.id)}
-                    onDoubleClick={() => {
-                      setEditingDesktopId(desktop.id);
-                      setEditingDesktopName(desktop.name);
-                    }}
-                    data-testid={`button-desktop-${desktop.id}`}
-                  >
-                    <Monitor className="h-3.5 w-3.5" />
-                    {desktop.name}
-                  </Button>
-                )}
-              </div>
-            ))}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 shrink-0"
-              onClick={() => createDesktop.mutate()}
-              disabled={createDesktop.isPending}
-              data-testid="button-add-desktop"
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {activeDesktop && (
-              <>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      data-testid="button-desktop-bg-color"
-                    >
-                      <div
-                        className="w-5 h-5 rounded-md border border-border"
-                        style={{ backgroundColor: activeDesktop.backgroundColor }}
-                      />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-64 p-2" align="end">
-                    <p className="text-xs font-medium text-muted-foreground mb-2 px-1">Background Color</p>
-                    <div className="grid grid-cols-6 gap-1.5">
-                      {BG_COLORS.map((c) => (
-                        <button
-                          key={c.value}
-                          className={`w-9 h-9 rounded-md border-2 transition-all ${
-                            activeDesktop.backgroundColor === c.value
-                              ? "border-primary ring-1 ring-primary"
-                              : "border-transparent hover:border-muted-foreground/30"
-                          }`}
-                          style={{ backgroundColor: c.value }}
-                          title={c.label}
-                          onClick={() => {
-                            updateDesktop.mutate({
-                              id: activeDesktop.id,
-                              updates: { backgroundColor: c.value },
-                            });
-                          }}
-                          data-testid={`button-bg-color-${c.label.toLowerCase().replace(/\s+/g, "-")}`}
-                        />
-                      ))}
-                    </div>
-                    <div className="mt-2 pt-2 border-t">
-                      <label className="text-xs text-muted-foreground mb-1 block px-1">Custom</label>
-                      <input
-                        type="color"
-                        value={activeDesktop.backgroundColor}
-                        onChange={(e) => {
-                          updateDesktop.mutate({
-                            id: activeDesktop.id,
-                            updates: { backgroundColor: e.target.value },
-                          });
-                        }}
-                        className="w-full h-8 rounded-md cursor-pointer"
-                        data-testid="input-custom-bg-color"
-                      />
-                    </div>
-                  </PopoverContent>
-                </Popover>
-                {desktopList.length > 1 && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground"
-                    onClick={() => setDeleteDesktopId(activeDesktop.id)}
-                    data-testid="button-delete-desktop"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
-              </>
-            )}
-            {hasContextModeWidget && (
+              <span className="text-sm font-semibold truncate" data-testid="text-mobile-desktop-name">
+                {activeDesktop?.name || "HunterOS"}
+              </span>
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setShowSettingsDialog(true)}
-                data-testid="button-context-settings"
+                onClick={() => setShowMobileMenu(true)}
+                data-testid="button-mobile-menu"
               >
-                <Settings className="h-4 w-4" />
+                <Menu className="h-5 w-5" />
               </Button>
-            )}
-            <VentureManager />
-            <AddWidgetDialog onAddWidget={(type, title) => addWidget.mutate({ type, title })} />
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
+            </div>
+          </header>
 
-      <main ref={containerRef} className="px-4 py-6">
+          <Sheet open={showMobileMenu} onOpenChange={setShowMobileMenu}>
+            <SheetContent side="bottom" className="max-h-[85vh] px-4 pb-6" data-testid="mobile-menu-sheet">
+              <SheetHeader className="pb-3">
+                <SheetTitle>Menu</SheetTitle>
+              </SheetHeader>
+              <ScrollArea className="max-h-[70vh]">
+                <div className="space-y-5">
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Desktops</p>
+                    <div className="flex flex-col gap-1">
+                      {desktopList.map((desktop) => (
+                        <Button
+                          key={desktop.id}
+                          variant={activeDesktopId === desktop.id ? "default" : "ghost"}
+                          className="justify-start gap-2"
+                          onClick={() => {
+                            handleDesktopSwitch(desktop.id);
+                            setShowMobileMenu(false);
+                          }}
+                          data-testid={`button-mobile-desktop-${desktop.id}`}
+                        >
+                          <Monitor className="h-4 w-4" />
+                          {desktop.name}
+                        </Button>
+                      ))}
+                      <Button
+                        variant="outline"
+                        className="justify-start gap-2"
+                        onClick={() => {
+                          createDesktop.mutate();
+                          setShowMobileMenu(false);
+                        }}
+                        disabled={createDesktop.isPending}
+                        data-testid="button-mobile-add-desktop"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add Desktop
+                      </Button>
+                    </div>
+                  </div>
+
+                  {activeDesktop && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Background Color</p>
+                      <div className="grid grid-cols-6 gap-1.5">
+                        {BG_COLORS.map((c) => (
+                          <button
+                            key={c.value}
+                            className={`w-full aspect-square rounded-md border-2 transition-all ${
+                              activeDesktop.backgroundColor === c.value
+                                ? "border-primary ring-1 ring-primary"
+                                : "border-transparent hover:border-muted-foreground/30"
+                            }`}
+                            style={{ backgroundColor: c.value }}
+                            title={c.label}
+                            onClick={() => {
+                              updateDesktop.mutate({
+                                id: activeDesktop.id,
+                                updates: { backgroundColor: c.value },
+                              });
+                            }}
+                            data-testid={`button-mobile-bg-color-${c.label.toLowerCase().replace(/\s+/g, "-")}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</p>
+                    <div className="flex flex-col gap-1">
+                      {activeDesktop && desktopList.length > 1 && (
+                        <Button
+                          variant="ghost"
+                          className="justify-start gap-2 text-destructive"
+                          onClick={() => {
+                            setDeleteDesktopId(activeDesktop.id);
+                            setShowMobileMenu(false);
+                          }}
+                          data-testid="button-mobile-delete-desktop"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete Desktop
+                        </Button>
+                      )}
+                      {hasContextModeWidget && (
+                        <Button
+                          variant="ghost"
+                          className="justify-start gap-2"
+                          onClick={() => {
+                            setShowSettingsDialog(true);
+                            setShowMobileMenu(false);
+                          }}
+                          data-testid="button-mobile-context-settings"
+                        >
+                          <Settings className="h-4 w-4" />
+                          Context Settings
+                        </Button>
+                      )}
+                      <VentureManager />
+                      <ThemeToggle />
+                    </div>
+                  </div>
+                </div>
+              </ScrollArea>
+            </SheetContent>
+          </Sheet>
+        </>
+      ) : (
+        <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="px-4 h-14 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
+                  <Zap className="h-5 w-5 text-primary-foreground" />
+                </div>
+                <h1 className="text-xl font-bold tracking-tight hidden sm:block">HunterOS</h1>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 overflow-x-auto flex-1 justify-center px-2">
+              {desktopList.map((desktop) => (
+                <div key={desktop.id} className="flex items-center">
+                  {editingDesktopId === desktop.id ? (
+                    <div className="flex items-center gap-1">
+                      <Input
+                        ref={editInputRef}
+                        value={editingDesktopName}
+                        onChange={(e) => setEditingDesktopName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleDesktopRename(desktop.id);
+                          if (e.key === "Escape") setEditingDesktopId(null);
+                        }}
+                        onBlur={() => handleDesktopRename(desktop.id)}
+                        className="h-7 w-28 text-xs px-2"
+                        data-testid="input-desktop-name"
+                      />
+                    </div>
+                  ) : (
+                    <Button
+                      variant={activeDesktopId === desktop.id ? "default" : "ghost"}
+                      size="sm"
+                      className="text-xs gap-1.5 px-3 shrink-0"
+                      onClick={() => handleDesktopSwitch(desktop.id)}
+                      onDoubleClick={() => {
+                        setEditingDesktopId(desktop.id);
+                        setEditingDesktopName(desktop.name);
+                      }}
+                      data-testid={`button-desktop-${desktop.id}`}
+                    >
+                      <Monitor className="h-3.5 w-3.5" />
+                      {desktop.name}
+                    </Button>
+                  )}
+                </div>
+              ))}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 shrink-0"
+                onClick={() => createDesktop.mutate()}
+                disabled={createDesktop.isPending}
+                data-testid="button-add-desktop"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {activeDesktop && (
+                <>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        data-testid="button-desktop-bg-color"
+                      >
+                        <div
+                          className="w-5 h-5 rounded-md border border-border"
+                          style={{ backgroundColor: activeDesktop.backgroundColor }}
+                        />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-2" align="end">
+                      <p className="text-xs font-medium text-muted-foreground mb-2 px-1">Background Color</p>
+                      <div className="grid grid-cols-6 gap-1.5">
+                        {BG_COLORS.map((c) => (
+                          <button
+                            key={c.value}
+                            className={`w-9 h-9 rounded-md border-2 transition-all ${
+                              activeDesktop.backgroundColor === c.value
+                                ? "border-primary ring-1 ring-primary"
+                                : "border-transparent hover:border-muted-foreground/30"
+                            }`}
+                            style={{ backgroundColor: c.value }}
+                            title={c.label}
+                            onClick={() => {
+                              updateDesktop.mutate({
+                                id: activeDesktop.id,
+                                updates: { backgroundColor: c.value },
+                              });
+                            }}
+                            data-testid={`button-bg-color-${c.label.toLowerCase().replace(/\s+/g, "-")}`}
+                          />
+                        ))}
+                      </div>
+                      <div className="mt-2 pt-2 border-t">
+                        <label className="text-xs text-muted-foreground mb-1 block px-1">Custom</label>
+                        <input
+                          type="color"
+                          value={activeDesktop.backgroundColor}
+                          onChange={(e) => {
+                            updateDesktop.mutate({
+                              id: activeDesktop.id,
+                              updates: { backgroundColor: e.target.value },
+                            });
+                          }}
+                          className="w-full h-8 rounded-md cursor-pointer"
+                          data-testid="input-custom-bg-color"
+                        />
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                  {desktopList.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground"
+                      onClick={() => setDeleteDesktopId(activeDesktop.id)}
+                      data-testid="button-delete-desktop"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </>
+              )}
+              {hasContextModeWidget && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowSettingsDialog(true)}
+                  data-testid="button-context-settings"
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+              )}
+              <VentureManager />
+              <AddWidgetDialog onAddWidget={(type, title) => addWidget.mutate({ type, title })} />
+              <ThemeToggle />
+            </div>
+          </div>
+        </header>
+      )}
+
+      <main ref={containerRef} className={isMobile ? "px-3 py-4 pb-20" : "px-4 py-6"}>
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
             <div className="animate-pulse text-muted-foreground">Loading dashboard...</div>
@@ -708,6 +847,28 @@ export default function Dashboard() {
               Add widgets to "{activeDesktop?.name}" to track notes, priorities, revenue, and more.
             </p>
             <AddWidgetDialog onAddWidget={(type, title) => addWidget.mutate({ type, title })} />
+          </div>
+        ) : isMobile ? (
+          <div className="flex flex-col gap-3" data-testid="mobile-widget-list">
+            {widgets.map((widget) => (
+              <div key={widget.id} data-testid={`widget-${widget.id}`}>
+                <WidgetWrapper
+                  title={widget.title}
+                  collapsed={widget.collapsed || false}
+                  onToggleCollapse={() => handleToggleCollapse(widget)}
+                  onRemove={() => deleteWidget.mutate(widget.id)}
+                  onTitleChange={(newTitle) => handleTitleChange(widget, newTitle)}
+                  onCardColorChange={(color) => handleCardColorChange(widget, color)}
+                  cardColor={widget.cardColor}
+                  pinnedAllDesktops={widget.pinnedAllDesktops || false}
+                  onTogglePin={(pinned) => handlePinToggle(widget, pinned)}
+                  showPinOption={widget.type === "context_mode"}
+                  isMobile
+                >
+                  {renderWidgetContent(widget)}
+                </WidgetWrapper>
+              </div>
+            ))}
           </div>
         ) : (
           <GridLayout
@@ -747,6 +908,12 @@ export default function Dashboard() {
           </GridLayout>
         )}
       </main>
+
+      {isMobile && activeDesktop && widgets.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-3 [&>*]:w-full [&_button:first-child]:w-full" data-testid="mobile-bottom-bar">
+          <AddWidgetDialog onAddWidget={(type, title) => addWidget.mutate({ type, title })} />
+        </div>
+      )}
 
       <ConfirmDialog
         open={!!deleteDesktopId}

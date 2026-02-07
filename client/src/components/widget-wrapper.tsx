@@ -68,6 +68,7 @@ interface WidgetWrapperProps {
   showPinOption?: boolean;
   children: React.ReactNode;
   className?: string;
+  isMobile?: boolean;
 }
 
 export function WidgetWrapper({
@@ -83,6 +84,7 @@ export function WidgetWrapper({
   showPinOption,
   children,
   className,
+  isMobile,
 }: WidgetWrapperProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -153,11 +155,13 @@ export function WidgetWrapper({
         className={cn("h-full flex flex-col overflow-hidden", className)}
         style={cardStyle}
       >
-        <CardHeader className="flex flex-row items-center justify-between gap-2 py-3 px-4 border-b border-border shrink-0">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <div className="cursor-grab active:cursor-grabbing widget-drag-handle p-1 -m-1">
-              <GripVertical className={cn("h-4 w-4 shrink-0", customTextClass)} />
-            </div>
+        <CardHeader className={cn("flex flex-row items-center justify-between gap-2 border-b border-border shrink-0", isMobile ? "py-3 px-3" : "py-3 px-4")}>
+          <div className={cn("flex items-center flex-1 min-w-0", isMobile ? "gap-2" : "gap-2")}>
+            {!isMobile && (
+              <div className="cursor-grab active:cursor-grabbing widget-drag-handle p-1 -m-1">
+                <GripVertical className={cn("h-4 w-4 shrink-0", customTextClass)} />
+              </div>
+            )}
             {isEditingTitle ? (
               <Input
                 ref={inputRef}
@@ -185,14 +189,14 @@ export function WidgetWrapper({
               </CardTitle>
             )}
           </div>
-          <div className="flex items-center gap-1">
+          <div className={cn("flex items-center", isMobile ? "gap-1.5" : "gap-1")}>
             {showPinOption && onTogglePin && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7"
+                    className={isMobile ? undefined : "h-7 w-7"}
                     onClick={(e) => e.stopPropagation()}
                     onMouseDown={(e) => e.stopPropagation()}
                     data-testid="button-widget-menu"
@@ -217,7 +221,7 @@ export function WidgetWrapper({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7"
+                    className={isMobile ? undefined : "h-7 w-7"}
                     onClick={(e) => e.stopPropagation()}
                     onMouseDown={(e) => e.stopPropagation()}
                     data-testid="button-widget-color"
@@ -255,7 +259,7 @@ export function WidgetWrapper({
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7"
+              className={isMobile ? undefined : "h-7 w-7"}
               onClick={onToggleCollapse}
               data-testid={`button-widget-collapse-${title.toLowerCase().replace(/\s+/g, "-")}`}
             >
@@ -268,7 +272,7 @@ export function WidgetWrapper({
             <Button
               variant="ghost"
               size="icon"
-              className={cn("h-7 w-7", hasCustomColor ? "text-white/60 hover:text-red-400" : "text-muted-foreground hover:text-destructive")}
+              className={cn(isMobile ? undefined : "h-7 w-7", hasCustomColor ? "text-white/60 hover:text-red-400" : "text-muted-foreground hover:text-destructive")}
               onClick={handleRemove}
               data-testid={`button-widget-remove-${title.toLowerCase().replace(/\s+/g, "-")}`}
             >
