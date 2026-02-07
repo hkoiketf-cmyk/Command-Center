@@ -100,7 +100,13 @@ shared/
 - Notes color-coding with 9 color options (auto-adjusting text contrast)
 - Revenue data with descriptions (add customer payments, invoices, etc.)
 - Revenue data editing (add/edit/delete entries)
-- Mobile responsive layout (single column on small screens)
+- **Mobile responsive layout**: Complete mobile-optimized experience (viewport < 768px)
+  - Compact header with logo, desktop name, and hamburger menu button
+  - Bottom Sheet menu for all secondary actions (desktop switching, add desktop, background color, delete desktop, context settings, ventures, theme toggle)
+  - Stacked full-width card layout (no GridLayout/drag/resize on mobile)
+  - Fixed bottom action bar with Add Widget button
+  - Larger touch targets on widget header buttons, hidden drag handles
+  - All mobile changes gated by `isMobile` check, desktop experience unchanged
 - Confirmation dialogs before deletions
 - **Context Mode**: Focus contracts per desktop/day, pin-to-all-desktops, enter context modal, exit warnings, configurable exit guard modes (off/soft_warn/strict)
 
