@@ -449,6 +449,40 @@ export default function Dashboard() {
     );
   };
 
+  const handleMobileReorder = useCallback((widgetId: string, direction: "up" | "down") => {
+    const sorted = [...widgets].sort((a, b) => {
+      const ay = (a.layout as LayoutItem)?.y ?? 0;
+      const by = (b.layout as LayoutItem)?.y ?? 0;
+      return ay - by;
+    });
+    const idx = sorted.findIndex(w => w.id === widgetId);
+    if (idx < 0) return;
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= sorted.length) return;
+
+    const defaultLayout = (w: Widget, fallbackY: number): LayoutItem => {
+      const size = defaultWidgetSizes[w.type as WidgetType] || defaultWidgetSizes.notes;
+      return (w.layout as LayoutItem) || { i: w.id, x: 0, y: fallbackY, w: size.w, h: size.h, minW: size.minW, minH: size.minH };
+    };
+    const currentLayout = defaultLayout(sorted[idx], idx);
+    const swapLayout = defaultLayout(sorted[swapIdx], swapIdx);
+    const currentY = currentLayout.y;
+    const swapY = swapLayout.y;
+
+    updateWidgetLayout.mutate([
+      { id: sorted[idx].id, layout: { ...currentLayout, i: sorted[idx].id, y: swapY } },
+      { id: sorted[swapIdx].id, layout: { ...swapLayout, i: sorted[swapIdx].id, y: currentY } },
+    ]);
+  }, [widgets, updateWidgetLayout]);
+
+  const handleMobileHeightChange = useCallback((widget: Widget, height: number) => {
+    const layout = (widget.layout as LayoutItem) || { i: widget.id, x: 0, y: 0, w: 4, h: 4, minW: 1, minH: 3 };
+    updateWidget.mutate({
+      id: widget.id,
+      updates: { layout: { ...layout, mobileHeight: height } },
+    });
+  }, [updateWidget]);
+
   const handleDesktopRename = (desktopId: string) => {
     if (editingDesktopName.trim()) {
       updateDesktop.mutate({
@@ -850,7 +884,11 @@ export default function Dashboard() {
           </div>
         ) : isMobile ? (
           <div className="flex flex-col gap-3" data-testid="mobile-widget-list">
-            {widgets.map((widget) => (
+            {[...widgets].sort((a, b) => {
+              const ay = (a.layout as LayoutItem)?.y ?? 0;
+              const by = (b.layout as LayoutItem)?.y ?? 0;
+              return ay - by;
+            }).map((widget, idx, arr) => (
               <div key={widget.id} data-testid={`widget-${widget.id}`}>
                 <WidgetWrapper
                   title={widget.title}
@@ -864,6 +902,12 @@ export default function Dashboard() {
                   onTogglePin={(pinned) => handlePinToggle(widget, pinned)}
                   showPinOption={widget.type === "context_mode"}
                   isMobile
+                  onMoveUp={() => handleMobileReorder(widget.id, "up")}
+                  onMoveDown={() => handleMobileReorder(widget.id, "down")}
+                  isFirst={idx === 0}
+                  isLast={idx === arr.length - 1}
+                  mobileHeight={(widget.layout as LayoutItem & { mobileHeight?: number })?.mobileHeight ?? null}
+                  onMobileHeightChange={(h) => handleMobileHeightChange(widget, h)}
                 >
                   {renderWidgetContent(widget)}
                 </WidgetWrapper>

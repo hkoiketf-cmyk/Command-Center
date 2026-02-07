@@ -45,6 +45,7 @@ export const layoutItemSchema = z.object({
   h: z.number(),
   minW: z.number().optional(),
   minH: z.number().optional(),
+  mobileHeight: z.number().optional(),
 });
 
 export type LayoutItem = z.infer<typeof layoutItemSchema>;

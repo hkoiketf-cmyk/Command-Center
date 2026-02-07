@@ -162,7 +162,7 @@ export function NotesWidget({ content, onContentChange }: NotesWidgetProps) {
           <Minus className="h-3.5 w-3.5" />
         </Button>
         <div className="flex-1" />
-        <Popover>
+        <Popover modal={true}>
           <PopoverTrigger asChild>
             <Button
               variant="ghost"
@@ -173,7 +173,7 @@ export function NotesWidget({ content, onContentChange }: NotesWidgetProps) {
               <Palette className="h-3.5 w-3.5" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-56 p-2" align="end">
+          <PopoverContent className="w-56 p-2 touch-manipulation" align="end">
             <div className="grid grid-cols-4 gap-1">
               {NOTE_COLORS.map((color) => (
                 <button

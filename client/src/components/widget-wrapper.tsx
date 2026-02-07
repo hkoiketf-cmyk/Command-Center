@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from "react";
-import { ChevronDown, ChevronUp, X, GripVertical, Palette, Pin, MoreVertical } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { ChevronDown, ChevronUp, X, GripVertical, Palette, Pin, MoreVertical, ArrowUp, ArrowDown, GripHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -69,6 +69,12 @@ interface WidgetWrapperProps {
   children: React.ReactNode;
   className?: string;
   isMobile?: boolean;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  isFirst?: boolean;
+  isLast?: boolean;
+  mobileHeight?: number | null;
+  onMobileHeightChange?: (height: number) => void;
 }
 
 export function WidgetWrapper({
@@ -85,11 +91,71 @@ export function WidgetWrapper({
   children,
   className,
   isMobile,
+  onMoveUp,
+  onMoveDown,
+  isFirst,
+  isLast,
+  mobileHeight,
+  onMobileHeightChange,
 }: WidgetWrapperProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(title);
   const inputRef = useRef<HTMLInputElement>(null);
+  const resizeRef = useRef<{ startY: number; startHeight: number } | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [resizingHeight, setResizingHeight] = useState<number | null>(null);
+  const [isResizing, setIsResizing] = useState(false);
+
+  const handleResizeStart = useCallback((clientY: number) => {
+    if (!cardRef.current) return;
+    const currentHeight = cardRef.current.getBoundingClientRect().height;
+    resizeRef.current = { startY: clientY, startHeight: currentHeight };
+    setResizingHeight(currentHeight);
+    setIsResizing(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMove = (clientY: number) => {
+      if (!resizeRef.current) return;
+      const delta = clientY - resizeRef.current.startY;
+      const newHeight = Math.max(80, resizeRef.current.startHeight + delta);
+      setResizingHeight(newHeight);
+    };
+
+    const handleEnd = () => {
+      setIsResizing(false);
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
+      handleMove(e.touches[0].clientY);
+    };
+    const onTouchEnd = () => handleEnd();
+    const onMouseMove = (e: MouseEvent) => handleMove(e.clientY);
+    const onMouseUp = () => handleEnd();
+
+    document.addEventListener("touchmove", onTouchMove, { passive: false });
+    document.addEventListener("touchend", onTouchEnd);
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+    return () => {
+      document.removeEventListener("touchmove", onTouchMove);
+      document.removeEventListener("touchend", onTouchEnd);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [isResizing]);
+
+  useEffect(() => {
+    if (!isResizing && resizingHeight && onMobileHeightChange) {
+      onMobileHeightChange(Math.round(resizingHeight));
+      setResizingHeight(null);
+      resizeRef.current = null;
+    }
+  }, [isResizing, resizingHeight, onMobileHeightChange]);
 
   useEffect(() => {
     setEditedTitle(title);
@@ -149,11 +215,15 @@ export function WidgetWrapper({
   const customTextBoldClass = hasCustomColor ? (isLight ? "text-gray-900" : "text-white") : "";
   const customIconClass = hasCustomColor ? (isLight ? "text-gray-700/70" : "text-white/70") : "";
 
+  const displayHeight = resizingHeight ?? mobileHeight ?? undefined;
+  const mobileCardStyle = isMobile && displayHeight && !collapsed ? { height: `${displayHeight}px` } : {};
+
   return (
     <>
       <Card
-        className={cn("h-full flex flex-col overflow-hidden", className)}
-        style={cardStyle}
+        ref={cardRef}
+        className={cn("flex flex-col overflow-hidden", isMobile ? "" : "h-full", className)}
+        style={{ ...cardStyle, ...mobileCardStyle }}
       >
         <CardHeader className={cn("flex flex-row items-center justify-between gap-2 border-b border-border shrink-0", isMobile ? "py-3 px-3" : "py-3 px-4")}>
           <div className={cn("flex items-center flex-1 min-w-0", isMobile ? "gap-2" : "gap-2")}>
@@ -189,25 +259,50 @@ export function WidgetWrapper({
               </CardTitle>
             )}
           </div>
-          <div className={cn("flex items-center", isMobile ? "gap-1.5" : "gap-1")}>
+          <div className={cn("flex items-center", isMobile ? "gap-1" : "gap-1")}>
+            {isMobile && onMoveUp && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onMoveUp}
+                disabled={isFirst}
+                className={cn(isFirst && "opacity-30")}
+                data-testid="button-widget-move-up"
+              >
+                <ArrowUp className={cn("h-4 w-4", customIconClass)} />
+              </Button>
+            )}
+            {isMobile && onMoveDown && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onMoveDown}
+                disabled={isLast}
+                className={cn(isLast && "opacity-30")}
+                data-testid="button-widget-move-down"
+              >
+                <ArrowDown className={cn("h-4 w-4", customIconClass)} />
+              </Button>
+            )}
             {showPinOption && onTogglePin && (
-              <DropdownMenu>
+              <DropdownMenu modal={true}>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
                     className={isMobile ? undefined : "h-7 w-7"}
                     onClick={(e) => e.stopPropagation()}
-                    onMouseDown={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
                     data-testid="button-widget-menu"
                   >
                     <MoreVertical className={cn("h-4 w-4", customIconClass)} />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="touch-manipulation">
                   <DropdownMenuItem
                     onClick={() => onTogglePin(!pinnedAllDesktops)}
                     data-testid="button-toggle-pin"
+                    className="touch-manipulation"
                   >
                     <Pin className={cn("h-4 w-4 mr-2", pinnedAllDesktops && "text-primary")} />
                     {pinnedAllDesktops ? "Unpin from all desktops" : "Pin to all desktops"}
@@ -216,20 +311,20 @@ export function WidgetWrapper({
               </DropdownMenu>
             )}
             {onCardColorChange && (
-              <Popover>
+              <Popover modal={true}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
                     className={isMobile ? undefined : "h-7 w-7"}
                     onClick={(e) => e.stopPropagation()}
-                    onMouseDown={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
                     data-testid="button-widget-color"
                   >
                     <Palette className={cn("h-4 w-4", customIconClass)} />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-56 p-2" align="end">
+                <PopoverContent className="w-56 p-2 touch-manipulation" align="end">
                   <div className="grid grid-cols-5 gap-1.5">
                     {CARD_COLORS.map((c) => (
                       <button
@@ -284,6 +379,19 @@ export function WidgetWrapper({
           <CardContent className={cn("flex-1 p-4 overflow-auto", hasCustomColor && (isLight ? "text-gray-800" : "text-white/90"))}>
             {children}
           </CardContent>
+        )}
+        {isMobile && !collapsed && onMobileHeightChange && (
+          <div
+            className={cn(
+              "flex items-center justify-center py-1.5 cursor-ns-resize border-t border-border select-none touch-none",
+              hasCustomColor ? (isLight ? "text-gray-500" : "text-white/40") : "text-muted-foreground"
+            )}
+            onTouchStart={(e) => handleResizeStart(e.touches[0].clientY)}
+            onMouseDown={(e) => handleResizeStart(e.clientY)}
+            data-testid="handle-widget-resize"
+          >
+            <GripHorizontal className="h-4 w-4" />
+          </div>
         )}
       </Card>
 
