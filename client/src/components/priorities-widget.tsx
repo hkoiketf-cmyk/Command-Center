@@ -89,7 +89,7 @@ export function PrioritiesWidget({ content, onContentChange }: PrioritiesWidgetP
   return (
     <>
       <div className="h-full flex flex-col gap-4">
-        <Select value={selectedVentureId} onValueChange={handleVentureChange}>
+        <Select value={selectedVentureId || undefined} onValueChange={handleVentureChange}>
           <SelectTrigger data-testid="select-venture">
             <SelectValue placeholder="Select a venture..." />
           </SelectTrigger>

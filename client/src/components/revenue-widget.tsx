@@ -205,7 +205,7 @@ export function RevenueWidget({ content, onContentChange }: RevenueWidgetProps) 
     <>
       <div className="h-full flex flex-col gap-4">
         <div className="flex items-center gap-2 flex-wrap">
-          <Select value={selectedVentureId} onValueChange={handleVentureChange}>
+          <Select value={selectedVentureId || undefined} onValueChange={handleVentureChange}>
             <SelectTrigger className="flex-1 min-w-[150px]" data-testid="select-revenue-venture">
               <SelectValue placeholder="Select a venture..." />
             </SelectTrigger>
