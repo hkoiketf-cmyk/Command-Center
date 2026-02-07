@@ -106,12 +106,16 @@ export function WidgetWrapper({
   const cardRef = useRef<HTMLDivElement>(null);
   const [resizingHeight, setResizingHeight] = useState<number | null>(null);
   const [isResizing, setIsResizing] = useState(false);
+  const latestResizeHeight = useRef<number>(0);
+  const onMobileHeightChangeRef = useRef(onMobileHeightChange);
+  onMobileHeightChangeRef.current = onMobileHeightChange;
 
   const handleResizeStart = useCallback((clientY: number) => {
     if (!cardRef.current) return;
     const currentHeight = cardRef.current.getBoundingClientRect().height;
     resizeRef.current = { startY: clientY, startHeight: currentHeight };
     setResizingHeight(currentHeight);
+    latestResizeHeight.current = currentHeight;
     setIsResizing(true);
   }, []);
 
@@ -123,10 +127,18 @@ export function WidgetWrapper({
       const delta = clientY - resizeRef.current.startY;
       const newHeight = Math.max(80, resizeRef.current.startHeight + delta);
       setResizingHeight(newHeight);
+      latestResizeHeight.current = newHeight;
     };
 
     const handleEnd = () => {
+      const finalHeight = latestResizeHeight.current;
       setIsResizing(false);
+      setResizingHeight(null);
+      resizeRef.current = null;
+      if (finalHeight > 0 && onMobileHeightChangeRef.current) {
+        onMobileHeightChangeRef.current(Math.round(finalHeight));
+      }
+      latestResizeHeight.current = 0;
     };
 
     const onTouchMove = (e: TouchEvent) => {
@@ -148,14 +160,6 @@ export function WidgetWrapper({
       document.removeEventListener("mouseup", onMouseUp);
     };
   }, [isResizing]);
-
-  useEffect(() => {
-    if (!isResizing && resizingHeight && onMobileHeightChange) {
-      onMobileHeightChange(Math.round(resizingHeight));
-      setResizingHeight(null);
-      resizeRef.current = null;
-    }
-  }, [isResizing, resizingHeight, onMobileHeightChange]);
 
   useEffect(() => {
     setEditedTitle(title);

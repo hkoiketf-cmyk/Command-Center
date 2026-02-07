@@ -211,7 +211,7 @@ export function RevenueWidget({ content, onContentChange }: RevenueWidgetProps) 
             </SelectTrigger>
             <SelectContent>
               {ventures.map((venture) => (
-                <SelectItem key={venture.id} value={venture.id}>
+                <SelectItem key={venture.id} value={venture.id} textValue={venture.name}>
                   <div className="flex items-center gap-2">
                     <Circle
                       className="h-3 w-3"
