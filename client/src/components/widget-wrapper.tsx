@@ -171,6 +171,16 @@ const WIDGET_INFO: Record<WidgetType, { description: string; tips: string[] }> =
       "Works with any web-based AI assistant",
     ],
   },
+  timer: {
+    description: "A customizable timer for focused work sessions, breaks, or tracking elapsed time.",
+    tips: [
+      "Switch between countdown and count-up (stopwatch) modes",
+      "Set custom hours, minutes, and seconds for countdown",
+      "Choose from multiple alert sounds and preview them",
+      "Mute/unmute the alert sound with the speaker button",
+      "Click the gear icon to change timer settings",
+    ],
+  },
 };
 
 function isLightColor(hex: string): boolean {

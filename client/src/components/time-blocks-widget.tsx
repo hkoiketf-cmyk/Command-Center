@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Trash2, ChevronLeft, ChevronRight, Pencil, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { TimeBlock } from "@shared/schema";
 
@@ -30,8 +29,6 @@ function formatTime(time: string): string {
   return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
 }
 
-const HOURS = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, "0")}:00`);
-
 export function TimeBlocksWidget() {
   const today = formatDate(new Date());
   const [selectedDate, setSelectedDate] = useState(today);
@@ -40,8 +37,13 @@ export function TimeBlocksWidget() {
   const [newStart, setNewStart] = useState("09:00");
   const [newEnd, setNewEnd] = useState("10:00");
   const [newColor, setNewColor] = useState(BLOCK_COLORS[0]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState("");
+  const [editStart, setEditStart] = useState("");
+  const [editEnd, setEditEnd] = useState("");
+  const [editColor, setEditColor] = useState("");
 
-  const { data: blocks = [], isLoading } = useQuery<TimeBlock[]>({
+  const { data: blocks = [] } = useQuery<TimeBlock[]>({
     queryKey: ["/api/time-blocks", selectedDate],
   });
 
@@ -55,6 +57,15 @@ export function TimeBlocksWidget() {
     },
   });
 
+  const updateBlock = useMutation({
+    mutationFn: ({ id, ...data }: { id: string; startTime: string; endTime: string; label: string; color: string }) =>
+      apiRequest("PATCH", `/api/time-blocks/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/time-blocks", selectedDate] });
+      setEditingId(null);
+    },
+  });
+
   const deleteBlock = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/time-blocks/${id}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/time-blocks", selectedDate] }),
@@ -64,6 +75,24 @@ export function TimeBlocksWidget() {
     const d = new Date(selectedDate + "T12:00:00");
     d.setDate(d.getDate() + dir);
     setSelectedDate(formatDate(d));
+  };
+
+  const startEditing = (block: TimeBlock) => {
+    setEditingId(block.id);
+    setEditLabel(block.label);
+    setEditStart(block.startTime);
+    setEditEnd(block.endTime);
+    setEditColor(block.color);
+  };
+
+  const saveEdit = () => {
+    if (editingId && editLabel.trim()) {
+      updateBlock.mutate({ id: editingId, label: editLabel.trim(), startTime: editStart, endTime: editEnd, color: editColor });
+    }
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
   };
 
   const sortedBlocks = [...blocks].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
@@ -98,6 +127,7 @@ export function TimeBlocksWidget() {
           const endMin = timeToMinutes(block.endTime) - minHour * 60;
           const top = (startMin / 60) * 48;
           const height = Math.max(((endMin - startMin) / 60) * 48, 20);
+          const isEditing = editingId === block.id;
 
           return (
             <div
@@ -106,39 +136,78 @@ export function TimeBlocksWidget() {
               style={{
                 top: `${top}px`,
                 height: `${height}px`,
-                backgroundColor: block.color + "30",
-                borderLeft: `3px solid ${block.color}`,
+                backgroundColor: (isEditing ? editColor : block.color) + "30",
+                borderLeft: `3px solid ${isEditing ? editColor : block.color}`,
               }}
               data-testid={`time-block-${block.id}`}
             >
               <div className="flex items-start justify-between gap-1">
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="font-medium truncate" style={{ color: block.color }}>{block.label}</div>
                   <div className="text-muted-foreground text-[10px]">
                     {formatTime(block.startTime)} - {formatTime(block.endTime)}
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-5 w-5 shrink-0"
-                  style={{ visibility: "hidden" }}
-                  onClick={() => deleteBlock.mutate(block.id)}
-                  data-testid={`button-delete-block-${block.id}`}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
+                <div className="flex gap-0.5 shrink-0 invisible group-hover:visible">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => startEditing(block)}
+                    data-testid={`button-edit-block-${block.id}`}
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => deleteBlock.mutate(block.id)}
+                    data-testid={`button-delete-block-${block.id}`}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
               </div>
             </div>
           );
         })}
       </div>
 
-      {!showAdd ? (
+      {editingId && (
+        <div className="space-y-2 border-t border-border pt-2" data-testid="form-edit-block">
+          <div className="text-xs font-medium text-muted-foreground">Edit Block</div>
+          <Input value={editLabel} onChange={(e) => setEditLabel(e.target.value)} placeholder="Block label" autoFocus data-testid="input-edit-block-label" />
+          <div className="flex gap-2">
+            <Input type="time" value={editStart} onChange={(e) => setEditStart(e.target.value)} className="flex-1" data-testid="input-edit-block-start" />
+            <Input type="time" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} className="flex-1" data-testid="input-edit-block-end" />
+          </div>
+          <div className="flex gap-1">
+            {BLOCK_COLORS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                className={`w-5 h-5 rounded-full border-2 ${editColor === c ? "ring-2 ring-offset-1 ring-foreground/50" : ""}`}
+                style={{ backgroundColor: c, borderColor: editColor === c ? "white" : "transparent" }}
+                onClick={() => setEditColor(c)}
+                data-testid={`button-edit-color-${c.replace("#", "")}`}
+              />
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={saveEdit} disabled={!editLabel.trim()} data-testid="button-save-edit-block">
+              <Check className="h-3.5 w-3.5 mr-1" /> Save
+            </Button>
+            <Button variant="ghost" size="sm" onClick={cancelEdit} data-testid="button-cancel-edit-block">
+              <X className="h-3.5 w-3.5 mr-1" /> Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {!showAdd && !editingId ? (
         <Button variant="ghost" size="sm" className="self-start" onClick={() => setShowAdd(true)} data-testid="button-add-block">
           <Plus className="h-3.5 w-3.5 mr-1" /> Add Block
         </Button>
-      ) : (
+      ) : !editingId ? (
         <form
           className="space-y-2 border-t border-border pt-2"
           onSubmit={(e) => {
@@ -156,9 +225,10 @@ export function TimeBlocksWidget() {
               <button
                 key={c}
                 type="button"
-                className="w-5 h-5 rounded-full border-2 transition-transform"
-                style={{ backgroundColor: c, borderColor: newColor === c ? "white" : "transparent", transform: newColor === c ? "scale(1.2)" : "" }}
+                className={`w-5 h-5 rounded-full border-2 ${newColor === c ? "ring-2 ring-offset-1 ring-foreground/50" : ""}`}
+                style={{ backgroundColor: c, borderColor: newColor === c ? "white" : "transparent" }}
                 onClick={() => setNewColor(c)}
+                data-testid={`button-add-color-${c.replace("#", "")}`}
               />
             ))}
           </div>
@@ -167,7 +237,7 @@ export function TimeBlocksWidget() {
             <Button type="button" variant="ghost" size="sm" onClick={() => { setShowAdd(false); setNewLabel(""); }}>Cancel</Button>
           </div>
         </form>
-      )}
+      ) : null}
     </div>
   );
 }

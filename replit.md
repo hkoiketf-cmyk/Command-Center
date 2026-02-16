@@ -96,6 +96,7 @@ shared/
 16. **Meeting Prep** - Two-phase workflow (prep with talking points → notes with action items)
 17. **Google Calendar** - Embed Google Calendar via public URL, with day/week/month/agenda view switching
 18. **AI Chat** - Embed any AI assistant (ChatGPT, Claude, Gemini, Perplexity, etc.) via URL, quick-select popular tools or paste custom URL
+19. **Timer** - Countdown or count-up (stopwatch) timer with customizable duration, progress bar, multiple alert sound options, mute toggle
 
 ## Features
 - **Multiple Desktops**: Create separate desktop layouts (e.g., "Business", "Personal") with tab switching

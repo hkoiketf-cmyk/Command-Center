@@ -33,7 +33,7 @@ export type InsertDesktop = z.infer<typeof insertDesktopSchema>;
 export type Desktop = typeof desktops.$inferSelect;
 
 // Widget types enum
-export const widgetTypes = ["notes", "priorities", "revenue", "iframe", "code", "context_mode", "quick_capture", "habit_tracker", "daily_journal", "weekly_scorecard", "kpi_dashboard", "waiting_for", "crm_pipeline", "time_blocks", "expense_tracker", "meeting_prep", "google_calendar", "ai_chat"] as const;
+export const widgetTypes = ["notes", "priorities", "revenue", "iframe", "code", "context_mode", "quick_capture", "habit_tracker", "daily_journal", "weekly_scorecard", "kpi_dashboard", "waiting_for", "crm_pipeline", "time_blocks", "expense_tracker", "meeting_prep", "google_calendar", "ai_chat", "timer"] as const;
 export type WidgetType = typeof widgetTypes[number];
 
 // Layout item for react-grid-layout
@@ -389,6 +389,7 @@ export type ExpenseTrackerContent = {};
 export type MeetingPrepContent = {};
 export type GoogleCalendarContent = { calendarUrl?: string };
 export type AiChatContent = { embedUrl?: string };
+export type TimerContent = { mode?: "countdown" | "countup"; hours?: number; minutes?: number; seconds?: number; sound?: string };
 
 // AI Chat tables
 export const aiConversations = pgTable("ai_conversations", {
