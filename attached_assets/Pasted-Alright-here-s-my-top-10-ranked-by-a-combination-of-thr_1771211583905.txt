@@ -1,0 +1,39 @@
+Alright, here's my top 10 ranked by a combination of three things: how often a solopreneur would actually use it daily, how much it differentiates HunterOS from free alternatives, and how feasible it is to build within the existing widget architecture.
+
+**1. CRM Mini Pipeline**
+This is the single biggest gap in the solopreneur tool market. Every CRM is built for sales teams. Solopreneurs need five columns max: Lead, Contacted, Proposal, Negotiating, Closed. Each card is a name, dollar value, last contact date, and a next action. Drag between columns. The killer detail: a "stale lead" indicator that turns cards yellow after 7 days of no activity, red after 14. Most solopreneurs lose deals not because they got rejected but because they forgot to follow up. This widget makes forgetting impossible because it's sitting right next to their priorities every single day.
+
+**2. Weekly Scorecard**
+You define 5-7 measurable activities (not outcomes — activities you control). Calls made, proposals sent, content pieces published, hours of deep work, workouts completed. You enter numbers daily or weekly. It shows this week vs. last week vs. your target in a simple row format. This is the widget that turns HunterOS from a planning tool into an accountability system. Without it, someone can set priorities and ignore them. With the scorecard, the truth is visible. It's based on the EOS/Traction methodology that a huge percentage of the entrepreneurial audience already knows and trusts.
+
+**3. Quick Capture Inbox**
+One text field. Hit enter. It goes into a running list. That's it. The whole point is speed — you're in the middle of deep work, a thought hits you, you type it, you move on. No context switching, no opening another app, no "let me just check this one thing" spiral. The list accumulates throughout the day or week, and you process it during a designated review session, dragging items to priorities or deleting them. This is a tiny widget with massive behavioral impact because it removes the number one excuse people have for breaking focus.
+
+**4. KPI Dashboard**
+Three to six key numbers with targets and visual progress indicators. "Email subscribers: 2,847 / 5,000." "Monthly revenue: $4,200 / $8,000." "Active clients: 12 / capacity 20." You update the numbers manually (or eventually via API integrations). The point is answering "is my business healthy?" in two seconds without logging into Stripe, Mailchimp, and Google Analytics separately. Each KPI gets a colored progress bar — green if on track, yellow if behind, red if significantly off. This is the widget that makes someone open HunterOS first thing every morning.
+
+**5. Habit Streak Tracker**
+A grid visualization inspired by GitHub's contribution graph. You pick 3-5 daily habits. Each day you tap to mark them done. The visual streak becomes self-reinforcing — you don't want to break the chain. This works for both business habits (prospected today, created content, reviewed financials) and personal ones (exercised, meditated, read). The psychological hook is strong: people will open the app just to maintain their streak, which means they see their priorities and revenue data every day too. It's the engagement loop that makes the whole dashboard sticky.
+
+**6. Daily Journal / Log**
+One entry per day. Simple rich text, same as the existing Notes widget engine. But structured as a dated log rather than a freeform note. Shows today's entry prominently with a scrollable history below. Over three to six months, this becomes incredibly valuable — you can look back and see patterns you'd never notice in real time. "Every time I had a bad week, I'd skipped my Monday planning session." "My best revenue months all started with a burst of outreach in the first week." Solopreneurs don't have managers doing performance reviews. This is the performance review you do on yourself.
+
+**7. Time Block Planner**
+A vertical timeline for today showing hour blocks from your chosen start time to end time. You create colored blocks: "9-11 Deep Work," "11-12 Client Calls," "1-3 Content." It's not a calendar with appointments — it's an intention map for how you want to spend your day. The difference matters. A calendar shows you what's scheduled. A time block planner shows you what you chose to prioritize. It pairs with the Focus Contract perfectly: the time block says when, the Focus Contract says what and why. Together they eliminate the "what should I do right now?" question entirely.
+
+**8. Waiting-For List**
+A simple list of things in other people's courts. "Logo files from designer — sent Jan 12." "Contract review from lawyer — due Jan 20." "Partnership response from gym owner — followed up Jan 15." Each item has a person, description, date sent, and expected response date. Items that pass their expected date turn yellow, then red. This is the widget that prevents the slow death of important projects. Most solopreneurs have 5-15 things they're waiting on at any given time and track zero of them systematically. Balls drop, deals die, projects stall — all because nobody was watching the waiting list.
+
+**9. Expense Burn Rate**
+Not a full accounting tool. Just a running list of monthly recurring expenses (tools, subscriptions, contractors, rent) with a total at the top. You enter them once, and it shows your monthly burn rate as a single prominent number. Below that, a simple log for variable expenses as they happen. The insight it provides: "I'm spending $2,400/month before I earn a dollar." Paired with the Revenue widget, you can see your actual profit margin at a glance. Most solopreneurs have no idea what they're spending until they look at their bank statement at the end of the month, and by then it's too late to adjust.
+
+**10. Meeting Prep & Agenda**
+Shows your next upcoming meeting (manually entered or eventually synced from a calendar) with fields for: who you're meeting, the objective of the meeting, your three talking points, and the desired outcome. You fill this in before the meeting. Afterward, it flips to a notes mode where you capture action items. The action items can be pushed to your Priorities or Waiting-For widgets. This solves a real problem: solopreneurs take calls all day and walk out of half of them without a clear next step. The widget forces intentionality on both sides of every conversation.
+
+---
+
+Those ten in build order based on complexity and dependency:
+
+The first tier would be Quick Capture Inbox, Habit Streak Tracker, and Daily Journal — all relatively simple data-in, data-out widgets that use patterns already established in your Notes and Priorities widgets. The second tier would be Weekly Scorecard, KPI Dashboard, and Waiting-For List — slightly more complex with targets, calculated fields, and date-based status logic. The third tier would be CRM Mini Pipeline, Time Block Planner, Expense Burn Rate, and Meeting Prep — these involve new interaction patterns like drag-and-drop kanban, timeline visualization, and calculated totals.
+
+Want me to write the detailed technical specs for any of these — schema, API routes, component structure — so you can feed them into Cursor as build prompts?
