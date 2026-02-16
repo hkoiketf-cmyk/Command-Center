@@ -102,7 +102,7 @@ export default function Pricing() {
               ? "Your free trial is active. Subscribe before it ends to keep access."
               : isActive
                 ? `You're on the ${subscription?.plan || "pro"} plan.`
-                : "Start with a 7-day free trial. No credit card required to begin."}
+                : "Start with a 3-day free trial. No credit card required to begin."}
           </p>
           {isTrial && subscription?.trialEnd && (
             <p className="mt-2 text-sm text-muted-foreground" data-testid="text-trial-end">
@@ -145,7 +145,7 @@ export default function Pricing() {
                   <span className="text-muted-foreground">/month</span>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Includes 7-day free trial
+                  Includes 3-day free trial
                 </p>
               </CardHeader>
               <CardContent>
@@ -187,7 +187,7 @@ export default function Pricing() {
                   <span className="text-muted-foreground">/year</span>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
-                  $6.50/mo — Includes 7-day free trial
+                  $6.50/mo — Includes 3-day free trial
                 </p>
               </CardHeader>
               <CardContent>

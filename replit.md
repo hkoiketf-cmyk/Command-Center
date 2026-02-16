@@ -234,9 +234,12 @@ shared/
 - Products/prices created via `server/seed-products.ts` script
 - Stripe data stored in `stripe` schema (managed by stripe-replit-sync, never modify directly)
 - Users table has `stripeCustomerId` and `stripeSubscriptionId` columns
-- Pricing: 7-day free trial, $5/month or $78/year
+- Pricing: 3-day free trial, $5/month or $78/year
 - Dashboard gated behind active subscription or trial
 - Billing management via Stripe Customer Portal
+- Data retention: expired/canceled users' data kept for 30 days, then automatically cleaned up
+- `subscriptionEndedAt` field tracks when a user's access ended
+- Daily cleanup job removes all data for users whose subscription ended 30+ days ago
 
 ## Running the App
 ```bash

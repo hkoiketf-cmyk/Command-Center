@@ -986,14 +986,20 @@ export async function registerRoutes(
       }
 
       if (!user.stripeSubscriptionId) {
-        const trialEnd = user.createdAt ? new Date(user.createdAt).getTime() + 7 * 24 * 60 * 60 * 1000 : 0;
+        const trialEnd = user.createdAt ? new Date(user.createdAt).getTime() + 3 * 24 * 60 * 60 * 1000 : 0;
         const now = Date.now();
         if (now < trialEnd) {
+          if (user.subscriptionEndedAt) {
+            await storage.updateUser(userId, { subscriptionEndedAt: null });
+          }
           return res.json({
             status: "trialing",
             trialEnd: new Date(trialEnd).toISOString(),
             plan: null,
           });
+        }
+        if (!user.subscriptionEndedAt) {
+          await storage.updateUser(userId, { subscriptionEndedAt: new Date() });
         }
         return res.json({
           status: "expired",
@@ -1007,6 +1013,9 @@ export async function registerRoutes(
       );
       const subscription = subResult.rows[0];
       if (!subscription) {
+        if (!user.subscriptionEndedAt) {
+          await storage.updateUser(userId, { subscriptionEndedAt: new Date() });
+        }
         return res.json({ status: "expired", plan: null });
       }
 
@@ -1020,6 +1029,16 @@ export async function registerRoutes(
       if (itemsResult.rows.length > 0) {
         const recurring = itemsResult.rows[0].recurring as any;
         plan = recurring?.interval === "year" ? "yearly" : "monthly";
+      }
+
+      if (subStatus === "active" || subStatus === "trialing") {
+        if (user.subscriptionEndedAt) {
+          await storage.updateUser(userId, { subscriptionEndedAt: null });
+        }
+      } else if (subStatus === "canceled" || subStatus === "unpaid") {
+        if (!user.subscriptionEndedAt) {
+          await storage.updateUser(userId, { subscriptionEndedAt: new Date() });
+        }
       }
 
       res.json({
@@ -1086,7 +1105,7 @@ export async function registerRoutes(
         success_url: `${req.protocol}://${req.get("host")}/?checkout=success`,
         cancel_url: `${req.protocol}://${req.get("host")}/?checkout=cancel`,
         subscription_data: {
-          trial_period_days: 7,
+          trial_period_days: 3,
         },
       });
 

@@ -29,14 +29,14 @@ async function createProducts() {
     currency: 'usd',
     recurring: {
       interval: 'month',
-      trial_period_days: 7,
+      trial_period_days: 3,
     },
     metadata: {
       plan: 'monthly',
     },
   });
 
-  console.log('Created monthly price:', monthlyPrice.id, '- $5/month with 7-day trial');
+  console.log('Created monthly price:', monthlyPrice.id, '- $5/month with 3-day trial');
 
   const yearlyPrice = await stripe.prices.create({
     product: product.id,
@@ -44,14 +44,14 @@ async function createProducts() {
     currency: 'usd',
     recurring: {
       interval: 'year',
-      trial_period_days: 7,
+      trial_period_days: 3,
     },
     metadata: {
       plan: 'yearly',
     },
   });
 
-  console.log('Created yearly price:', yearlyPrice.id, '- $78/year with 7-day trial');
+  console.log('Created yearly price:', yearlyPrice.id, '- $78/year with 3-day trial');
 }
 
 createProducts().catch(console.error);
