@@ -27,6 +27,7 @@ import { MeetingPrepWidget } from "@/components/meeting-prep-widget";
 import { GoogleCalendarWidget } from "@/components/google-calendar-widget";
 import { AiChatWidget } from "@/components/ai-chat-widget";
 import { TimerWidget } from "@/components/timer-widget";
+import { HunterAI } from "@/components/hunter-ai";
 import { AddWidgetDialog } from "@/components/add-widget-dialog";
 import { VentureManager } from "@/components/venture-manager";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -1274,6 +1275,8 @@ export default function Dashboard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <HunterAI />
 
       <Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
         <DialogContent className="sm:max-w-sm" data-testid="settings-dialog">

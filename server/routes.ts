@@ -921,7 +921,14 @@ export async function registerRoutes(
   app.get("/api/user-settings", isAuthenticated, async (req, res) => {
     try {
       const settings = await storage.getUserSettings(getUserId(req));
-      res.json(settings);
+      const masked = {
+        ...settings,
+        openaiApiKey: settings.openaiApiKey
+          ? `sk-...${settings.openaiApiKey.slice(-4)}`
+          : null,
+        hasOpenaiKey: !!settings.openaiApiKey,
+      };
+      res.json(masked);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch user settings" });
     }
@@ -929,8 +936,25 @@ export async function registerRoutes(
 
   app.patch("/api/user-settings", isAuthenticated, async (req, res) => {
     try {
-      const settings = await storage.updateUserSettings(getUserId(req), req.body);
-      res.json(settings);
+      const allowedFields: Record<string, any> = {};
+      if (req.body.appName !== undefined) allowedFields.appName = req.body.appName;
+      if (req.body.openaiApiKey !== undefined) {
+        const key = req.body.openaiApiKey;
+        if (key && typeof key === "string" && !key.startsWith("sk-...")) {
+          allowedFields.openaiApiKey = key;
+        } else if (key === "" || key === null) {
+          allowedFields.openaiApiKey = null;
+        }
+      }
+      const settings = await storage.updateUserSettings(getUserId(req), allowedFields);
+      const masked = {
+        ...settings,
+        openaiApiKey: settings.openaiApiKey
+          ? `sk-...${settings.openaiApiKey.slice(-4)}`
+          : null,
+        hasOpenaiKey: !!settings.openaiApiKey,
+      };
+      res.json(masked);
     } catch (error) {
       res.status(500).json({ error: "Failed to update user settings" });
     }
@@ -1256,6 +1280,148 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Redeem code error:", error);
       res.status(500).json({ error: "Failed to redeem access code" });
+    }
+  });
+
+  // ============ HUNTER AI ============
+
+  app.post("/api/hunter-ai/chat", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const { message } = req.body;
+      if (!message || typeof message !== "string") {
+        return res.status(400).json({ error: "Message is required" });
+      }
+
+      const settings = await storage.getUserSettings(userId);
+      if (!settings.openaiApiKey) {
+        return res.status(400).json({ error: "Please add your OpenAI API key in the HunterAI settings to use this feature." });
+      }
+
+      const [
+        desktops,
+        widgets,
+        ventures,
+        kpis,
+        waitingItems,
+        deals,
+        captureItems,
+        habits,
+        recurringExpenses,
+        variableExpenses,
+        meetings,
+        scorecardMetrics,
+        allScorecardEntries,
+      ] = await Promise.all([
+        storage.getDesktops(userId),
+        storage.getWidgets(userId),
+        storage.getVentures(userId),
+        storage.getKpis(userId),
+        storage.getWaitingItems(userId),
+        storage.getDeals(userId),
+        storage.getCaptureItems(userId),
+        storage.getHabits(userId),
+        storage.getRecurringExpenses(userId),
+        storage.getVariableExpenses(userId),
+        storage.getMeetings(userId),
+        storage.getScorecardMetrics(userId),
+        storage.getAllScorecardEntries(userId),
+      ]);
+
+      const prioritiesMap: Record<string, any[]> = {};
+      const revenueMap: Record<string, any[]> = {};
+      for (const v of ventures) {
+        const [priorities, revenue] = await Promise.all([
+          storage.getPriorities(userId, v.id),
+          storage.getRevenueData(userId, v.id),
+        ]);
+        prioritiesMap[v.name] = priorities;
+        revenueMap[v.name] = revenue;
+      }
+
+      const today = new Date().toISOString().split("T")[0];
+      const journalEntry = await storage.getJournalEntry(userId, today);
+
+      const notesWidgets = widgets.filter(w => w.type === "notes").map(w => ({
+        title: w.title,
+        content: w.content,
+      }));
+
+      const dashboardContext = JSON.stringify({
+        desktops: desktops.map(d => ({ name: d.name, id: d.id })),
+        ventures: ventures.map(v => ({
+          name: v.name,
+          color: v.color,
+          priorities: prioritiesMap[v.name] || [],
+          revenue: (revenueMap[v.name] || []).slice(-12),
+        })),
+        kpis: kpis.map(k => ({ name: k.name, target: k.target, currentValue: k.currentValue, unit: k.unit })),
+        notes: notesWidgets,
+        deals: deals.map(d => ({ name: d.name, company: d.company, value: d.value, stage: d.stage, lastContactDate: d.lastContactDate })),
+        waitingItems: waitingItems.map(w => ({ description: w.description, person: w.person, dueDate: w.dueDate, completed: w.completed })),
+        captureItems: captureItems.filter(c => !c.processed).map(c => ({ content: c.content })),
+        habits: habits.map(h => ({ name: h.name, color: h.color })),
+        scorecardMetrics: scorecardMetrics.map(m => {
+          const entries = allScorecardEntries.filter(e => e.metricId === m.id).slice(-4);
+          return { name: m.name, target: m.target, unit: m.unit, recentEntries: entries };
+        }),
+        recurringExpenses: recurringExpenses.map(e => ({ name: e.name, amount: e.amount, category: e.category })),
+        variableExpenses: variableExpenses.slice(-20).map(e => ({ name: e.name, amount: e.amount, category: e.category, date: e.date })),
+        meetings: meetings.filter(m => !m.completed).map(m => ({ title: m.title, objective: m.objective, date: m.date })),
+        todayJournal: journalEntry?.content || null,
+      }, null, 0);
+
+      const openai = new OpenAI({ apiKey: settings.openaiApiKey });
+
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+      res.flushHeaders();
+
+      const stream = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        stream: true,
+        messages: [
+          {
+            role: "system",
+            content: `You are HunterAI, a fun and enthusiastic personal dashboard assistant. Your personality is hunt-themed - you "hunt down", "track", "sniff out", and "gather" information for the user from their dashboard data.
+
+Your style rules:
+- Start responses with a hunt-themed opener like "Here's what I hunted down for you!" or "I tracked this down!" or "Found your prey!" or "Let me show you what I gathered!" etc.
+- Be concise and helpful - present data clearly
+- Use bold markdown for key numbers and names
+- If data doesn't exist for what they're asking, say something like "Came back empty-pawed on that one!" or "No tracks found for that!"
+- You can reference specific widgets, desktops, ventures by name
+- Format numbers nicely (currency with $, percentages with %)
+- Keep responses focused and scannable
+
+Here is the user's complete dashboard data:
+${dashboardContext}
+
+Today's date is ${today}.`,
+          },
+          { role: "user", content: message },
+        ],
+      });
+
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content;
+        if (content) {
+          res.write(`data: ${JSON.stringify({ content })}\n\n`);
+        }
+      }
+      res.write(`data: [DONE]\n\n`);
+      res.end();
+    } catch (error: any) {
+      console.error("HunterAI error:", error.message);
+      if (!res.headersSent) {
+        if (error.message?.includes("Incorrect API key") || error.status === 401) {
+          return res.status(401).json({ error: "Invalid OpenAI API key. Please check your key in settings." });
+        }
+        return res.status(500).json({ error: "HunterAI encountered an error. Please try again." });
+      }
+      res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+      res.end();
     }
   });
 

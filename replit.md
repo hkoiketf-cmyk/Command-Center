@@ -109,6 +109,16 @@ shared/
 18. **AI Chat** - Embed any AI assistant (ChatGPT, Claude, Gemini, Perplexity, etc.) via URL, quick-select popular tools or paste custom URL
 19. **Timer** - Countdown or count-up (stopwatch) timer with customizable duration, progress bar, multiple alert sound options, mute toggle
 
+## HunterAI Assistant
+- Floating chat button on dashboard (bottom-right corner)
+- Users provide their own OpenAI API key (stored per-user in user_settings)
+- Searches across ALL dashboard data: KPIs, priorities, revenue, deals, habits, expenses, notes, journal, scorecard, meetings, waiting items, capture items
+- Streaming SSE responses from OpenAI (gpt-4o-mini)
+- Hunt-themed personality ("Tracking down your data...", "Here's what I hunted down for you!")
+- API endpoint: POST /api/hunter-ai/chat (body: { message: string })
+- Settings dialog to add/update OpenAI API key
+- API key is masked in GET /api/user-settings responses (never exposed to frontend)
+
 ## Features
 - **Multiple Desktops**: Create separate desktop layouts (e.g., "Business", "Personal") with tab switching
 - **Desktop Background Colors**: Customizable background color per desktop (presets + custom color picker)
