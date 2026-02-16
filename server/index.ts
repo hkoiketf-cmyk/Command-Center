@@ -48,8 +48,6 @@ async function initStripe() {
   }
 }
 
-await initStripe();
-
 app.post(
   "/api/stripe/webhook",
   express.raw({ type: "application/json" }),
@@ -123,6 +121,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  await initStripe();
   await setupAuth(app);
   registerAuthRoutes(app);
   await registerRoutes(httpServer, app);
