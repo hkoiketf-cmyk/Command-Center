@@ -123,7 +123,7 @@ const widgetOptions: { type: WidgetType; label: string; description: string; ico
   {
     type: "ai_chat",
     label: "AI Chat",
-    description: "OpenAI-powered assistant for brainstorming",
+    description: "Embed any AI assistant (ChatGPT, Claude, etc.)",
     icon: Bot,
   },
 ];

@@ -67,7 +67,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Widget, WidgetType, LayoutItem, NotesContent, PrioritiesContent, RevenueContent, IframeContent, CodeContent, GoogleCalendarContent, Desktop, FocusContract, AppSettings, ExitGuardMode } from "@shared/schema";
+import type { Widget, WidgetType, LayoutItem, NotesContent, PrioritiesContent, RevenueContent, IframeContent, CodeContent, GoogleCalendarContent, AiChatContent, Desktop, FocusContract, AppSettings, ExitGuardMode } from "@shared/schema";
 
 type GridLayoutItem = {
   i: string;
@@ -640,7 +640,12 @@ export default function Dashboard() {
           />
         );
       case "ai_chat":
-        return <AiChatWidget />;
+        return (
+          <AiChatWidget
+            content={(widget.content as AiChatContent) || {}}
+            onContentChange={(content) => handleContentChange(widget, content)}
+          />
+        );
       default:
         return <div>Unknown widget type</div>;
     }

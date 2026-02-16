@@ -388,7 +388,7 @@ export type TimeBlocksContent = { startHour?: number; endHour?: number };
 export type ExpenseTrackerContent = {};
 export type MeetingPrepContent = {};
 export type GoogleCalendarContent = { calendarUrl?: string };
-export type AiChatContent = {};
+export type AiChatContent = { embedUrl?: string };
 
 // AI Chat tables
 export const aiConversations = pgTable("ai_conversations", {

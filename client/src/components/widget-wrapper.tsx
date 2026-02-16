@@ -163,12 +163,12 @@ const WIDGET_INFO: Record<WidgetType, { description: string; tips: string[] }> =
     ],
   },
   ai_chat: {
-    description: "An AI assistant built right into your dashboard. Ask questions, brainstorm, draft emails, or think through problems.",
+    description: "Embed your favorite AI assistant (ChatGPT, Claude, Gemini, etc.) directly into your dashboard.",
     tips: [
-      "Type a message and press Enter or click Send",
-      "Conversations are saved so you can pick up where you left off",
-      "Start a new conversation anytime with the + button",
-      "Great for quick brainstorming or writing help",
+      "Pick from popular AI tools or paste any custom URL",
+      "Click 'Open' to use the AI tool in a full browser tab",
+      "Click 'Change' to switch to a different AI tool anytime",
+      "Works with any web-based AI assistant",
     ],
   },
 };
