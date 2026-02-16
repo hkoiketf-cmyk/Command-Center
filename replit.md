@@ -253,6 +253,23 @@ shared/
 - Access codes for friends/family: admin generates codes, users redeem on pricing page
 - Admin access controlled via ADMIN_USER_IDS environment variable (comma-separated user IDs)
 
+### Platform Announcements
+- `GET /api/announcements` - Get announcements for current user (with read status)
+- `POST /api/announcements/:id/read` - Mark announcement as read
+- `GET /api/announcements/admin` - Admin: Get all announcements
+- `POST /api/announcements` - Admin: Create announcement (title, content, type, targetType, targetUserIds)
+- `PATCH /api/announcements/:id` - Admin: Update announcement
+- `DELETE /api/announcements/:id` - Admin: Delete announcement
+- `GET /api/admin/users` - Admin: Get all users (for targeting announcements)
+
+## Platform Announcements
+- Admin can push announcements to all users or specific users
+- Types: info, update, warning (with color-coded icons)
+- Users see notification bell in header with unread count
+- Announcements can be activated/deactivated by admin
+- User data is never affected by code deployments (PostgreSQL persistence)
+- Admin tools: Megaphone icon in header (visible only to admins)
+
 ## Running the App
 ```bash
 npm run dev

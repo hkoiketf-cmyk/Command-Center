@@ -1605,5 +1605,124 @@ Today's date is ${today}.`,
     }
   });
 
+  // Platform Announcements - Admin CRUD
+  app.get("/api/announcements/admin", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!(await isAdmin(userId))) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      const announcements = await storage.getAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Get announcements error:", error);
+      res.status(500).json({ error: "Failed to get announcements" });
+    }
+  });
+
+  app.post("/api/announcements", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!(await isAdmin(userId))) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      const { title, content, type, targetType, targetUserIds } = req.body;
+      if (!title || !content) {
+        return res.status(400).json({ error: "Title and content required" });
+      }
+      const validTypes = ["info", "update", "warning"];
+      const validTargets = ["all", "specific"];
+      const announcementType = validTypes.includes(type) ? type : "info";
+      const announcementTarget = validTargets.includes(targetType) ? targetType : "all";
+      const validUserIds = announcementTarget === "specific" && Array.isArray(targetUserIds)
+        ? targetUserIds.filter((id: any) => typeof id === "string")
+        : null;
+      if (announcementTarget === "specific" && (!validUserIds || validUserIds.length === 0)) {
+        return res.status(400).json({ error: "At least one user must be selected for targeted announcements" });
+      }
+      const announcement = await storage.createAnnouncement({
+        title: String(title).slice(0, 200),
+        content: String(content).slice(0, 2000),
+        type: announcementType,
+        targetType: announcementTarget,
+        targetUserIds: validUserIds,
+        isActive: true,
+        createdBy: userId,
+      });
+      res.json(announcement);
+    } catch (error) {
+      console.error("Create announcement error:", error);
+      res.status(500).json({ error: "Failed to create announcement" });
+    }
+  });
+
+  app.patch("/api/announcements/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!(await isAdmin(userId))) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      const updated = await storage.updateAnnouncement(req.params.id, req.body);
+      if (!updated) return res.status(404).json({ error: "Announcement not found" });
+      res.json(updated);
+    } catch (error) {
+      console.error("Update announcement error:", error);
+      res.status(500).json({ error: "Failed to update announcement" });
+    }
+  });
+
+  app.delete("/api/announcements/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!(await isAdmin(userId))) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      const deleted = await storage.deleteAnnouncement(req.params.id);
+      if (!deleted) return res.status(404).json({ error: "Announcement not found" });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete announcement error:", error);
+      res.status(500).json({ error: "Failed to delete announcement" });
+    }
+  });
+
+  // Platform Announcements - User endpoints
+  app.get("/api/announcements", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const announcements = await storage.getAnnouncementsForUser(userId);
+      res.json(announcements);
+    } catch (error) {
+      console.error("Get user announcements error:", error);
+      res.status(500).json({ error: "Failed to get announcements" });
+    }
+  });
+
+  app.post("/api/announcements/:id/read", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      await storage.markAnnouncementRead(userId, req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Mark announcement read error:", error);
+      res.status(500).json({ error: "Failed to mark announcement as read" });
+    }
+  });
+
+  // Admin: Get all users for targeting announcements
+  app.get("/api/admin/users", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!(await isAdmin(userId))) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      const allUsers = await storage.getAllUsers();
+      res.json(allUsers);
+    } catch (error) {
+      console.error("Get all users error:", error);
+      res.status(500).json({ error: "Failed to get users" });
+    }
+  });
+
   return httpServer;
 }

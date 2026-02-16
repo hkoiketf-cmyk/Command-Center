@@ -5,6 +5,8 @@ import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import { Zap, Plus, Monitor, Trash2, Pencil, Check, X as XIcon, Settings, Menu, Palette, Moon, Sun, LogOut, User, CreditCard, KeyRound, Library, Crosshair } from "lucide-react";
 import { AdminCodesDialog } from "@/components/admin-codes-dialog";
+import { AdminAnnouncementsDialog } from "@/components/admin-announcements";
+import { NotificationsBell } from "@/components/notifications-bell";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { WidgetWrapper } from "@/components/widget-wrapper";
@@ -703,6 +705,7 @@ export default function Dashboard() {
                 {activeDesktop?.name || appName}
               </span>
               <div className="flex items-center gap-1">
+                <NotificationsBell />
                 <Button
                   variant="ghost"
                   size="icon"
@@ -1070,6 +1073,7 @@ export default function Dashboard() {
               >
                 <Crosshair className="h-4 w-4" />
               </Button>
+              <NotificationsBell />
               <ThemeToggle />
               <div className="flex items-center gap-1.5 ml-1 pl-1.5 border-l border-border">
                 <Avatar className="h-7 w-7">
@@ -1087,7 +1091,12 @@ export default function Dashboard() {
                 >
                   <CreditCard className="h-4 w-4" />
                 </Button>
-                <AdminCodesDialog />
+                {userSettings?.isAdmin && (
+                  <>
+                    <AdminCodesDialog />
+                    <AdminAnnouncementsDialog />
+                  </>
+                )}
                 <Button
                   variant="ghost"
                   size="icon"

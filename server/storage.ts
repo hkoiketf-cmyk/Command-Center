@@ -77,6 +77,10 @@ import {
   dashboardPresets,
   type DashboardPreset,
   type InsertDashboardPreset,
+  platformAnnouncements,
+  announcementReads,
+  type PlatformAnnouncement,
+  type InsertAnnouncement,
   users,
   type User,
 } from "@shared/schema";
@@ -179,6 +183,13 @@ export interface IStorage {
   createPreset(data: InsertDashboardPreset): Promise<DashboardPreset>;
   updatePreset(userId: string, id: string, updates: Partial<DashboardPreset>): Promise<DashboardPreset | undefined>;
   deletePreset(userId: string, id: string): Promise<boolean>;
+  getAnnouncements(): Promise<PlatformAnnouncement[]>;
+  getAnnouncementsForUser(userId: string): Promise<(PlatformAnnouncement & { isRead: boolean })[]>;
+  createAnnouncement(data: InsertAnnouncement): Promise<PlatformAnnouncement>;
+  updateAnnouncement(id: string, updates: Partial<PlatformAnnouncement>): Promise<PlatformAnnouncement | undefined>;
+  deleteAnnouncement(id: string): Promise<boolean>;
+  markAnnouncementRead(userId: string, announcementId: string): Promise<void>;
+  getAllUsers(): Promise<{ id: string; email: string | null; firstName: string | null; lastName: string | null }[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -613,6 +624,58 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(dashboardPresets.id, id), eq(dashboardPresets.userId, userId)))
       .returning();
     return result.length > 0;
+  }
+
+  async getAnnouncements(): Promise<PlatformAnnouncement[]> {
+    return await db.select().from(platformAnnouncements).orderBy(desc(platformAnnouncements.createdAt));
+  }
+
+  async getAnnouncementsForUser(userId: string): Promise<(PlatformAnnouncement & { isRead: boolean })[]> {
+    const allAnnouncements = await db.select().from(platformAnnouncements)
+      .where(eq(platformAnnouncements.isActive, true))
+      .orderBy(desc(platformAnnouncements.createdAt));
+    const reads = await db.select().from(announcementReads)
+      .where(eq(announcementReads.userId, userId));
+    const readIds = new Set(reads.map(r => r.announcementId));
+    return allAnnouncements
+      .filter(a => a.targetType === "all" || (a.targetUserIds && a.targetUserIds.includes(userId)))
+      .map(a => ({ ...a, isRead: readIds.has(a.id) }));
+  }
+
+  async createAnnouncement(data: InsertAnnouncement): Promise<PlatformAnnouncement> {
+    const result = await db.insert(platformAnnouncements).values(data).returning();
+    return result[0];
+  }
+
+  async updateAnnouncement(id: string, updates: Partial<PlatformAnnouncement>): Promise<PlatformAnnouncement | undefined> {
+    const result = await db.update(platformAnnouncements).set(updates)
+      .where(eq(platformAnnouncements.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteAnnouncement(id: string): Promise<boolean> {
+    await db.delete(announcementReads).where(eq(announcementReads.announcementId, id));
+    const result = await db.delete(platformAnnouncements)
+      .where(eq(platformAnnouncements.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async markAnnouncementRead(userId: string, announcementId: string): Promise<void> {
+    const existing = await db.select().from(announcementReads)
+      .where(and(eq(announcementReads.userId, userId), eq(announcementReads.announcementId, announcementId)));
+    if (existing.length === 0) {
+      await db.insert(announcementReads).values({ userId, announcementId });
+    }
+  }
+
+  async getAllUsers(): Promise<{ id: string; email: string | null; firstName: string | null; lastName: string | null }[]> {
+    const result = await db.select({
+      id: users.id,
+      email: users.email,
+      firstName: users.firstName,
+      lastName: users.lastName,
+    }).from(users);
+    return result;
   }
 }
 
