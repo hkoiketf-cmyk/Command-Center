@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ChevronDown, ChevronUp, X, GripVertical, Palette, Pin, MoreVertical, ArrowUp, ArrowDown, GripHorizontal } from "lucide-react";
+import { ChevronDown, ChevronUp, X, GripVertical, Palette, Pin, MoreVertical, ArrowUp, ArrowDown, GripHorizontal, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,144 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { cn } from "@/lib/utils";
+import type { WidgetType } from "@shared/schema";
+
+const WIDGET_INFO: Record<WidgetType, { description: string; tips: string[] }> = {
+  notes: {
+    description: "A sticky note for free-form text. Supports formatting like bold, italic, headings, and lists.",
+    tips: [
+      "Use the formatting toolbar to style your text",
+      "Pick a background color to visually categorize notes",
+      "Text color adjusts automatically for readability",
+    ],
+  },
+  code: {
+    description: "Write and preview HTML/JavaScript code, like a mini embedded app.",
+    tips: [
+      "Toggle between code editing and live preview",
+      "Great for embedding small tools or calculators",
+      "HTML, CSS, and JavaScript all work together",
+    ],
+  },
+  priorities: {
+    description: "Track your top 3 priorities for a specific business venture.",
+    tips: [
+      "Select a venture from the dropdown to assign priorities",
+      "Limit of 3 forces you to focus on what matters most",
+      "Check off priorities as you complete them",
+    ],
+  },
+  revenue: {
+    description: "Track customer payments and revenue per month with visual charts.",
+    tips: [
+      "Select a venture to track its revenue",
+      "Add entries with descriptions (invoices, payments, etc.)",
+      "Toggle between bar and line chart views",
+    ],
+  },
+  iframe: {
+    description: "Embed any external website or tool directly in your dashboard.",
+    tips: [
+      "Paste any URL to embed it",
+      "Works with tools like Notion, Google Docs, Trello, etc.",
+      "Some sites may block embedding for security reasons",
+    ],
+  },
+  context_mode: {
+    description: "A focus contract for intentional work sessions. Define what you're working on, what to ignore, and when to stop.",
+    tips: [
+      "Set an objective before diving into deep work",
+      "List your top 3 actions to stay focused",
+      "Use the ignore list to block distractions",
+      "Set a timebox to prevent overworking",
+    ],
+  },
+  quick_capture: {
+    description: "A fast inbox for capturing fleeting ideas, tasks, and thoughts before they slip away.",
+    tips: [
+      "Dump anything into the inbox quickly",
+      "Process items later by marking them as done",
+      "Use the filter to see unprocessed items only",
+    ],
+  },
+  habit_tracker: {
+    description: "Track daily habits with a visual streak grid inspired by GitHub's contribution chart.",
+    tips: [
+      "Add habits you want to build consistency on",
+      "Click cells to mark days as completed",
+      "Each habit gets its own color for easy scanning",
+      "Watch your streak counter grow over time",
+    ],
+  },
+  daily_journal: {
+    description: "A simple daily journal with one entry per day. Navigate between days and write freely.",
+    tips: [
+      "Use the arrow buttons to move between days",
+      "Your entries auto-save as you type",
+      "Great for daily reflections or end-of-day reviews",
+    ],
+  },
+  weekly_scorecard: {
+    description: "Define measurable activities and track them against weekly targets with trend indicators.",
+    tips: [
+      "Add metrics like 'Calls Made' or 'Articles Written'",
+      "Set a target number for each metric",
+      "Enter your actual numbers each week",
+      "Arrows show if you're trending up or down vs last week",
+    ],
+  },
+  kpi_dashboard: {
+    description: "Track your most important numbers with color-coded progress bars showing how close you are to your targets.",
+    tips: [
+      "Green means 80%+ of target (on track)",
+      "Yellow means 50-80% (needs attention)",
+      "Red means below 50% (falling behind)",
+      "Click the pencil icon to update current values",
+    ],
+  },
+  waiting_for: {
+    description: "Track things you're waiting on from other people, with automatic overdue warnings.",
+    tips: [
+      "Add an expected date to get overdue alerts",
+      "Yellow means past due, red means 7+ days overdue",
+      "Mark items complete when you get what you need",
+    ],
+  },
+  crm_pipeline: {
+    description: "A mini sales pipeline with 5 stages. Drag deals between columns to track their progress.",
+    tips: [
+      "Drag and drop deal cards between stages",
+      "Yellow border means no contact in 7+ days",
+      "Red border means no contact in 14+ days",
+      "Pipeline and closed totals show at the top",
+    ],
+  },
+  time_blocks: {
+    description: "Plan your day with a visual timeline. Create color-coded blocks for different activities.",
+    tips: [
+      "Use the arrows to navigate between days",
+      "Pick a color for each block to categorize activities",
+      "The timeline auto-adjusts to show your scheduled hours",
+    ],
+  },
+  expense_tracker: {
+    description: "Track recurring monthly costs and one-off variable expenses. See your total monthly burn rate at a glance.",
+    tips: [
+      "Add recurring expenses like subscriptions and rent",
+      "Log variable expenses as they come up",
+      "The burn rate total updates automatically",
+    ],
+  },
+  meeting_prep: {
+    description: "Prepare for meetings with structured agendas, then capture notes and action items during or after.",
+    tips: [
+      "Add talking points before the meeting",
+      "Set an objective and desired outcome",
+      "Capture notes and action items during the meeting",
+      "Mark meetings complete when done",
+    ],
+  },
+};
 
 function isLightColor(hex: string): boolean {
   if (!hex) return false;
@@ -57,6 +195,7 @@ const CARD_COLORS = [
 
 interface WidgetWrapperProps {
   title: string;
+  widgetType?: WidgetType;
   collapsed: boolean;
   onToggleCollapse: () => void;
   onRemove: () => void;
@@ -79,6 +218,7 @@ interface WidgetWrapperProps {
 
 export function WidgetWrapper({
   title,
+  widgetType,
   collapsed,
   onToggleCollapse,
   onRemove,
@@ -264,6 +404,38 @@ export function WidgetWrapper({
             )}
           </div>
           <div className={cn("flex items-center", isMobile ? "gap-1" : "gap-1")}>
+            {widgetType && WIDGET_INFO[widgetType] && (
+              <Popover modal={true}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={isMobile ? undefined : "h-7 w-7"}
+                    onClick={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    data-testid="button-widget-info"
+                  >
+                    <Info className={cn("h-3.5 w-3.5", customIconClass)} />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 p-4 touch-manipulation" align="end">
+                  <div className="space-y-3">
+                    <p className="text-sm leading-relaxed">{WIDGET_INFO[widgetType].description}</p>
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-medium text-muted-foreground">Tips</p>
+                      <ul className="space-y-1">
+                        {WIDGET_INFO[widgetType].tips.map((tip, i) => (
+                          <li key={i} className="text-xs text-muted-foreground flex gap-2">
+                            <span className="shrink-0 mt-0.5">&#8226;</span>
+                            <span>{tip}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
             {isMobile && onMoveUp && (
               <Button
                 variant="ghost"

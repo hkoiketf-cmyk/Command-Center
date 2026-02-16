@@ -959,6 +959,7 @@ export default function Dashboard() {
               <div key={widget.id} data-testid={`widget-${widget.id}`}>
                 <WidgetWrapper
                   title={widget.title}
+                  widgetType={widget.type as any}
                   collapsed={widget.collapsed || false}
                   onToggleCollapse={() => handleToggleCollapse(widget)}
                   onRemove={() => deleteWidget.mutate(widget.id)}
@@ -1002,6 +1003,7 @@ export default function Dashboard() {
               <div key={widget.id} data-testid={`widget-${widget.id}`}>
                 <WidgetWrapper
                   title={widget.title}
+                  widgetType={widget.type as any}
                   collapsed={widget.collapsed || false}
                   onToggleCollapse={() => handleToggleCollapse(widget)}
                   onRemove={() => deleteWidget.mutate(widget.id)}
