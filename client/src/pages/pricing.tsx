@@ -83,7 +83,7 @@ export default function Pricing() {
       const res = await apiRequest("POST", "/api/redeem-code", { code: accessCode.trim() });
       const data = await res.json();
       if (data.success) {
-        toast({ title: "Access code redeemed!", description: "You now have free access to HunterOS." });
+        toast({ title: "Access code redeemed!", description: "You now have free access to MalleniumDash." });
         queryClient.invalidateQueries({ queryKey: ["/api/subscription"] });
         setAccessCode("");
       }
@@ -106,7 +106,7 @@ export default function Pricing() {
             <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
               <Zap className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="text-lg font-bold tracking-tight">HunterOS</span>
+            <span className="text-lg font-bold tracking-tight">MalleniumDash</span>
           </div>
           {isActive && (
             <Button variant="outline" asChild data-testid="link-back-dashboard">

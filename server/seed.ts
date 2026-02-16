@@ -120,7 +120,7 @@ export async function seedDatabase() {
     type: "notes",
     title: "Quick Notes",
     content: {
-      markdown: `# Welcome to HunterOS
+      markdown: `# Welcome to MalleniumDash
 
 Your personal dashboard for tracking what matters.
 

@@ -171,7 +171,7 @@ export default function Dashboard() {
     },
   });
 
-  const appName = userSettings?.appName || "HunterOS";
+  const appName = userSettings?.appName || "MalleniumDash";
 
   const { data: desktopList = [], isLoading: desktopsLoading } = useQuery<Desktop[]>({
     queryKey: ["/api/desktops"],
@@ -879,14 +879,23 @@ export default function Dashboard() {
                     data-testid="input-app-name"
                   />
                 ) : (
-                  <h1
-                    className="text-xl font-bold tracking-tight hidden sm:block cursor-pointer"
-                    onDoubleClick={() => { setEditingAppName(true); setAppNameValue(appName); setTimeout(() => appNameInputRef.current?.focus(), 50); }}
-                    title="Double-click to rename"
-                    data-testid="text-app-name"
-                  >
-                    {appName}
-                  </h1>
+                  <div className="hidden sm:flex items-center gap-1">
+                    <h1
+                      className="text-xl font-bold tracking-tight"
+                      data-testid="text-app-name"
+                    >
+                      {appName}
+                    </h1>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => { setEditingAppName(true); setAppNameValue(appName); setTimeout(() => appNameInputRef.current?.focus(), 50); }}
+                      data-testid="button-edit-app-name"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>

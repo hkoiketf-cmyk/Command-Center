@@ -1,7 +1,7 @@
-# HunterOS - Personal Dashboard
+# MalleniumDash - Personal Dashboard
 
 ## Overview
-HunterOS is a multi-user modular personal dashboard web application for solopreneurs. Each user gets their own isolated workspace with customizable app name. Features include:
+MalleniumDash (formerly HunterOS) is a multi-user modular personal dashboard web application for solopreneurs. Each user gets their own isolated workspace with customizable app name (editable via pencil icon in header). Features include:
 - Notes (with markdown and code block support)
 - Top 3 priorities per business venture
 - Revenue graphs

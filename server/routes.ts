@@ -884,7 +884,7 @@ export async function registerRoutes(
       const stream = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
-          { role: "system", content: "You are a helpful assistant embedded in a personal productivity dashboard called HunterOS. Be concise and practical. Help the user with brainstorming, writing, planning, and problem-solving." },
+          { role: "system", content: "You are a helpful assistant embedded in a personal productivity dashboard called MalleniumDash. Be concise and practical. Help the user with brainstorming, writing, planning, and problem-solving." },
           ...openaiMessages,
         ],
         stream: true,
