@@ -120,6 +120,7 @@ export interface IStorage {
   deleteCaptureItem(userId: string, id: string): Promise<boolean>;
   getHabits(userId: string): Promise<Habit[]>;
   createHabit(userId: string, habit: InsertHabit): Promise<Habit>;
+  updateHabit(userId: string, id: string, updates: Partial<Habit>): Promise<Habit | undefined>;
   deleteHabit(userId: string, id: string): Promise<boolean>;
   getHabitEntries(userId: string, habitId: string): Promise<HabitEntry[]>;
   getAllHabitEntries(userId: string): Promise<HabitEntry[]>;
@@ -345,6 +346,10 @@ export class DatabaseStorage implements IStorage {
   }
   async createHabit(userId: string, habit: InsertHabit): Promise<Habit> {
     const result = await db.insert(habits).values({ ...habit, userId }).returning();
+    return result[0];
+  }
+  async updateHabit(userId: string, id: string, updates: Partial<Habit>): Promise<Habit | undefined> {
+    const result = await db.update(habits).set(updates).where(and(eq(habits.id, id), eq(habits.userId, userId))).returning();
     return result[0];
   }
   async deleteHabit(userId: string, id: string): Promise<boolean> {

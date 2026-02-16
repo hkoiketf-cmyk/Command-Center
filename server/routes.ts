@@ -398,6 +398,20 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/habits/:id", isAuthenticated, async (req, res) => {
+    try {
+      const allowedFields: Record<string, any> = {};
+      if (req.body.name !== undefined) allowedFields.name = req.body.name;
+      if (req.body.color !== undefined) allowedFields.color = req.body.color;
+      if (req.body.order !== undefined) allowedFields.order = req.body.order;
+      const habit = await storage.updateHabit(getUserId(req), req.params.id, allowedFields);
+      if (!habit) return res.status(404).json({ error: "Habit not found" });
+      res.json(habit);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update habit" });
+    }
+  });
+
   app.delete("/api/habits/:id", isAuthenticated, async (req, res) => {
     try {
       const deleted = await storage.deleteHabit(getUserId(req), req.params.id);

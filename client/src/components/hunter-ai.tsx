@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { X, Send, Search, Settings, Eye, EyeOff, Crosshair } from "lucide-react";
+import { Send, Search, Settings, Eye, EyeOff, Crosshair } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -26,8 +27,12 @@ function getRandomPhrase() {
   return HUNT_PHRASES[Math.floor(Math.random() * HUNT_PHRASES.length)];
 }
 
-export function HunterAI() {
-  const [isOpen, setIsOpen] = useState(false);
+interface HunterAIProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function HunterAI({ open, onOpenChange }: HunterAIProps) {
   const [showSettings, setShowSettings] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -64,10 +69,10 @@ export function HunterAI() {
   }, [messages]);
 
   useEffect(() => {
-    if (isOpen && inputRef.current) {
+    if (open && inputRef.current) {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [isOpen]);
+  }, [open]);
 
   const sendMessage = useCallback(async () => {
     if (!input.trim() || isStreaming) return;
@@ -148,29 +153,18 @@ export function HunterAI() {
 
   return (
     <>
-      {!isOpen && (
-        <Button
-          onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-50 rounded-full shadow-lg"
-          data-testid="button-hunter-ai-open"
-        >
-          <Crosshair className="h-5 w-5" />
-          <span className="text-sm font-semibold">HunterAI</span>
-        </Button>
-      )}
-
-      {isOpen && (
-        <div
-          className="fixed bottom-6 right-6 z-50 flex flex-col bg-card border border-border rounded-lg shadow-2xl overflow-hidden"
-          style={{ width: "min(400px, calc(100vw - 2rem))", height: "min(560px, calc(100vh - 6rem))" }}
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent
+          side="right"
+          className="w-full sm:w-[400px] md:w-[440px] p-0 flex flex-col"
           data-testid="hunter-ai-panel"
         >
-          <div className="flex items-center justify-between gap-2 px-4 py-3 border-b bg-primary/5">
-            <div className="flex items-center gap-2">
-              <Crosshair className="h-5 w-5 text-primary" />
-              <span className="font-semibold text-sm">HunterAI</span>
-            </div>
-            <div className="flex items-center gap-1">
+          <SheetHeader className="px-4 py-3 border-b bg-primary/5 shrink-0">
+            <div className="flex items-center justify-between gap-2">
+              <SheetTitle className="flex items-center gap-2 text-sm">
+                <Crosshair className="h-5 w-5 text-primary" />
+                HunterAI
+              </SheetTitle>
               <Button
                 size="icon"
                 variant="ghost"
@@ -179,16 +173,8 @@ export function HunterAI() {
               >
                 <Settings className="h-4 w-4" />
               </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => setIsOpen(false)}
-                data-testid="button-hunter-ai-close"
-              >
-                <X className="h-4 w-4" />
-              </Button>
             </div>
-          </div>
+          </SheetHeader>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-3" data-testid="hunter-ai-messages">
             {messages.length === 0 && (
@@ -278,7 +264,7 @@ export function HunterAI() {
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="border-t p-3">
+          <div className="border-t p-3 shrink-0">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -304,8 +290,8 @@ export function HunterAI() {
               </Button>
             </form>
           </div>
-        </div>
-      )}
+        </SheetContent>
+      </Sheet>
 
       <Dialog open={showSettings} onOpenChange={setShowSettings}>
         <DialogContent className="sm:max-w-sm" data-testid="hunter-ai-settings-dialog">

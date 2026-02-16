@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import GridLayout from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
-import { Zap, Plus, Monitor, Trash2, Pencil, Check, X as XIcon, Settings, Menu, Palette, Moon, Sun, LogOut, User, CreditCard, KeyRound, Library } from "lucide-react";
+import { Zap, Plus, Monitor, Trash2, Pencil, Check, X as XIcon, Settings, Menu, Palette, Moon, Sun, LogOut, User, CreditCard, KeyRound, Library, Crosshair } from "lucide-react";
 import { AdminCodesDialog } from "@/components/admin-codes-dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -155,6 +155,7 @@ export default function Dashboard() {
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showPresetLibrary, setShowPresetLibrary] = useState(false);
+  const [showHunterAI, setShowHunterAI] = useState(false);
   const [editingAppName, setEditingAppName] = useState(false);
   const [appNameValue, setAppNameValue] = useState("");
   const appNameInputRef = useRef<HTMLInputElement>(null);
@@ -705,6 +706,14 @@ export default function Dashboard() {
                 <Button
                   variant="ghost"
                   size="icon"
+                  onClick={() => setShowHunterAI(true)}
+                  data-testid="button-hunter-ai-open-mobile"
+                >
+                  <Crosshair className="h-5 w-5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setShowMobileMenu(true)}
                   data-testid="button-mobile-menu"
                 >
@@ -1052,6 +1061,15 @@ export default function Dashboard() {
               )}
               <VentureManager />
               <AddWidgetDialog onAddWidget={(type, title) => addWidget.mutate({ type, title })} />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowHunterAI(true)}
+                title="HunterAI Assistant"
+                data-testid="button-hunter-ai-open"
+              >
+                <Crosshair className="h-4 w-4" />
+              </Button>
               <ThemeToggle />
               <div className="flex items-center gap-1.5 ml-1 pl-1.5 border-l border-border">
                 <Avatar className="h-7 w-7">
@@ -1320,7 +1338,7 @@ export default function Dashboard() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <HunterAI />
+      <HunterAI open={showHunterAI} onOpenChange={setShowHunterAI} />
 
       <PresetLibrary
         open={showPresetLibrary}
