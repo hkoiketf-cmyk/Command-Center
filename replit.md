@@ -219,6 +219,25 @@ shared/
 - `GET /api/google-calendar/calendars` - Get user's calendar list (via Replit connector OAuth)
 - `GET /api/google-calendar/events?calendarId=&timeMin=&timeMax=` - Get events for a calendar
 
+### Stripe Payments
+- `GET /api/stripe/publishable-key` - Get Stripe publishable key (public)
+- `GET /api/subscription` - Get current user's subscription status (trialing/active/expired)
+- `GET /api/stripe/prices` - Get available pricing plans
+- `POST /api/stripe/checkout` - Create Stripe Checkout session (body: { priceId })
+- `POST /api/stripe/portal` - Create Stripe billing portal session
+- `POST /api/stripe/sync-subscription` - Sync subscription from Stripe after checkout
+- `POST /api/stripe/webhook` - Stripe webhook handler (registered before express.json())
+
+## Stripe Integration
+- Uses Replit Stripe connector for API key management
+- `stripe-replit-sync` handles schema, webhooks, and data sync automatically
+- Products/prices created via `server/seed-products.ts` script
+- Stripe data stored in `stripe` schema (managed by stripe-replit-sync, never modify directly)
+- Users table has `stripeCustomerId` and `stripeSubscriptionId` columns
+- Pricing: 7-day free trial, $5/month or $78/year
+- Dashboard gated behind active subscription or trial
+- Billing management via Stripe Customer Portal
+
 ## Running the App
 ```bash
 npm run dev

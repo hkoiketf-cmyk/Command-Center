@@ -6,6 +6,9 @@ import { z } from "zod";
 import OpenAI from "openai";
 import { listCalendars, listEvents } from "./google-calendar";
 import { isAuthenticated } from "./replit_integrations/auth";
+import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
+import { sql } from "drizzle-orm";
+import { db } from "./db";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -960,6 +963,189 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Google Calendar events error:", error.message);
       res.status(500).json({ error: error.message || "Failed to fetch events" });
+    }
+  });
+
+  // ============ STRIPE PAYMENT ROUTES ============
+
+  app.get("/api/stripe/publishable-key", async (_req, res) => {
+    try {
+      const key = await getStripePublishableKey();
+      res.json({ publishableKey: key });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get publishable key" });
+    }
+  });
+
+  app.get("/api/subscription", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      if (!user.stripeSubscriptionId) {
+        const trialEnd = user.createdAt ? new Date(user.createdAt).getTime() + 7 * 24 * 60 * 60 * 1000 : 0;
+        const now = Date.now();
+        if (now < trialEnd) {
+          return res.json({
+            status: "trialing",
+            trialEnd: new Date(trialEnd).toISOString(),
+            plan: null,
+          });
+        }
+        return res.json({
+          status: "expired",
+          trialEnd: user.createdAt ? new Date(trialEnd).toISOString() : null,
+          plan: null,
+        });
+      }
+
+      const subResult = await db.execute(
+        sql`SELECT * FROM stripe.subscriptions WHERE id = ${user.stripeSubscriptionId}`
+      );
+      const subscription = subResult.rows[0];
+      if (!subscription) {
+        return res.json({ status: "expired", plan: null });
+      }
+
+      const subStatus = subscription.status as string;
+      let plan: string | null = null;
+      const itemsResult = await db.execute(
+        sql`SELECT si.price, sp.recurring FROM stripe.subscription_items si 
+            JOIN stripe.prices sp ON sp.id = si.price 
+            WHERE si.subscription = ${user.stripeSubscriptionId}`
+      );
+      if (itemsResult.rows.length > 0) {
+        const recurring = itemsResult.rows[0].recurring as any;
+        plan = recurring?.interval === "year" ? "yearly" : "monthly";
+      }
+
+      res.json({
+        status: subStatus,
+        plan,
+        currentPeriodEnd: subscription.current_period_end,
+        cancelAtPeriodEnd: subscription.cancel_at_period_end,
+      });
+    } catch (error) {
+      console.error("Subscription check error:", error);
+      res.status(500).json({ error: "Failed to check subscription" });
+    }
+  });
+
+  app.get("/api/stripe/prices", isAuthenticated, async (_req, res) => {
+    try {
+      const productsResult = await db.execute(
+        sql`SELECT id FROM stripe.products WHERE active = true AND name = 'HunterOS Pro' LIMIT 1`
+      );
+      if (productsResult.rows.length === 0) {
+        return res.json({ prices: [] });
+      }
+      const productId = productsResult.rows[0].id;
+      const pricesResult = await db.execute(
+        sql`SELECT id, unit_amount, currency, recurring, metadata FROM stripe.prices WHERE product = ${productId} AND active = true ORDER BY unit_amount`
+      );
+      res.json({ prices: pricesResult.rows });
+    } catch (error) {
+      console.error("Prices fetch error:", error);
+      res.status(500).json({ error: "Failed to fetch prices" });
+    }
+  });
+
+  app.post("/api/stripe/checkout", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const { priceId } = req.body;
+      if (!priceId) {
+        return res.status(400).json({ error: "priceId is required" });
+      }
+
+      const stripe = await getUncachableStripeClient();
+
+      let customerId = user.stripeCustomerId;
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: user.email || undefined,
+          metadata: { userId },
+        });
+        customerId = customer.id;
+        await storage.updateUser(userId, { stripeCustomerId: customerId });
+      }
+
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        payment_method_types: ["card"],
+        line_items: [{ price: priceId, quantity: 1 }],
+        mode: "subscription",
+        success_url: `${req.protocol}://${req.get("host")}/?checkout=success`,
+        cancel_url: `${req.protocol}://${req.get("host")}/?checkout=cancel`,
+        subscription_data: {
+          trial_period_days: 7,
+        },
+      });
+
+      res.json({ url: session.url });
+    } catch (error: any) {
+      console.error("Checkout error:", error);
+      res.status(500).json({ error: "Failed to create checkout session" });
+    }
+  });
+
+  app.post("/api/stripe/portal", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUserById(userId);
+      if (!user || !user.stripeCustomerId) {
+        return res.status(400).json({ error: "No billing account found" });
+      }
+
+      const stripe = await getUncachableStripeClient();
+      const session = await stripe.billingPortal.sessions.create({
+        customer: user.stripeCustomerId,
+        return_url: `${req.protocol}://${req.get("host")}/`,
+      });
+
+      res.json({ url: session.url });
+    } catch (error) {
+      console.error("Portal error:", error);
+      res.status(500).json({ error: "Failed to create portal session" });
+    }
+  });
+
+  app.post("/api/stripe/sync-subscription", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUserById(userId);
+      if (!user || !user.stripeCustomerId) {
+        return res.json({ synced: false });
+      }
+
+      const stripe = await getUncachableStripeClient();
+      const allSubs = await stripe.subscriptions.list({
+        customer: user.stripeCustomerId,
+        status: "all",
+        limit: 10,
+      });
+
+      const preferred = allSubs.data.find((s) => s.status === "active" || s.status === "trialing")
+        || allSubs.data.find((s) => s.status === "past_due")
+        || allSubs.data[0];
+
+      if (preferred) {
+        await storage.updateUser(userId, { stripeSubscriptionId: preferred.id });
+        return res.json({ synced: true, status: preferred.status });
+      }
+
+      res.json({ synced: false });
+    } catch (error) {
+      console.error("Sync subscription error:", error);
+      res.status(500).json({ error: "Failed to sync subscription" });
     }
   });
 

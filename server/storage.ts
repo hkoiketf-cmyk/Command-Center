@@ -71,9 +71,13 @@ import {
   type AiMessage,
   type InsertAiMessage,
   type UserSettings,
+  users,
+  type User,
 } from "@shared/schema";
 
 export interface IStorage {
+  getUserById(userId: string): Promise<User | undefined>;
+  updateUser(userId: string, updates: Partial<User>): Promise<User | undefined>;
   getDesktops(userId: string): Promise<Desktop[]>;
   getDesktop(userId: string, id: string): Promise<Desktop | undefined>;
   createDesktop(userId: string, desktop: InsertDesktop): Promise<Desktop>;
@@ -162,6 +166,16 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  async getUserById(userId: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.id, userId));
+    return result[0];
+  }
+
+  async updateUser(userId: string, updates: Partial<User>): Promise<User | undefined> {
+    const result = await db.update(users).set({ ...updates, updatedAt: new Date() }).where(eq(users.id, userId)).returning();
+    return result[0];
+  }
+
   async getDesktops(userId: string): Promise<Desktop[]> {
     return await db.select().from(desktops).where(eq(desktops.userId, userId)).orderBy(desktops.order);
   }

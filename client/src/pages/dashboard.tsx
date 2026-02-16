@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import GridLayout from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
-import { Zap, Plus, Monitor, Trash2, Pencil, Check, X as XIcon, Settings, Menu, Palette, Moon, Sun, LogOut, User } from "lucide-react";
+import { Zap, Plus, Monitor, Trash2, Pencil, Check, X as XIcon, Settings, Menu, Palette, Moon, Sun, LogOut, User, CreditCard } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { WidgetWrapper } from "@/components/widget-wrapper";
@@ -828,6 +828,15 @@ export default function Dashboard() {
                     <Button
                       variant="ghost"
                       className="justify-start gap-2 w-full"
+                      onClick={() => { window.location.href = "/pricing"; }}
+                      data-testid="button-mobile-billing"
+                    >
+                      <CreditCard className="h-4 w-4" />
+                      Billing
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="justify-start gap-2 w-full"
                       onClick={() => { window.location.href = "/api/logout"; }}
                       data-testid="button-mobile-logout"
                     >
@@ -1017,6 +1026,15 @@ export default function Dashboard() {
                     {(user?.firstName?.[0] || "U").toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => { window.location.href = "/pricing"; }}
+                  title="Billing"
+                  data-testid="button-billing"
+                >
+                  <CreditCard className="h-4 w-4" />
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
