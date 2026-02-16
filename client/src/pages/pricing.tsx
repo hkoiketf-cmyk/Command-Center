@@ -3,10 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, Zap, CreditCard, Loader2 } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { Input } from "@/components/ui/input";
+import { Check, Zap, CreditCard, Loader2, Gift } from "lucide-react";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useSubscription } from "@/hooks/use-subscription";
 import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 
 type StripePriceRow = {
   id: string;
@@ -32,6 +34,9 @@ export default function Pricing() {
   const { user } = useAuth();
   const { subscription } = useSubscription();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [accessCode, setAccessCode] = useState("");
+  const [redeemLoading, setRedeemLoading] = useState(false);
+  const { toast } = useToast();
 
   const { data: pricesData, isLoading: pricesLoading } = useQuery<{ prices: StripePriceRow[] }>({
     queryKey: ["/api/stripe/prices"],
@@ -68,6 +73,25 @@ export default function Pricing() {
       console.error("Portal error:", error);
     } finally {
       setLoadingPlan(null);
+    }
+  };
+
+  const handleRedeemCode = async () => {
+    if (!accessCode.trim()) return;
+    setRedeemLoading(true);
+    try {
+      const res = await apiRequest("POST", "/api/redeem-code", { code: accessCode.trim() });
+      const data = await res.json();
+      if (data.success) {
+        toast({ title: "Access code redeemed!", description: "You now have free access to HunterOS." });
+        queryClient.invalidateQueries({ queryKey: ["/api/subscription"] });
+        setAccessCode("");
+      }
+    } catch (error: any) {
+      const msg = error?.message || "Failed to redeem code";
+      toast({ title: "Invalid code", description: msg, variant: "destructive" });
+    } finally {
+      setRedeemLoading(false);
     }
   };
 
@@ -212,6 +236,38 @@ export default function Pricing() {
                     Start Free Trial
                   </Button>
                 )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {!isActive && (
+          <div className="mt-10 max-w-md mx-auto">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Gift className="h-4 w-4" />
+                  Have an access code?
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Enter access code"
+                    value={accessCode}
+                    onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => e.key === "Enter" && handleRedeemCode()}
+                    className="font-mono tracking-wider"
+                    data-testid="input-access-code"
+                  />
+                  <Button
+                    onClick={handleRedeemCode}
+                    disabled={redeemLoading || !accessCode.trim()}
+                    data-testid="button-redeem-code"
+                  >
+                    {redeemLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Redeem"}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>

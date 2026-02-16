@@ -1,4 +1,4 @@
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
   widgets,
@@ -71,6 +71,9 @@ import {
   type AiMessage,
   type InsertAiMessage,
   type UserSettings,
+  accessCodes,
+  type AccessCode,
+  type InsertAccessCode,
   users,
   type User,
 } from "@shared/schema";
@@ -163,6 +166,10 @@ export interface IStorage {
   createAiMessage(userId: string, msg: InsertAiMessage): Promise<AiMessage>;
   getUserSettings(userId: string): Promise<UserSettings>;
   updateUserSettings(userId: string, updates: Partial<UserSettings>): Promise<UserSettings>;
+  getAccessCodeByCode(code: string): Promise<AccessCode | undefined>;
+  getAccessCodes(createdBy: string): Promise<AccessCode[]>;
+  createAccessCode(data: InsertAccessCode): Promise<AccessCode>;
+  incrementAccessCodeUsage(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -548,6 +555,21 @@ export class DatabaseStorage implements IStorage {
     const current = await this.getUserSettings(userId);
     const result = await db.update(userSettings).set(updates).where(eq(userSettings.id, current.id)).returning();
     return result[0];
+  }
+
+  async getAccessCodeByCode(code: string): Promise<AccessCode | undefined> {
+    const result = await db.select().from(accessCodes).where(eq(accessCodes.code, code));
+    return result[0];
+  }
+  async getAccessCodes(createdBy: string): Promise<AccessCode[]> {
+    return await db.select().from(accessCodes).where(eq(accessCodes.createdBy, createdBy)).orderBy(desc(accessCodes.createdAt));
+  }
+  async createAccessCode(data: InsertAccessCode): Promise<AccessCode> {
+    const result = await db.insert(accessCodes).values(data).returning();
+    return result[0];
+  }
+  async incrementAccessCodeUsage(id: string): Promise<void> {
+    await db.execute(sql`UPDATE access_codes SET used_count = used_count + 1 WHERE id = ${id}`);
   }
 }
 

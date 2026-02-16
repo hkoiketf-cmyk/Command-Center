@@ -434,3 +434,18 @@ export const aiMessages = pgTable("ai_messages", {
 export const insertAiMessageSchema = createInsertSchema(aiMessages).omit({ id: true, createdAt: true });
 export type InsertAiMessage = z.infer<typeof insertAiMessageSchema>;
 export type AiMessage = typeof aiMessages.$inferSelect;
+
+export const accessCodes = pgTable("access_codes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: varchar("code").notNull().unique(),
+  label: text("label"),
+  maxUses: integer("max_uses").notNull().default(1),
+  usedCount: integer("used_count").notNull().default(0),
+  createdBy: varchar("created_by").notNull(),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertAccessCodeSchema = createInsertSchema(accessCodes).omit({ id: true, usedCount: true, createdAt: true });
+export type InsertAccessCode = z.infer<typeof insertAccessCodeSchema>;
+export type AccessCode = typeof accessCodes.$inferSelect;

@@ -240,6 +240,8 @@ shared/
 - Data retention: expired/canceled users' data kept for 30 days, then automatically cleaned up
 - `subscriptionEndedAt` field tracks when a user's access ended
 - Daily cleanup job removes all data for users whose subscription ended 30+ days ago
+- Access codes for friends/family: admin generates codes, users redeem on pricing page
+- Admin access controlled via ADMIN_USER_IDS environment variable (comma-separated user IDs)
 
 ## Running the App
 ```bash

@@ -985,6 +985,20 @@ export async function registerRoutes(
         return res.status(404).json({ error: "User not found" });
       }
 
+      if (user.accessCodeId) {
+        const code = await storage.getAccessCodeByCode(user.accessCodeId);
+        if (code && code.active) {
+          if (user.subscriptionEndedAt) {
+            await storage.updateUser(userId, { subscriptionEndedAt: null });
+          }
+          return res.json({
+            status: "active",
+            plan: "free",
+            accessCode: true,
+          });
+        }
+      }
+
       if (!user.stripeSubscriptionId) {
         const trialEnd = user.createdAt ? new Date(user.createdAt).getTime() + 3 * 24 * 60 * 60 * 1000 : 0;
         const now = Date.now();
@@ -1165,6 +1179,80 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Sync subscription error:", error);
       res.status(500).json({ error: "Failed to sync subscription" });
+    }
+  });
+
+  const isAdmin = (userId: string): boolean => {
+    const adminIds = (process.env.ADMIN_USER_IDS || "").split(",").map((s) => s.trim()).filter(Boolean);
+    return adminIds.includes(userId);
+  };
+
+  app.post("/api/access-codes", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!isAdmin(userId)) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      const { label, maxUses } = req.body;
+      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const accessCode = await storage.createAccessCode({
+        code,
+        label: label || null,
+        maxUses: maxUses || 1,
+        createdBy: userId,
+        active: true,
+      });
+      res.json(accessCode);
+    } catch (error) {
+      console.error("Create access code error:", error);
+      res.status(500).json({ error: "Failed to create access code" });
+    }
+  });
+
+  app.get("/api/access-codes", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!isAdmin(userId)) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      const codes = await storage.getAccessCodes(userId);
+      res.json(codes);
+    } catch (error) {
+      console.error("Get access codes error:", error);
+      res.status(500).json({ error: "Failed to get access codes" });
+    }
+  });
+
+  app.post("/api/redeem-code", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const { code } = req.body;
+      if (!code || typeof code !== "string") {
+        return res.status(400).json({ error: "Access code is required" });
+      }
+
+      const accessCode = await storage.getAccessCodeByCode(code.trim().toUpperCase());
+      if (!accessCode) {
+        return res.status(404).json({ error: "Invalid access code" });
+      }
+      if (!accessCode.active) {
+        return res.status(400).json({ error: "This access code is no longer active" });
+      }
+      if (accessCode.usedCount >= accessCode.maxUses) {
+        return res.status(400).json({ error: "This access code has reached its maximum uses" });
+      }
+
+      const user = await storage.getUserById(userId);
+      if (user?.accessCodeId) {
+        return res.status(400).json({ error: "You already have an access code applied" });
+      }
+
+      await storage.updateUser(userId, { accessCodeId: accessCode.code, subscriptionEndedAt: null });
+      await storage.incrementAccessCodeUsage(accessCode.id);
+      res.json({ success: true, message: "Access code redeemed successfully" });
+    } catch (error) {
+      console.error("Redeem code error:", error);
+      res.status(500).json({ error: "Failed to redeem access code" });
     }
   });
 

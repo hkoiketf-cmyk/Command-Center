@@ -3,9 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 export type SubscriptionStatus = {
   status: "trialing" | "active" | "past_due" | "canceled" | "expired" | "incomplete";
   trialEnd?: string | null;
-  plan?: "monthly" | "yearly" | null;
+  plan?: "monthly" | "yearly" | "free" | null;
   currentPeriodEnd?: string | null;
   cancelAtPeriodEnd?: boolean;
+  accessCode?: boolean;
 };
 
 async function fetchSubscription(): Promise<SubscriptionStatus> {
