@@ -479,3 +479,26 @@ export const accessCodes = pgTable("access_codes", {
 export const insertAccessCodeSchema = createInsertSchema(accessCodes).omit({ id: true, usedCount: true, createdAt: true });
 export type InsertAccessCode = z.infer<typeof insertAccessCodeSchema>;
 export type AccessCode = typeof accessCodes.$inferSelect;
+
+export const platformAnnouncements = pgTable("platform_announcements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  type: text("type").notNull().default("info"),
+  targetType: text("target_type").notNull().default("all"),
+  targetUserIds: text("target_user_ids").array(),
+  isActive: boolean("is_active").notNull().default(true),
+  createdBy: varchar("created_by").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertAnnouncementSchema = createInsertSchema(platformAnnouncements).omit({ id: true, createdAt: true });
+export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
+export type PlatformAnnouncement = typeof platformAnnouncements.$inferSelect;
+
+export const announcementReads = pgTable("announcement_reads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  announcementId: varchar("announcement_id").notNull(),
+  userId: varchar("user_id").notNull(),
+  readAt: timestamp("read_at").notNull().defaultNow(),
+});
