@@ -121,7 +121,12 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  await initStripe();
+  try {
+    await initStripe();
+  } catch (err: any) {
+    console.error("Stripe initialization failed (non-fatal):", err.message);
+    console.error("Stripe features will be unavailable until configuration is fixed.");
+  }
   await setupAuth(app);
   registerAuthRoutes(app);
   await registerRoutes(httpServer, app);
