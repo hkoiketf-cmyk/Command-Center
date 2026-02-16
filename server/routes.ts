@@ -5,38 +5,41 @@ import { insertWidgetSchema, insertVentureSchema, insertPrioritySchema, insertRe
 import { z } from "zod";
 import OpenAI from "openai";
 import { listCalendars, listEvents } from "./google-calendar";
+import { isAuthenticated } from "./replit_integrations/auth";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  const getUserId = (req: any): string => req.user?.claims?.sub;
+
   // ============ DESKTOPS ============
 
-  app.get("/api/desktops", async (req, res) => {
+  app.get("/api/desktops", isAuthenticated, async (req, res) => {
     try {
-      const desktopList = await storage.getDesktops();
+      const desktopList = await storage.getDesktops(getUserId(req));
       res.json(desktopList);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch desktops" });
     }
   });
 
-  app.post("/api/desktops", async (req, res) => {
+  app.post("/api/desktops", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertDesktopSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.message });
       }
-      const desktop = await storage.createDesktop(parsed.data);
+      const desktop = await storage.createDesktop(getUserId(req), parsed.data);
       res.status(201).json(desktop);
     } catch (error) {
       res.status(500).json({ error: "Failed to create desktop" });
     }
   });
 
-  app.patch("/api/desktops/:id", async (req, res) => {
+  app.patch("/api/desktops/:id", isAuthenticated, async (req, res) => {
     try {
-      const desktop = await storage.updateDesktop(req.params.id, req.body);
+      const desktop = await storage.updateDesktop(getUserId(req), req.params.id, req.body);
       if (!desktop) {
         return res.status(404).json({ error: "Desktop not found" });
       }
@@ -46,9 +49,9 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/desktops/:id", async (req, res) => {
+  app.delete("/api/desktops/:id", isAuthenticated, async (req, res) => {
     try {
-      const deleted = await storage.deleteDesktop(req.params.id);
+      const deleted = await storage.deleteDesktop(getUserId(req), req.params.id);
       if (!deleted) {
         return res.status(404).json({ error: "Desktop not found" });
       }
@@ -60,14 +63,14 @@ export async function registerRoutes(
 
   // ============ WIDGETS ============
   
-  app.get("/api/widgets", async (req, res) => {
+  app.get("/api/widgets", isAuthenticated, async (req, res) => {
     try {
       const desktopId = req.query.desktopId as string | undefined;
       if (desktopId) {
-        const widgetList = await storage.getWidgetsByDesktop(desktopId);
+        const widgetList = await storage.getWidgetsByDesktop(getUserId(req), desktopId);
         res.json(widgetList);
       } else {
-        const widgetList = await storage.getWidgets();
+        const widgetList = await storage.getWidgets(getUserId(req));
         res.json(widgetList);
       }
     } catch (error) {
@@ -75,31 +78,31 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/widgets/pinned", async (req, res) => {
+  app.get("/api/widgets/pinned", isAuthenticated, async (req, res) => {
     try {
-      const pinnedWidgets = await storage.getPinnedWidgets();
+      const pinnedWidgets = await storage.getPinnedWidgets(getUserId(req));
       res.json(pinnedWidgets);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch pinned widgets" });
     }
   });
 
-  app.post("/api/widgets", async (req, res) => {
+  app.post("/api/widgets", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertWidgetSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.message });
       }
-      const widget = await storage.createWidget(parsed.data);
+      const widget = await storage.createWidget(getUserId(req), parsed.data);
       res.status(201).json(widget);
     } catch (error) {
       res.status(500).json({ error: "Failed to create widget" });
     }
   });
 
-  app.patch("/api/widgets/:id", async (req, res) => {
+  app.patch("/api/widgets/:id", isAuthenticated, async (req, res) => {
     try {
-      const widget = await storage.updateWidget(req.params.id, req.body);
+      const widget = await storage.updateWidget(getUserId(req), req.params.id, req.body);
       if (!widget) {
         return res.status(404).json({ error: "Widget not found" });
       }
@@ -109,9 +112,9 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/widgets/:id", async (req, res) => {
+  app.delete("/api/widgets/:id", isAuthenticated, async (req, res) => {
     try {
-      const deleted = await storage.deleteWidget(req.params.id);
+      const deleted = await storage.deleteWidget(getUserId(req), req.params.id);
       if (!deleted) {
         return res.status(404).json({ error: "Widget not found" });
       }
@@ -123,19 +126,19 @@ export async function registerRoutes(
 
   // ============ LAYOUT ============
 
-  app.get("/api/layout", async (req, res) => {
+  app.get("/api/layout", isAuthenticated, async (req, res) => {
     try {
-      const layout = await storage.getLayout("default");
+      const layout = await storage.getLayout(getUserId(req));
       res.json(layout || { layouts: [] });
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch layout" });
     }
   });
 
-  app.put("/api/layout", async (req, res) => {
+  app.put("/api/layout", isAuthenticated, async (req, res) => {
     try {
       const { layouts } = req.body;
-      const layout = await storage.saveLayout("default", layouts || []);
+      const layout = await storage.saveLayout(getUserId(req), layouts || []);
       res.json(layout);
     } catch (error) {
       res.status(500).json({ error: "Failed to save layout" });
@@ -144,31 +147,31 @@ export async function registerRoutes(
 
   // ============ VENTURES ============
 
-  app.get("/api/ventures", async (req, res) => {
+  app.get("/api/ventures", isAuthenticated, async (req, res) => {
     try {
-      const ventureList = await storage.getVentures();
+      const ventureList = await storage.getVentures(getUserId(req));
       res.json(ventureList);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch ventures" });
     }
   });
 
-  app.post("/api/ventures", async (req, res) => {
+  app.post("/api/ventures", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertVentureSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.message });
       }
-      const venture = await storage.createVenture(parsed.data);
+      const venture = await storage.createVenture(getUserId(req), parsed.data);
       res.status(201).json(venture);
     } catch (error) {
       res.status(500).json({ error: "Failed to create venture" });
     }
   });
 
-  app.delete("/api/ventures/:id", async (req, res) => {
+  app.delete("/api/ventures/:id", isAuthenticated, async (req, res) => {
     try {
-      const deleted = await storage.deleteVenture(req.params.id);
+      const deleted = await storage.deleteVenture(getUserId(req), req.params.id);
       if (!deleted) {
         return res.status(404).json({ error: "Venture not found" });
       }
@@ -180,37 +183,37 @@ export async function registerRoutes(
 
   // ============ PRIORITIES ============
 
-  app.get("/api/priorities/:ventureId", async (req, res) => {
+  app.get("/api/priorities/:ventureId", isAuthenticated, async (req, res) => {
     try {
-      const priorityList = await storage.getPriorities(req.params.ventureId);
+      const priorityList = await storage.getPriorities(getUserId(req), req.params.ventureId);
       res.json(priorityList);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch priorities" });
     }
   });
 
-  app.post("/api/priorities", async (req, res) => {
+  app.post("/api/priorities", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertPrioritySchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.message });
       }
       
-      const existing = await storage.getPriorities(parsed.data.ventureId);
+      const existing = await storage.getPriorities(getUserId(req), parsed.data.ventureId);
       if (existing.length >= 3) {
         return res.status(400).json({ error: "Maximum 3 priorities per venture" });
       }
       
-      const priority = await storage.createPriority(parsed.data);
+      const priority = await storage.createPriority(getUserId(req), parsed.data);
       res.status(201).json(priority);
     } catch (error) {
       res.status(500).json({ error: "Failed to create priority" });
     }
   });
 
-  app.patch("/api/priorities/:id", async (req, res) => {
+  app.patch("/api/priorities/:id", isAuthenticated, async (req, res) => {
     try {
-      const priority = await storage.updatePriority(req.params.id, req.body);
+      const priority = await storage.updatePriority(getUserId(req), req.params.id, req.body);
       if (!priority) {
         return res.status(404).json({ error: "Priority not found" });
       }
@@ -220,9 +223,9 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/priorities/:id", async (req, res) => {
+  app.delete("/api/priorities/:id", isAuthenticated, async (req, res) => {
     try {
-      const deleted = await storage.deletePriority(req.params.id);
+      const deleted = await storage.deletePriority(getUserId(req), req.params.id);
       if (!deleted) {
         return res.status(404).json({ error: "Priority not found" });
       }
@@ -234,31 +237,31 @@ export async function registerRoutes(
 
   // ============ REVENUE ============
 
-  app.get("/api/revenue/:ventureId", async (req, res) => {
+  app.get("/api/revenue/:ventureId", isAuthenticated, async (req, res) => {
     try {
-      const data = await storage.getRevenueData(req.params.ventureId);
+      const data = await storage.getRevenueData(getUserId(req), req.params.ventureId);
       res.json(data);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch revenue data" });
     }
   });
 
-  app.post("/api/revenue", async (req, res) => {
+  app.post("/api/revenue", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertRevenueDataSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.message });
       }
-      const data = await storage.createRevenueData(parsed.data);
+      const data = await storage.createRevenueData(getUserId(req), parsed.data);
       res.status(201).json(data);
     } catch (error) {
       res.status(500).json({ error: "Failed to create revenue data" });
     }
   });
 
-  app.patch("/api/revenue/:id", async (req, res) => {
+  app.patch("/api/revenue/:id", isAuthenticated, async (req, res) => {
     try {
-      const data = await storage.updateRevenueData(req.params.id, req.body);
+      const data = await storage.updateRevenueData(getUserId(req), req.params.id, req.body);
       if (!data) {
         return res.status(404).json({ error: "Revenue data not found" });
       }
@@ -268,9 +271,9 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/revenue/:id", async (req, res) => {
+  app.delete("/api/revenue/:id", isAuthenticated, async (req, res) => {
     try {
-      const deleted = await storage.deleteRevenueData(req.params.id);
+      const deleted = await storage.deleteRevenueData(getUserId(req), req.params.id);
       if (!deleted) {
         return res.status(404).json({ error: "Revenue data not found" });
       }
@@ -282,26 +285,26 @@ export async function registerRoutes(
 
   // ============ FOCUS CONTRACTS ============
 
-  app.get("/api/focus-contracts", async (req, res) => {
+  app.get("/api/focus-contracts", isAuthenticated, async (req, res) => {
     try {
       const { desktopId, date } = req.query;
       if (!desktopId || !date) {
         return res.status(400).json({ error: "desktopId and date are required" });
       }
-      const contract = await storage.getFocusContract(desktopId as string, date as string);
+      const contract = await storage.getFocusContract(getUserId(req), desktopId as string, date as string);
       res.json(contract || null);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch focus contract" });
     }
   });
 
-  app.put("/api/focus-contracts", async (req, res) => {
+  app.put("/api/focus-contracts", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertFocusContractSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.message });
       }
-      const contract = await storage.upsertFocusContract(parsed.data);
+      const contract = await storage.upsertFocusContract(getUserId(req), parsed.data);
       res.json(contract);
     } catch (error) {
       res.status(500).json({ error: "Failed to save focus contract" });
@@ -310,18 +313,18 @@ export async function registerRoutes(
 
   // ============ APP SETTINGS ============
 
-  app.get("/api/settings", async (req, res) => {
+  app.get("/api/settings", isAuthenticated, async (req, res) => {
     try {
-      const settings = await storage.getAppSettings();
+      const settings = await storage.getAppSettings(getUserId(req));
       res.json(settings);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch settings" });
     }
   });
 
-  app.patch("/api/settings", async (req, res) => {
+  app.patch("/api/settings", isAuthenticated, async (req, res) => {
     try {
-      const settings = await storage.updateAppSettings(req.body);
+      const settings = await storage.updateAppSettings(getUserId(req), req.body);
       res.json(settings);
     } catch (error) {
       res.status(500).json({ error: "Failed to update settings" });
@@ -330,29 +333,29 @@ export async function registerRoutes(
 
   // ============ QUICK CAPTURE ============
 
-  app.get("/api/capture-items", async (req, res) => {
+  app.get("/api/capture-items", isAuthenticated, async (req, res) => {
     try {
-      const items = await storage.getCaptureItems();
+      const items = await storage.getCaptureItems(getUserId(req));
       res.json(items);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch capture items" });
     }
   });
 
-  app.post("/api/capture-items", async (req, res) => {
+  app.post("/api/capture-items", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertCaptureItemSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-      const item = await storage.createCaptureItem(parsed.data);
+      const item = await storage.createCaptureItem(getUserId(req), parsed.data);
       res.status(201).json(item);
     } catch (error) {
       res.status(500).json({ error: "Failed to create capture item" });
     }
   });
 
-  app.patch("/api/capture-items/:id", async (req, res) => {
+  app.patch("/api/capture-items/:id", isAuthenticated, async (req, res) => {
     try {
-      const item = await storage.updateCaptureItem(req.params.id, req.body);
+      const item = await storage.updateCaptureItem(getUserId(req), req.params.id, req.body);
       if (!item) return res.status(404).json({ error: "Item not found" });
       res.json(item);
     } catch (error) {
@@ -360,9 +363,9 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/capture-items/:id", async (req, res) => {
+  app.delete("/api/capture-items/:id", isAuthenticated, async (req, res) => {
     try {
-      const deleted = await storage.deleteCaptureItem(req.params.id);
+      const deleted = await storage.deleteCaptureItem(getUserId(req), req.params.id);
       if (!deleted) return res.status(404).json({ error: "Item not found" });
       res.status(204).send();
     } catch (error) {
@@ -372,29 +375,29 @@ export async function registerRoutes(
 
   // ============ HABITS ============
 
-  app.get("/api/habits", async (req, res) => {
+  app.get("/api/habits", isAuthenticated, async (req, res) => {
     try {
-      const habitList = await storage.getHabits();
+      const habitList = await storage.getHabits(getUserId(req));
       res.json(habitList);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch habits" });
     }
   });
 
-  app.post("/api/habits", async (req, res) => {
+  app.post("/api/habits", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertHabitSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-      const habit = await storage.createHabit(parsed.data);
+      const habit = await storage.createHabit(getUserId(req), parsed.data);
       res.status(201).json(habit);
     } catch (error) {
       res.status(500).json({ error: "Failed to create habit" });
     }
   });
 
-  app.delete("/api/habits/:id", async (req, res) => {
+  app.delete("/api/habits/:id", isAuthenticated, async (req, res) => {
     try {
-      const deleted = await storage.deleteHabit(req.params.id);
+      const deleted = await storage.deleteHabit(getUserId(req), req.params.id);
       if (!deleted) return res.status(404).json({ error: "Habit not found" });
       res.status(204).send();
     } catch (error) {
@@ -402,29 +405,29 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/habit-entries", async (req, res) => {
+  app.get("/api/habit-entries", isAuthenticated, async (req, res) => {
     try {
-      const entries = await storage.getAllHabitEntries();
+      const entries = await storage.getAllHabitEntries(getUserId(req));
       res.json(entries);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch habit entries" });
     }
   });
 
-  app.post("/api/habit-entries", async (req, res) => {
+  app.post("/api/habit-entries", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertHabitEntrySchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-      const entry = await storage.createHabitEntry(parsed.data);
+      const entry = await storage.createHabitEntry(getUserId(req), parsed.data);
       res.status(201).json(entry);
     } catch (error) {
       res.status(500).json({ error: "Failed to create habit entry" });
     }
   });
 
-  app.delete("/api/habit-entries/:habitId/:date", async (req, res) => {
+  app.delete("/api/habit-entries/:habitId/:date", isAuthenticated, async (req, res) => {
     try {
-      const deleted = await storage.deleteHabitEntry(req.params.habitId, req.params.date);
+      const deleted = await storage.deleteHabitEntry(getUserId(req), req.params.habitId, req.params.date);
       if (!deleted) return res.status(404).json({ error: "Entry not found" });
       res.status(204).send();
     } catch (error) {
@@ -434,29 +437,29 @@ export async function registerRoutes(
 
   // ============ JOURNAL ============
 
-  app.get("/api/journal", async (req, res) => {
+  app.get("/api/journal", isAuthenticated, async (req, res) => {
     try {
-      const entries = await storage.getJournalEntries();
+      const entries = await storage.getJournalEntries(getUserId(req));
       res.json(entries);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch journal entries" });
     }
   });
 
-  app.get("/api/journal/:date", async (req, res) => {
+  app.get("/api/journal/:date", isAuthenticated, async (req, res) => {
     try {
-      const entry = await storage.getJournalEntry(req.params.date);
+      const entry = await storage.getJournalEntry(getUserId(req), req.params.date);
       res.json(entry || null);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch journal entry" });
     }
   });
 
-  app.put("/api/journal", async (req, res) => {
+  app.put("/api/journal", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertJournalEntrySchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-      const entry = await storage.upsertJournalEntry(parsed.data);
+      const entry = await storage.upsertJournalEntry(getUserId(req), parsed.data);
       res.json(entry);
     } catch (error) {
       res.status(500).json({ error: "Failed to save journal entry" });
@@ -465,29 +468,29 @@ export async function registerRoutes(
 
   // ============ SCORECARD ============
 
-  app.get("/api/scorecard-metrics", async (req, res) => {
+  app.get("/api/scorecard-metrics", isAuthenticated, async (req, res) => {
     try {
-      const metrics = await storage.getScorecardMetrics();
+      const metrics = await storage.getScorecardMetrics(getUserId(req));
       res.json(metrics);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch scorecard metrics" });
     }
   });
 
-  app.post("/api/scorecard-metrics", async (req, res) => {
+  app.post("/api/scorecard-metrics", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertScorecardMetricSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-      const metric = await storage.createScorecardMetric(parsed.data);
+      const metric = await storage.createScorecardMetric(getUserId(req), parsed.data);
       res.status(201).json(metric);
     } catch (error) {
       res.status(500).json({ error: "Failed to create scorecard metric" });
     }
   });
 
-  app.patch("/api/scorecard-metrics/:id", async (req, res) => {
+  app.patch("/api/scorecard-metrics/:id", isAuthenticated, async (req, res) => {
     try {
-      const metric = await storage.updateScorecardMetric(req.params.id, req.body);
+      const metric = await storage.updateScorecardMetric(getUserId(req), req.params.id, req.body);
       if (!metric) return res.status(404).json({ error: "Metric not found" });
       res.json(metric);
     } catch (error) {
@@ -495,9 +498,9 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/scorecard-metrics/:id", async (req, res) => {
+  app.delete("/api/scorecard-metrics/:id", isAuthenticated, async (req, res) => {
     try {
-      const deleted = await storage.deleteScorecardMetric(req.params.id);
+      const deleted = await storage.deleteScorecardMetric(getUserId(req), req.params.id);
       if (!deleted) return res.status(404).json({ error: "Metric not found" });
       res.status(204).send();
     } catch (error) {
@@ -505,20 +508,20 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/scorecard-entries", async (req, res) => {
+  app.get("/api/scorecard-entries", isAuthenticated, async (req, res) => {
     try {
-      const entries = await storage.getAllScorecardEntries();
+      const entries = await storage.getAllScorecardEntries(getUserId(req));
       res.json(entries);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch scorecard entries" });
     }
   });
 
-  app.put("/api/scorecard-entries", async (req, res) => {
+  app.put("/api/scorecard-entries", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertScorecardEntrySchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-      const entry = await storage.upsertScorecardEntry(parsed.data);
+      const entry = await storage.upsertScorecardEntry(getUserId(req), parsed.data);
       res.json(entry);
     } catch (error) {
       res.status(500).json({ error: "Failed to save scorecard entry" });
@@ -527,29 +530,29 @@ export async function registerRoutes(
 
   // ============ KPIs ============
 
-  app.get("/api/kpis", async (req, res) => {
+  app.get("/api/kpis", isAuthenticated, async (req, res) => {
     try {
-      const kpiList = await storage.getKpis();
+      const kpiList = await storage.getKpis(getUserId(req));
       res.json(kpiList);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch KPIs" });
     }
   });
 
-  app.post("/api/kpis", async (req, res) => {
+  app.post("/api/kpis", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertKpiSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-      const kpi = await storage.createKpi(parsed.data);
+      const kpi = await storage.createKpi(getUserId(req), parsed.data);
       res.status(201).json(kpi);
     } catch (error) {
       res.status(500).json({ error: "Failed to create KPI" });
     }
   });
 
-  app.patch("/api/kpis/:id", async (req, res) => {
+  app.patch("/api/kpis/:id", isAuthenticated, async (req, res) => {
     try {
-      const kpi = await storage.updateKpi(req.params.id, req.body);
+      const kpi = await storage.updateKpi(getUserId(req), req.params.id, req.body);
       if (!kpi) return res.status(404).json({ error: "KPI not found" });
       res.json(kpi);
     } catch (error) {
@@ -557,9 +560,9 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/kpis/:id", async (req, res) => {
+  app.delete("/api/kpis/:id", isAuthenticated, async (req, res) => {
     try {
-      const deleted = await storage.deleteKpi(req.params.id);
+      const deleted = await storage.deleteKpi(getUserId(req), req.params.id);
       if (!deleted) return res.status(404).json({ error: "KPI not found" });
       res.status(204).send();
     } catch (error) {
@@ -569,29 +572,29 @@ export async function registerRoutes(
 
   // ============ WAITING FOR ============
 
-  app.get("/api/waiting-items", async (req, res) => {
+  app.get("/api/waiting-items", isAuthenticated, async (req, res) => {
     try {
-      const items = await storage.getWaitingItems();
+      const items = await storage.getWaitingItems(getUserId(req));
       res.json(items);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch waiting items" });
     }
   });
 
-  app.post("/api/waiting-items", async (req, res) => {
+  app.post("/api/waiting-items", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertWaitingItemSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-      const item = await storage.createWaitingItem(parsed.data);
+      const item = await storage.createWaitingItem(getUserId(req), parsed.data);
       res.status(201).json(item);
     } catch (error) {
       res.status(500).json({ error: "Failed to create waiting item" });
     }
   });
 
-  app.patch("/api/waiting-items/:id", async (req, res) => {
+  app.patch("/api/waiting-items/:id", isAuthenticated, async (req, res) => {
     try {
-      const item = await storage.updateWaitingItem(req.params.id, req.body);
+      const item = await storage.updateWaitingItem(getUserId(req), req.params.id, req.body);
       if (!item) return res.status(404).json({ error: "Item not found" });
       res.json(item);
     } catch (error) {
@@ -599,9 +602,9 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/waiting-items/:id", async (req, res) => {
+  app.delete("/api/waiting-items/:id", isAuthenticated, async (req, res) => {
     try {
-      const deleted = await storage.deleteWaitingItem(req.params.id);
+      const deleted = await storage.deleteWaitingItem(getUserId(req), req.params.id);
       if (!deleted) return res.status(404).json({ error: "Item not found" });
       res.status(204).send();
     } catch (error) {
@@ -611,29 +614,29 @@ export async function registerRoutes(
 
   // ============ DEALS (CRM) ============
 
-  app.get("/api/deals", async (req, res) => {
+  app.get("/api/deals", isAuthenticated, async (req, res) => {
     try {
-      const dealList = await storage.getDeals();
+      const dealList = await storage.getDeals(getUserId(req));
       res.json(dealList);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch deals" });
     }
   });
 
-  app.post("/api/deals", async (req, res) => {
+  app.post("/api/deals", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertDealSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-      const deal = await storage.createDeal(parsed.data);
+      const deal = await storage.createDeal(getUserId(req), parsed.data);
       res.status(201).json(deal);
     } catch (error) {
       res.status(500).json({ error: "Failed to create deal" });
     }
   });
 
-  app.patch("/api/deals/:id", async (req, res) => {
+  app.patch("/api/deals/:id", isAuthenticated, async (req, res) => {
     try {
-      const deal = await storage.updateDeal(req.params.id, req.body);
+      const deal = await storage.updateDeal(getUserId(req), req.params.id, req.body);
       if (!deal) return res.status(404).json({ error: "Deal not found" });
       res.json(deal);
     } catch (error) {
@@ -641,9 +644,9 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/deals/:id", async (req, res) => {
+  app.delete("/api/deals/:id", isAuthenticated, async (req, res) => {
     try {
-      const deleted = await storage.deleteDeal(req.params.id);
+      const deleted = await storage.deleteDeal(getUserId(req), req.params.id);
       if (!deleted) return res.status(404).json({ error: "Deal not found" });
       res.status(204).send();
     } catch (error) {
@@ -653,29 +656,29 @@ export async function registerRoutes(
 
   // ============ TIME BLOCKS ============
 
-  app.get("/api/time-blocks/:date", async (req, res) => {
+  app.get("/api/time-blocks/:date", isAuthenticated, async (req, res) => {
     try {
-      const blocks = await storage.getTimeBlocks(req.params.date);
+      const blocks = await storage.getTimeBlocks(getUserId(req), req.params.date);
       res.json(blocks);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch time blocks" });
     }
   });
 
-  app.post("/api/time-blocks", async (req, res) => {
+  app.post("/api/time-blocks", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertTimeBlockSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-      const block = await storage.createTimeBlock(parsed.data);
+      const block = await storage.createTimeBlock(getUserId(req), parsed.data);
       res.status(201).json(block);
     } catch (error) {
       res.status(500).json({ error: "Failed to create time block" });
     }
   });
 
-  app.patch("/api/time-blocks/:id", async (req, res) => {
+  app.patch("/api/time-blocks/:id", isAuthenticated, async (req, res) => {
     try {
-      const block = await storage.updateTimeBlock(req.params.id, req.body);
+      const block = await storage.updateTimeBlock(getUserId(req), req.params.id, req.body);
       if (!block) return res.status(404).json({ error: "Time block not found" });
       res.json(block);
     } catch (error) {
@@ -683,9 +686,9 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/time-blocks/:id", async (req, res) => {
+  app.delete("/api/time-blocks/:id", isAuthenticated, async (req, res) => {
     try {
-      const deleted = await storage.deleteTimeBlock(req.params.id);
+      const deleted = await storage.deleteTimeBlock(getUserId(req), req.params.id);
       if (!deleted) return res.status(404).json({ error: "Time block not found" });
       res.status(204).send();
     } catch (error) {
@@ -695,29 +698,29 @@ export async function registerRoutes(
 
   // ============ EXPENSES ============
 
-  app.get("/api/recurring-expenses", async (req, res) => {
+  app.get("/api/recurring-expenses", isAuthenticated, async (req, res) => {
     try {
-      const expenses = await storage.getRecurringExpenses();
+      const expenses = await storage.getRecurringExpenses(getUserId(req));
       res.json(expenses);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch recurring expenses" });
     }
   });
 
-  app.post("/api/recurring-expenses", async (req, res) => {
+  app.post("/api/recurring-expenses", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertRecurringExpenseSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-      const expense = await storage.createRecurringExpense(parsed.data);
+      const expense = await storage.createRecurringExpense(getUserId(req), parsed.data);
       res.status(201).json(expense);
     } catch (error) {
       res.status(500).json({ error: "Failed to create recurring expense" });
     }
   });
 
-  app.patch("/api/recurring-expenses/:id", async (req, res) => {
+  app.patch("/api/recurring-expenses/:id", isAuthenticated, async (req, res) => {
     try {
-      const expense = await storage.updateRecurringExpense(req.params.id, req.body);
+      const expense = await storage.updateRecurringExpense(getUserId(req), req.params.id, req.body);
       if (!expense) return res.status(404).json({ error: "Expense not found" });
       res.json(expense);
     } catch (error) {
@@ -725,9 +728,9 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/recurring-expenses/:id", async (req, res) => {
+  app.delete("/api/recurring-expenses/:id", isAuthenticated, async (req, res) => {
     try {
-      const deleted = await storage.deleteRecurringExpense(req.params.id);
+      const deleted = await storage.deleteRecurringExpense(getUserId(req), req.params.id);
       if (!deleted) return res.status(404).json({ error: "Expense not found" });
       res.status(204).send();
     } catch (error) {
@@ -735,29 +738,29 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/variable-expenses", async (req, res) => {
+  app.get("/api/variable-expenses", isAuthenticated, async (req, res) => {
     try {
-      const expenses = await storage.getVariableExpenses();
+      const expenses = await storage.getVariableExpenses(getUserId(req));
       res.json(expenses);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch variable expenses" });
     }
   });
 
-  app.post("/api/variable-expenses", async (req, res) => {
+  app.post("/api/variable-expenses", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertVariableExpenseSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-      const expense = await storage.createVariableExpense(parsed.data);
+      const expense = await storage.createVariableExpense(getUserId(req), parsed.data);
       res.status(201).json(expense);
     } catch (error) {
       res.status(500).json({ error: "Failed to create variable expense" });
     }
   });
 
-  app.delete("/api/variable-expenses/:id", async (req, res) => {
+  app.delete("/api/variable-expenses/:id", isAuthenticated, async (req, res) => {
     try {
-      const deleted = await storage.deleteVariableExpense(req.params.id);
+      const deleted = await storage.deleteVariableExpense(getUserId(req), req.params.id);
       if (!deleted) return res.status(404).json({ error: "Expense not found" });
       res.status(204).send();
     } catch (error) {
@@ -767,29 +770,29 @@ export async function registerRoutes(
 
   // ============ MEETINGS ============
 
-  app.get("/api/meetings", async (req, res) => {
+  app.get("/api/meetings", isAuthenticated, async (req, res) => {
     try {
-      const meetingList = await storage.getMeetings();
+      const meetingList = await storage.getMeetings(getUserId(req));
       res.json(meetingList);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch meetings" });
     }
   });
 
-  app.post("/api/meetings", async (req, res) => {
+  app.post("/api/meetings", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertMeetingSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-      const meeting = await storage.createMeeting(parsed.data);
+      const meeting = await storage.createMeeting(getUserId(req), parsed.data);
       res.status(201).json(meeting);
     } catch (error) {
       res.status(500).json({ error: "Failed to create meeting" });
     }
   });
 
-  app.patch("/api/meetings/:id", async (req, res) => {
+  app.patch("/api/meetings/:id", isAuthenticated, async (req, res) => {
     try {
-      const meeting = await storage.updateMeeting(req.params.id, req.body);
+      const meeting = await storage.updateMeeting(getUserId(req), req.params.id, req.body);
       if (!meeting) return res.status(404).json({ error: "Meeting not found" });
       res.json(meeting);
     } catch (error) {
@@ -797,9 +800,9 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/meetings/:id", async (req, res) => {
+  app.delete("/api/meetings/:id", isAuthenticated, async (req, res) => {
     try {
-      const deleted = await storage.deleteMeeting(req.params.id);
+      const deleted = await storage.deleteMeeting(getUserId(req), req.params.id);
       if (!deleted) return res.status(404).json({ error: "Meeting not found" });
       res.status(204).send();
     } catch (error) {
@@ -809,27 +812,27 @@ export async function registerRoutes(
 
   // ============ AI CHAT ============
 
-  app.get("/api/ai/conversations", async (req, res) => {
+  app.get("/api/ai/conversations", isAuthenticated, async (req, res) => {
     try {
-      const conversations = await storage.getAiConversations();
+      const conversations = await storage.getAiConversations(getUserId(req));
       res.json(conversations);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch conversations" });
     }
   });
 
-  app.post("/api/ai/conversations", async (req, res) => {
+  app.post("/api/ai/conversations", isAuthenticated, async (req, res) => {
     try {
-      const conv = await storage.createAiConversation({ title: req.body.title || "New Chat" });
+      const conv = await storage.createAiConversation(getUserId(req), { title: req.body.title || "New Chat" });
       res.status(201).json(conv);
     } catch (error) {
       res.status(500).json({ error: "Failed to create conversation" });
     }
   });
 
-  app.delete("/api/ai/conversations/:id", async (req, res) => {
+  app.delete("/api/ai/conversations/:id", isAuthenticated, async (req, res) => {
     try {
-      const deleted = await storage.deleteAiConversation(req.params.id);
+      const deleted = await storage.deleteAiConversation(getUserId(req), req.params.id);
       if (!deleted) return res.status(404).json({ error: "Conversation not found" });
       res.status(204).send();
     } catch (error) {
@@ -837,16 +840,16 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/ai/conversations/:id/messages", async (req, res) => {
+  app.get("/api/ai/conversations/:id/messages", isAuthenticated, async (req, res) => {
     try {
-      const messages = await storage.getAiMessages(req.params.id);
+      const messages = await storage.getAiMessages(getUserId(req), req.params.id);
       res.json(messages);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch messages" });
     }
   });
 
-  app.post("/api/ai/conversations/:id/chat", async (req, res) => {
+  app.post("/api/ai/conversations/:id/chat", isAuthenticated, async (req, res) => {
     try {
       const apiKey = process.env.OPENAI_API_KEY;
       if (!apiKey) {
@@ -859,10 +862,11 @@ export async function registerRoutes(
       }
 
       const conversationId = req.params.id;
+      const userId = getUserId(req);
 
-      await storage.createAiMessage({ conversationId, role: "user", content: message });
+      await storage.createAiMessage(userId, { conversationId, role: "user", content: message });
 
-      const history = await storage.getAiMessages(conversationId);
+      const history = await storage.getAiMessages(userId, conversationId);
       const openaiMessages = history.map((m) => ({
         role: m.role as "user" | "assistant" | "system",
         content: m.content,
@@ -894,7 +898,7 @@ export async function registerRoutes(
         }
       }
 
-      await storage.createAiMessage({ conversationId, role: "assistant", content: fullResponse });
+      await storage.createAiMessage(userId, { conversationId, role: "assistant", content: fullResponse });
 
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
       res.end();
@@ -909,9 +913,29 @@ export async function registerRoutes(
     }
   });
 
+  // ============ USER SETTINGS ============
+
+  app.get("/api/user-settings", isAuthenticated, async (req, res) => {
+    try {
+      const settings = await storage.getUserSettings(getUserId(req));
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch user settings" });
+    }
+  });
+
+  app.patch("/api/user-settings", isAuthenticated, async (req, res) => {
+    try {
+      const settings = await storage.updateUserSettings(getUserId(req), req.body);
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update user settings" });
+    }
+  });
+
   // ============ GOOGLE CALENDAR (via Replit connector) ============
 
-  app.get("/api/google-calendar/calendars", async (req, res) => {
+  app.get("/api/google-calendar/calendars", isAuthenticated, async (req, res) => {
     try {
       const calendars = await listCalendars();
       res.json(calendars);
@@ -921,7 +945,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/google-calendar/events", async (req, res) => {
+  app.get("/api/google-calendar/events", isAuthenticated, async (req, res) => {
     try {
       const calendarId = (req.query.calendarId as string) || "primary";
       const timeMin = req.query.timeMin as string;

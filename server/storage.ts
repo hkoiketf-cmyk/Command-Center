@@ -1,7 +1,6 @@
 import { eq, and, desc } from "drizzle-orm";
 import { db } from "./db";
 import {
-  users,
   widgets,
   ventures,
   priorities,
@@ -23,8 +22,7 @@ import {
   recurringExpenses,
   variableExpenses,
   meetings,
-  type User,
-  type InsertUser,
+  userSettings,
   type Widget,
   type InsertWidget,
   type Venture,
@@ -72,161 +70,138 @@ import {
   type InsertAiConversation,
   type AiMessage,
   type InsertAiMessage,
+  type UserSettings,
 } from "@shared/schema";
 
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
-  getDesktops(): Promise<Desktop[]>;
-  getDesktop(id: string): Promise<Desktop | undefined>;
-  createDesktop(desktop: InsertDesktop): Promise<Desktop>;
-  updateDesktop(id: string, updates: Partial<Desktop>): Promise<Desktop | undefined>;
-  deleteDesktop(id: string): Promise<boolean>;
-  getWidgets(): Promise<Widget[]>;
-  getWidgetsByDesktop(desktopId: string): Promise<Widget[]>;
-  getWidget(id: string): Promise<Widget | undefined>;
-  createWidget(widget: InsertWidget): Promise<Widget>;
-  updateWidget(id: string, updates: Partial<Widget>): Promise<Widget | undefined>;
-  deleteWidget(id: string): Promise<boolean>;
+  getDesktops(userId: string): Promise<Desktop[]>;
+  getDesktop(userId: string, id: string): Promise<Desktop | undefined>;
+  createDesktop(userId: string, desktop: InsertDesktop): Promise<Desktop>;
+  updateDesktop(userId: string, id: string, updates: Partial<Desktop>): Promise<Desktop | undefined>;
+  deleteDesktop(userId: string, id: string): Promise<boolean>;
+  getWidgets(userId: string): Promise<Widget[]>;
+  getWidgetsByDesktop(userId: string, desktopId: string): Promise<Widget[]>;
+  getWidget(userId: string, id: string): Promise<Widget | undefined>;
+  createWidget(userId: string, widget: InsertWidget): Promise<Widget>;
+  updateWidget(userId: string, id: string, updates: Partial<Widget>): Promise<Widget | undefined>;
+  deleteWidget(userId: string, id: string): Promise<boolean>;
   getLayout(userId: string): Promise<DashboardLayout | undefined>;
   saveLayout(userId: string, layouts: LayoutItem[]): Promise<DashboardLayout>;
-  getVentures(): Promise<Venture[]>;
-  getVenture(id: string): Promise<Venture | undefined>;
-  createVenture(venture: InsertVenture): Promise<Venture>;
-  deleteVenture(id: string): Promise<boolean>;
-  getPriorities(ventureId: string): Promise<Priority[]>;
-  createPriority(priority: InsertPriority): Promise<Priority>;
-  updatePriority(id: string, updates: Partial<Priority>): Promise<Priority | undefined>;
-  deletePriority(id: string): Promise<boolean>;
-  getRevenueData(ventureId: string): Promise<RevenueData[]>;
-  createRevenueData(data: InsertRevenueData): Promise<RevenueData>;
-  updateRevenueData(id: string, updates: Partial<RevenueData>): Promise<RevenueData | undefined>;
-  deleteRevenueData(id: string): Promise<boolean>;
-  getFocusContract(desktopId: string, date: string): Promise<FocusContract | undefined>;
-  upsertFocusContract(data: InsertFocusContract): Promise<FocusContract>;
-  getAppSettings(): Promise<AppSettings>;
-  updateAppSettings(updates: Partial<AppSettings>): Promise<AppSettings>;
-  getPinnedWidgets(): Promise<Widget[]>;
-  // Quick Capture
-  getCaptureItems(): Promise<CaptureItem[]>;
-  createCaptureItem(item: InsertCaptureItem): Promise<CaptureItem>;
-  updateCaptureItem(id: string, updates: Partial<CaptureItem>): Promise<CaptureItem | undefined>;
-  deleteCaptureItem(id: string): Promise<boolean>;
-  // Habits
-  getHabits(): Promise<Habit[]>;
-  createHabit(habit: InsertHabit): Promise<Habit>;
-  deleteHabit(id: string): Promise<boolean>;
-  getHabitEntries(habitId: string): Promise<HabitEntry[]>;
-  getAllHabitEntries(): Promise<HabitEntry[]>;
-  createHabitEntry(entry: InsertHabitEntry): Promise<HabitEntry>;
-  deleteHabitEntry(habitId: string, date: string): Promise<boolean>;
-  // Journal
-  getJournalEntries(): Promise<JournalEntry[]>;
-  getJournalEntry(date: string): Promise<JournalEntry | undefined>;
-  upsertJournalEntry(data: InsertJournalEntry): Promise<JournalEntry>;
-  // Scorecard
-  getScorecardMetrics(): Promise<ScorecardMetric[]>;
-  createScorecardMetric(metric: InsertScorecardMetric): Promise<ScorecardMetric>;
-  updateScorecardMetric(id: string, updates: Partial<ScorecardMetric>): Promise<ScorecardMetric | undefined>;
-  deleteScorecardMetric(id: string): Promise<boolean>;
-  getScorecardEntries(metricId: string): Promise<ScorecardEntry[]>;
-  getAllScorecardEntries(): Promise<ScorecardEntry[]>;
-  upsertScorecardEntry(data: InsertScorecardEntry): Promise<ScorecardEntry>;
-  // KPIs
-  getKpis(): Promise<Kpi[]>;
-  createKpi(kpi: InsertKpi): Promise<Kpi>;
-  updateKpi(id: string, updates: Partial<Kpi>): Promise<Kpi | undefined>;
-  deleteKpi(id: string): Promise<boolean>;
-  // Waiting For
-  getWaitingItems(): Promise<WaitingItem[]>;
-  createWaitingItem(item: InsertWaitingItem): Promise<WaitingItem>;
-  updateWaitingItem(id: string, updates: Partial<WaitingItem>): Promise<WaitingItem | undefined>;
-  deleteWaitingItem(id: string): Promise<boolean>;
-  // Deals
-  getDeals(): Promise<Deal[]>;
-  createDeal(deal: InsertDeal): Promise<Deal>;
-  updateDeal(id: string, updates: Partial<Deal>): Promise<Deal | undefined>;
-  deleteDeal(id: string): Promise<boolean>;
-  // Time Blocks
-  getTimeBlocks(date: string): Promise<TimeBlock[]>;
-  createTimeBlock(block: InsertTimeBlock): Promise<TimeBlock>;
-  updateTimeBlock(id: string, updates: Partial<TimeBlock>): Promise<TimeBlock | undefined>;
-  deleteTimeBlock(id: string): Promise<boolean>;
-  // Expenses
-  getRecurringExpenses(): Promise<RecurringExpense[]>;
-  createRecurringExpense(expense: InsertRecurringExpense): Promise<RecurringExpense>;
-  updateRecurringExpense(id: string, updates: Partial<RecurringExpense>): Promise<RecurringExpense | undefined>;
-  deleteRecurringExpense(id: string): Promise<boolean>;
-  getVariableExpenses(): Promise<VariableExpense[]>;
-  createVariableExpense(expense: InsertVariableExpense): Promise<VariableExpense>;
-  deleteVariableExpense(id: string): Promise<boolean>;
-  // Meetings
-  getMeetings(): Promise<Meeting[]>;
-  createMeeting(meeting: InsertMeeting): Promise<Meeting>;
-  updateMeeting(id: string, updates: Partial<Meeting>): Promise<Meeting | undefined>;
-  deleteMeeting(id: string): Promise<boolean>;
-  // AI Chat
-  getAiConversations(): Promise<AiConversation[]>;
-  createAiConversation(conv: InsertAiConversation): Promise<AiConversation>;
-  deleteAiConversation(id: string): Promise<boolean>;
-  getAiMessages(conversationId: string): Promise<AiMessage[]>;
-  createAiMessage(msg: InsertAiMessage): Promise<AiMessage>;
+  getVentures(userId: string): Promise<Venture[]>;
+  getVenture(userId: string, id: string): Promise<Venture | undefined>;
+  createVenture(userId: string, venture: InsertVenture): Promise<Venture>;
+  deleteVenture(userId: string, id: string): Promise<boolean>;
+  getPriorities(userId: string, ventureId: string): Promise<Priority[]>;
+  createPriority(userId: string, priority: InsertPriority): Promise<Priority>;
+  updatePriority(userId: string, id: string, updates: Partial<Priority>): Promise<Priority | undefined>;
+  deletePriority(userId: string, id: string): Promise<boolean>;
+  getRevenueData(userId: string, ventureId: string): Promise<RevenueData[]>;
+  createRevenueData(userId: string, data: InsertRevenueData): Promise<RevenueData>;
+  updateRevenueData(userId: string, id: string, updates: Partial<RevenueData>): Promise<RevenueData | undefined>;
+  deleteRevenueData(userId: string, id: string): Promise<boolean>;
+  getFocusContract(userId: string, desktopId: string, date: string): Promise<FocusContract | undefined>;
+  upsertFocusContract(userId: string, data: InsertFocusContract): Promise<FocusContract>;
+  getAppSettings(userId: string): Promise<AppSettings>;
+  updateAppSettings(userId: string, updates: Partial<AppSettings>): Promise<AppSettings>;
+  getPinnedWidgets(userId: string): Promise<Widget[]>;
+  getCaptureItems(userId: string): Promise<CaptureItem[]>;
+  createCaptureItem(userId: string, item: InsertCaptureItem): Promise<CaptureItem>;
+  updateCaptureItem(userId: string, id: string, updates: Partial<CaptureItem>): Promise<CaptureItem | undefined>;
+  deleteCaptureItem(userId: string, id: string): Promise<boolean>;
+  getHabits(userId: string): Promise<Habit[]>;
+  createHabit(userId: string, habit: InsertHabit): Promise<Habit>;
+  deleteHabit(userId: string, id: string): Promise<boolean>;
+  getHabitEntries(userId: string, habitId: string): Promise<HabitEntry[]>;
+  getAllHabitEntries(userId: string): Promise<HabitEntry[]>;
+  createHabitEntry(userId: string, entry: InsertHabitEntry): Promise<HabitEntry>;
+  deleteHabitEntry(userId: string, habitId: string, date: string): Promise<boolean>;
+  getJournalEntries(userId: string): Promise<JournalEntry[]>;
+  getJournalEntry(userId: string, date: string): Promise<JournalEntry | undefined>;
+  upsertJournalEntry(userId: string, data: InsertJournalEntry): Promise<JournalEntry>;
+  getScorecardMetrics(userId: string): Promise<ScorecardMetric[]>;
+  createScorecardMetric(userId: string, metric: InsertScorecardMetric): Promise<ScorecardMetric>;
+  updateScorecardMetric(userId: string, id: string, updates: Partial<ScorecardMetric>): Promise<ScorecardMetric | undefined>;
+  deleteScorecardMetric(userId: string, id: string): Promise<boolean>;
+  getScorecardEntries(userId: string, metricId: string): Promise<ScorecardEntry[]>;
+  getAllScorecardEntries(userId: string): Promise<ScorecardEntry[]>;
+  upsertScorecardEntry(userId: string, data: InsertScorecardEntry): Promise<ScorecardEntry>;
+  getKpis(userId: string): Promise<Kpi[]>;
+  createKpi(userId: string, kpi: InsertKpi): Promise<Kpi>;
+  updateKpi(userId: string, id: string, updates: Partial<Kpi>): Promise<Kpi | undefined>;
+  deleteKpi(userId: string, id: string): Promise<boolean>;
+  getWaitingItems(userId: string): Promise<WaitingItem[]>;
+  createWaitingItem(userId: string, item: InsertWaitingItem): Promise<WaitingItem>;
+  updateWaitingItem(userId: string, id: string, updates: Partial<WaitingItem>): Promise<WaitingItem | undefined>;
+  deleteWaitingItem(userId: string, id: string): Promise<boolean>;
+  getDeals(userId: string): Promise<Deal[]>;
+  createDeal(userId: string, deal: InsertDeal): Promise<Deal>;
+  updateDeal(userId: string, id: string, updates: Partial<Deal>): Promise<Deal | undefined>;
+  deleteDeal(userId: string, id: string): Promise<boolean>;
+  getTimeBlocks(userId: string, date: string): Promise<TimeBlock[]>;
+  createTimeBlock(userId: string, block: InsertTimeBlock): Promise<TimeBlock>;
+  updateTimeBlock(userId: string, id: string, updates: Partial<TimeBlock>): Promise<TimeBlock | undefined>;
+  deleteTimeBlock(userId: string, id: string): Promise<boolean>;
+  getRecurringExpenses(userId: string): Promise<RecurringExpense[]>;
+  createRecurringExpense(userId: string, expense: InsertRecurringExpense): Promise<RecurringExpense>;
+  updateRecurringExpense(userId: string, id: string, updates: Partial<RecurringExpense>): Promise<RecurringExpense | undefined>;
+  deleteRecurringExpense(userId: string, id: string): Promise<boolean>;
+  getVariableExpenses(userId: string): Promise<VariableExpense[]>;
+  createVariableExpense(userId: string, expense: InsertVariableExpense): Promise<VariableExpense>;
+  deleteVariableExpense(userId: string, id: string): Promise<boolean>;
+  getMeetings(userId: string): Promise<Meeting[]>;
+  createMeeting(userId: string, meeting: InsertMeeting): Promise<Meeting>;
+  updateMeeting(userId: string, id: string, updates: Partial<Meeting>): Promise<Meeting | undefined>;
+  deleteMeeting(userId: string, id: string): Promise<boolean>;
+  getAiConversations(userId: string): Promise<AiConversation[]>;
+  createAiConversation(userId: string, conv: InsertAiConversation): Promise<AiConversation>;
+  deleteAiConversation(userId: string, id: string): Promise<boolean>;
+  getAiMessages(userId: string, conversationId: string): Promise<AiMessage[]>;
+  createAiMessage(userId: string, msg: InsertAiMessage): Promise<AiMessage>;
+  getUserSettings(userId: string): Promise<UserSettings>;
+  updateUserSettings(userId: string, updates: Partial<UserSettings>): Promise<UserSettings>;
 }
 
 export class DatabaseStorage implements IStorage {
-  async getUser(id: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.id, id));
+  async getDesktops(userId: string): Promise<Desktop[]> {
+    return await db.select().from(desktops).where(eq(desktops.userId, userId)).orderBy(desktops.order);
+  }
+  async getDesktop(userId: string, id: string): Promise<Desktop | undefined> {
+    const result = await db.select().from(desktops).where(and(eq(desktops.id, id), eq(desktops.userId, userId)));
     return result[0];
   }
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.username, username));
+  async createDesktop(userId: string, desktop: InsertDesktop): Promise<Desktop> {
+    const result = await db.insert(desktops).values({ ...desktop, userId }).returning();
     return result[0];
   }
-  async createUser(user: InsertUser): Promise<User> {
-    const result = await db.insert(users).values(user).returning();
+  async updateDesktop(userId: string, id: string, updates: Partial<Desktop>): Promise<Desktop | undefined> {
+    const result = await db.update(desktops).set(updates).where(and(eq(desktops.id, id), eq(desktops.userId, userId))).returning();
     return result[0];
   }
-  async getDesktops(): Promise<Desktop[]> {
-    return await db.select().from(desktops).orderBy(desktops.order);
-  }
-  async getDesktop(id: string): Promise<Desktop | undefined> {
-    const result = await db.select().from(desktops).where(eq(desktops.id, id));
-    return result[0];
-  }
-  async createDesktop(desktop: InsertDesktop): Promise<Desktop> {
-    const result = await db.insert(desktops).values(desktop).returning();
-    return result[0];
-  }
-  async updateDesktop(id: string, updates: Partial<Desktop>): Promise<Desktop | undefined> {
-    const result = await db.update(desktops).set(updates).where(eq(desktops.id, id)).returning();
-    return result[0];
-  }
-  async deleteDesktop(id: string): Promise<boolean> {
-    await db.delete(widgets).where(eq(widgets.desktopId, id));
-    const result = await db.delete(desktops).where(eq(desktops.id, id)).returning();
+  async deleteDesktop(userId: string, id: string): Promise<boolean> {
+    await db.delete(widgets).where(and(eq(widgets.desktopId, id), eq(widgets.userId, userId)));
+    const result = await db.delete(desktops).where(and(eq(desktops.id, id), eq(desktops.userId, userId))).returning();
     return result.length > 0;
   }
-  async getWidgets(): Promise<Widget[]> {
-    return await db.select().from(widgets);
+  async getWidgets(userId: string): Promise<Widget[]> {
+    return await db.select().from(widgets).where(eq(widgets.userId, userId));
   }
-  async getWidgetsByDesktop(desktopId: string): Promise<Widget[]> {
-    return await db.select().from(widgets).where(eq(widgets.desktopId, desktopId));
+  async getWidgetsByDesktop(userId: string, desktopId: string): Promise<Widget[]> {
+    return await db.select().from(widgets).where(and(eq(widgets.desktopId, desktopId), eq(widgets.userId, userId)));
   }
-  async getWidget(id: string): Promise<Widget | undefined> {
-    const result = await db.select().from(widgets).where(eq(widgets.id, id));
+  async getWidget(userId: string, id: string): Promise<Widget | undefined> {
+    const result = await db.select().from(widgets).where(and(eq(widgets.id, id), eq(widgets.userId, userId)));
     return result[0];
   }
-  async createWidget(widget: InsertWidget): Promise<Widget> {
-    const result = await db.insert(widgets).values(widget as any).returning();
+  async createWidget(userId: string, widget: InsertWidget): Promise<Widget> {
+    const result = await db.insert(widgets).values({ ...widget, userId } as any).returning();
     return result[0];
   }
-  async updateWidget(id: string, updates: Partial<Widget>): Promise<Widget | undefined> {
-    const result = await db.update(widgets).set(updates).where(eq(widgets.id, id)).returning();
+  async updateWidget(userId: string, id: string, updates: Partial<Widget>): Promise<Widget | undefined> {
+    const result = await db.update(widgets).set(updates).where(and(eq(widgets.id, id), eq(widgets.userId, userId))).returning();
     return result[0];
   }
-  async deleteWidget(id: string): Promise<boolean> {
-    const result = await db.delete(widgets).where(eq(widgets.id, id)).returning();
+  async deleteWidget(userId: string, id: string): Promise<boolean> {
+    const result = await db.delete(widgets).where(and(eq(widgets.id, id), eq(widgets.userId, userId))).returning();
     return result.length > 0;
   }
   async getLayout(userId: string): Promise<DashboardLayout | undefined> {
@@ -242,58 +217,58 @@ export class DatabaseStorage implements IStorage {
     const result = await db.insert(dashboardLayouts).values({ userId, layouts }).returning();
     return result[0];
   }
-  async getVentures(): Promise<Venture[]> {
-    return await db.select().from(ventures);
+  async getVentures(userId: string): Promise<Venture[]> {
+    return await db.select().from(ventures).where(eq(ventures.userId, userId));
   }
-  async getVenture(id: string): Promise<Venture | undefined> {
-    const result = await db.select().from(ventures).where(eq(ventures.id, id));
+  async getVenture(userId: string, id: string): Promise<Venture | undefined> {
+    const result = await db.select().from(ventures).where(and(eq(ventures.id, id), eq(ventures.userId, userId)));
     return result[0];
   }
-  async createVenture(venture: InsertVenture): Promise<Venture> {
-    const result = await db.insert(ventures).values(venture).returning();
+  async createVenture(userId: string, venture: InsertVenture): Promise<Venture> {
+    const result = await db.insert(ventures).values({ ...venture, userId }).returning();
     return result[0];
   }
-  async deleteVenture(id: string): Promise<boolean> {
-    const result = await db.delete(ventures).where(eq(ventures.id, id)).returning();
+  async deleteVenture(userId: string, id: string): Promise<boolean> {
+    const result = await db.delete(ventures).where(and(eq(ventures.id, id), eq(ventures.userId, userId))).returning();
     return result.length > 0;
   }
-  async getPriorities(ventureId: string): Promise<Priority[]> {
-    return await db.select().from(priorities).where(eq(priorities.ventureId, ventureId)).orderBy(priorities.order);
+  async getPriorities(userId: string, ventureId: string): Promise<Priority[]> {
+    return await db.select().from(priorities).where(and(eq(priorities.userId, userId), eq(priorities.ventureId, ventureId))).orderBy(priorities.order);
   }
-  async createPriority(priority: InsertPriority): Promise<Priority> {
-    const result = await db.insert(priorities).values(priority).returning();
+  async createPriority(userId: string, priority: InsertPriority): Promise<Priority> {
+    const result = await db.insert(priorities).values({ ...priority, userId }).returning();
     return result[0];
   }
-  async updatePriority(id: string, updates: Partial<Priority>): Promise<Priority | undefined> {
-    const result = await db.update(priorities).set(updates).where(eq(priorities.id, id)).returning();
+  async updatePriority(userId: string, id: string, updates: Partial<Priority>): Promise<Priority | undefined> {
+    const result = await db.update(priorities).set(updates).where(and(eq(priorities.id, id), eq(priorities.userId, userId))).returning();
     return result[0];
   }
-  async deletePriority(id: string): Promise<boolean> {
-    const result = await db.delete(priorities).where(eq(priorities.id, id)).returning();
+  async deletePriority(userId: string, id: string): Promise<boolean> {
+    const result = await db.delete(priorities).where(and(eq(priorities.id, id), eq(priorities.userId, userId))).returning();
     return result.length > 0;
   }
-  async getRevenueData(ventureId: string): Promise<RevenueData[]> {
-    return await db.select().from(revenueData).where(eq(revenueData.ventureId, ventureId));
+  async getRevenueData(userId: string, ventureId: string): Promise<RevenueData[]> {
+    return await db.select().from(revenueData).where(and(eq(revenueData.userId, userId), eq(revenueData.ventureId, ventureId)));
   }
-  async createRevenueData(data: InsertRevenueData): Promise<RevenueData> {
-    const result = await db.insert(revenueData).values(data).returning();
+  async createRevenueData(userId: string, data: InsertRevenueData): Promise<RevenueData> {
+    const result = await db.insert(revenueData).values({ ...data, userId }).returning();
     return result[0];
   }
-  async updateRevenueData(id: string, updates: Partial<RevenueData>): Promise<RevenueData | undefined> {
-    const result = await db.update(revenueData).set(updates).where(eq(revenueData.id, id)).returning();
+  async updateRevenueData(userId: string, id: string, updates: Partial<RevenueData>): Promise<RevenueData | undefined> {
+    const result = await db.update(revenueData).set(updates).where(and(eq(revenueData.id, id), eq(revenueData.userId, userId))).returning();
     return result[0];
   }
-  async deleteRevenueData(id: string): Promise<boolean> {
-    const result = await db.delete(revenueData).where(eq(revenueData.id, id)).returning();
+  async deleteRevenueData(userId: string, id: string): Promise<boolean> {
+    const result = await db.delete(revenueData).where(and(eq(revenueData.id, id), eq(revenueData.userId, userId))).returning();
     return result.length > 0;
   }
-  async getFocusContract(desktopId: string, date: string): Promise<FocusContract | undefined> {
-    const result = await db.select().from(focusContracts).where(and(eq(focusContracts.desktopId, desktopId), eq(focusContracts.date, date)));
+  async getFocusContract(userId: string, desktopId: string, date: string): Promise<FocusContract | undefined> {
+    const result = await db.select().from(focusContracts).where(and(eq(focusContracts.desktopId, desktopId), eq(focusContracts.date, date), eq(focusContracts.userId, userId)));
     return result[0];
   }
-  async upsertFocusContract(data: InsertFocusContract): Promise<FocusContract> {
-    const existing = await this.getFocusContract(data.desktopId, data.date);
-    const values = { ...data, top3: data.top3 as { text: string; done: boolean }[] | undefined, ignoreList: data.ignoreList as string[] | undefined };
+  async upsertFocusContract(userId: string, data: InsertFocusContract): Promise<FocusContract> {
+    const existing = await this.getFocusContract(userId, data.desktopId, data.date);
+    const values = { ...data, userId, top3: data.top3 as { text: string; done: boolean }[] | undefined, ignoreList: data.ignoreList as string[] | undefined };
     if (existing) {
       const result = await db.update(focusContracts).set(values).where(eq(focusContracts.id, existing.id)).returning();
       return result[0];
@@ -301,248 +276,263 @@ export class DatabaseStorage implements IStorage {
     const result = await db.insert(focusContracts).values(values).returning();
     return result[0];
   }
-  async getAppSettings(): Promise<AppSettings> {
-    const result = await db.select().from(appSettings);
+  async getAppSettings(userId: string): Promise<AppSettings> {
+    const result = await db.select().from(appSettings).where(eq(appSettings.userId, userId));
     if (result.length === 0) {
-      const created = await db.insert(appSettings).values({}).returning();
+      const created = await db.insert(appSettings).values({ userId }).returning();
       return created[0];
     }
     return result[0];
   }
-  async updateAppSettings(updates: Partial<AppSettings>): Promise<AppSettings> {
-    const current = await this.getAppSettings();
+  async updateAppSettings(userId: string, updates: Partial<AppSettings>): Promise<AppSettings> {
+    const current = await this.getAppSettings(userId);
     const result = await db.update(appSettings).set(updates).where(eq(appSettings.id, current.id)).returning();
     return result[0];
   }
-  async getPinnedWidgets(): Promise<Widget[]> {
-    return await db.select().from(widgets).where(eq(widgets.pinnedAllDesktops, true));
+  async getPinnedWidgets(userId: string): Promise<Widget[]> {
+    return await db.select().from(widgets).where(and(eq(widgets.pinnedAllDesktops, true), eq(widgets.userId, userId)));
   }
 
   // Quick Capture
-  async getCaptureItems(): Promise<CaptureItem[]> {
-    return await db.select().from(captureItems).orderBy(desc(captureItems.createdAt));
+  async getCaptureItems(userId: string): Promise<CaptureItem[]> {
+    return await db.select().from(captureItems).where(eq(captureItems.userId, userId)).orderBy(desc(captureItems.createdAt));
   }
-  async createCaptureItem(item: InsertCaptureItem): Promise<CaptureItem> {
-    const result = await db.insert(captureItems).values(item).returning();
+  async createCaptureItem(userId: string, item: InsertCaptureItem): Promise<CaptureItem> {
+    const result = await db.insert(captureItems).values({ ...item, userId }).returning();
     return result[0];
   }
-  async updateCaptureItem(id: string, updates: Partial<CaptureItem>): Promise<CaptureItem | undefined> {
-    const result = await db.update(captureItems).set(updates).where(eq(captureItems.id, id)).returning();
+  async updateCaptureItem(userId: string, id: string, updates: Partial<CaptureItem>): Promise<CaptureItem | undefined> {
+    const result = await db.update(captureItems).set(updates).where(and(eq(captureItems.id, id), eq(captureItems.userId, userId))).returning();
     return result[0];
   }
-  async deleteCaptureItem(id: string): Promise<boolean> {
-    const result = await db.delete(captureItems).where(eq(captureItems.id, id)).returning();
+  async deleteCaptureItem(userId: string, id: string): Promise<boolean> {
+    const result = await db.delete(captureItems).where(and(eq(captureItems.id, id), eq(captureItems.userId, userId))).returning();
     return result.length > 0;
   }
 
   // Habits
-  async getHabits(): Promise<Habit[]> {
-    return await db.select().from(habits).orderBy(habits.order);
+  async getHabits(userId: string): Promise<Habit[]> {
+    return await db.select().from(habits).where(eq(habits.userId, userId)).orderBy(habits.order);
   }
-  async createHabit(habit: InsertHabit): Promise<Habit> {
-    const result = await db.insert(habits).values(habit).returning();
+  async createHabit(userId: string, habit: InsertHabit): Promise<Habit> {
+    const result = await db.insert(habits).values({ ...habit, userId }).returning();
     return result[0];
   }
-  async deleteHabit(id: string): Promise<boolean> {
-    const result = await db.delete(habits).where(eq(habits.id, id)).returning();
+  async deleteHabit(userId: string, id: string): Promise<boolean> {
+    const result = await db.delete(habits).where(and(eq(habits.id, id), eq(habits.userId, userId))).returning();
     return result.length > 0;
   }
-  async getHabitEntries(habitId: string): Promise<HabitEntry[]> {
-    return await db.select().from(habitEntries).where(eq(habitEntries.habitId, habitId));
+  async getHabitEntries(userId: string, habitId: string): Promise<HabitEntry[]> {
+    return await db.select().from(habitEntries).where(and(eq(habitEntries.habitId, habitId), eq(habitEntries.userId, userId)));
   }
-  async getAllHabitEntries(): Promise<HabitEntry[]> {
-    return await db.select().from(habitEntries);
+  async getAllHabitEntries(userId: string): Promise<HabitEntry[]> {
+    return await db.select().from(habitEntries).where(eq(habitEntries.userId, userId));
   }
-  async createHabitEntry(entry: InsertHabitEntry): Promise<HabitEntry> {
-    const result = await db.insert(habitEntries).values(entry).returning();
+  async createHabitEntry(userId: string, entry: InsertHabitEntry): Promise<HabitEntry> {
+    const result = await db.insert(habitEntries).values({ ...entry, userId }).returning();
     return result[0];
   }
-  async deleteHabitEntry(habitId: string, date: string): Promise<boolean> {
-    const result = await db.delete(habitEntries).where(and(eq(habitEntries.habitId, habitId), eq(habitEntries.date, date))).returning();
+  async deleteHabitEntry(userId: string, habitId: string, date: string): Promise<boolean> {
+    const result = await db.delete(habitEntries).where(and(eq(habitEntries.habitId, habitId), eq(habitEntries.date, date), eq(habitEntries.userId, userId))).returning();
     return result.length > 0;
   }
 
   // Journal
-  async getJournalEntries(): Promise<JournalEntry[]> {
-    return await db.select().from(journalEntries).orderBy(desc(journalEntries.date));
+  async getJournalEntries(userId: string): Promise<JournalEntry[]> {
+    return await db.select().from(journalEntries).where(eq(journalEntries.userId, userId)).orderBy(desc(journalEntries.date));
   }
-  async getJournalEntry(date: string): Promise<JournalEntry | undefined> {
-    const result = await db.select().from(journalEntries).where(eq(journalEntries.date, date));
+  async getJournalEntry(userId: string, date: string): Promise<JournalEntry | undefined> {
+    const result = await db.select().from(journalEntries).where(and(eq(journalEntries.date, date), eq(journalEntries.userId, userId)));
     return result[0];
   }
-  async upsertJournalEntry(data: InsertJournalEntry): Promise<JournalEntry> {
-    const existing = await this.getJournalEntry(data.date);
+  async upsertJournalEntry(userId: string, data: InsertJournalEntry): Promise<JournalEntry> {
+    const existing = await this.getJournalEntry(userId, data.date);
     if (existing) {
       const result = await db.update(journalEntries).set(data).where(eq(journalEntries.id, existing.id)).returning();
       return result[0];
     }
-    const result = await db.insert(journalEntries).values(data).returning();
+    const result = await db.insert(journalEntries).values({ ...data, userId }).returning();
     return result[0];
   }
 
   // Scorecard
-  async getScorecardMetrics(): Promise<ScorecardMetric[]> {
-    return await db.select().from(scorecardMetrics).orderBy(scorecardMetrics.order);
+  async getScorecardMetrics(userId: string): Promise<ScorecardMetric[]> {
+    return await db.select().from(scorecardMetrics).where(eq(scorecardMetrics.userId, userId)).orderBy(scorecardMetrics.order);
   }
-  async createScorecardMetric(metric: InsertScorecardMetric): Promise<ScorecardMetric> {
-    const result = await db.insert(scorecardMetrics).values(metric).returning();
+  async createScorecardMetric(userId: string, metric: InsertScorecardMetric): Promise<ScorecardMetric> {
+    const result = await db.insert(scorecardMetrics).values({ ...metric, userId }).returning();
     return result[0];
   }
-  async updateScorecardMetric(id: string, updates: Partial<ScorecardMetric>): Promise<ScorecardMetric | undefined> {
-    const result = await db.update(scorecardMetrics).set(updates).where(eq(scorecardMetrics.id, id)).returning();
+  async updateScorecardMetric(userId: string, id: string, updates: Partial<ScorecardMetric>): Promise<ScorecardMetric | undefined> {
+    const result = await db.update(scorecardMetrics).set(updates).where(and(eq(scorecardMetrics.id, id), eq(scorecardMetrics.userId, userId))).returning();
     return result[0];
   }
-  async deleteScorecardMetric(id: string): Promise<boolean> {
-    const result = await db.delete(scorecardMetrics).where(eq(scorecardMetrics.id, id)).returning();
+  async deleteScorecardMetric(userId: string, id: string): Promise<boolean> {
+    const result = await db.delete(scorecardMetrics).where(and(eq(scorecardMetrics.id, id), eq(scorecardMetrics.userId, userId))).returning();
     return result.length > 0;
   }
-  async getScorecardEntries(metricId: string): Promise<ScorecardEntry[]> {
-    return await db.select().from(scorecardEntries).where(eq(scorecardEntries.metricId, metricId));
+  async getScorecardEntries(userId: string, metricId: string): Promise<ScorecardEntry[]> {
+    return await db.select().from(scorecardEntries).where(and(eq(scorecardEntries.metricId, metricId), eq(scorecardEntries.userId, userId)));
   }
-  async getAllScorecardEntries(): Promise<ScorecardEntry[]> {
-    return await db.select().from(scorecardEntries);
+  async getAllScorecardEntries(userId: string): Promise<ScorecardEntry[]> {
+    return await db.select().from(scorecardEntries).where(eq(scorecardEntries.userId, userId));
   }
-  async upsertScorecardEntry(data: InsertScorecardEntry): Promise<ScorecardEntry> {
-    const existing = await db.select().from(scorecardEntries).where(and(eq(scorecardEntries.metricId, data.metricId), eq(scorecardEntries.weekStart, data.weekStart)));
+  async upsertScorecardEntry(userId: string, data: InsertScorecardEntry): Promise<ScorecardEntry> {
+    const existing = await db.select().from(scorecardEntries).where(and(eq(scorecardEntries.metricId, data.metricId), eq(scorecardEntries.weekStart, data.weekStart), eq(scorecardEntries.userId, userId)));
     if (existing.length > 0) {
       const result = await db.update(scorecardEntries).set(data).where(eq(scorecardEntries.id, existing[0].id)).returning();
       return result[0];
     }
-    const result = await db.insert(scorecardEntries).values(data).returning();
+    const result = await db.insert(scorecardEntries).values({ ...data, userId }).returning();
     return result[0];
   }
 
   // KPIs
-  async getKpis(): Promise<Kpi[]> {
-    return await db.select().from(kpis).orderBy(kpis.order);
+  async getKpis(userId: string): Promise<Kpi[]> {
+    return await db.select().from(kpis).where(eq(kpis.userId, userId)).orderBy(kpis.order);
   }
-  async createKpi(kpi: InsertKpi): Promise<Kpi> {
-    const result = await db.insert(kpis).values(kpi).returning();
+  async createKpi(userId: string, kpi: InsertKpi): Promise<Kpi> {
+    const result = await db.insert(kpis).values({ ...kpi, userId }).returning();
     return result[0];
   }
-  async updateKpi(id: string, updates: Partial<Kpi>): Promise<Kpi | undefined> {
-    const result = await db.update(kpis).set(updates).where(eq(kpis.id, id)).returning();
+  async updateKpi(userId: string, id: string, updates: Partial<Kpi>): Promise<Kpi | undefined> {
+    const result = await db.update(kpis).set(updates).where(and(eq(kpis.id, id), eq(kpis.userId, userId))).returning();
     return result[0];
   }
-  async deleteKpi(id: string): Promise<boolean> {
-    const result = await db.delete(kpis).where(eq(kpis.id, id)).returning();
+  async deleteKpi(userId: string, id: string): Promise<boolean> {
+    const result = await db.delete(kpis).where(and(eq(kpis.id, id), eq(kpis.userId, userId))).returning();
     return result.length > 0;
   }
 
   // Waiting For
-  async getWaitingItems(): Promise<WaitingItem[]> {
-    return await db.select().from(waitingItems);
+  async getWaitingItems(userId: string): Promise<WaitingItem[]> {
+    return await db.select().from(waitingItems).where(eq(waitingItems.userId, userId));
   }
-  async createWaitingItem(item: InsertWaitingItem): Promise<WaitingItem> {
-    const result = await db.insert(waitingItems).values(item).returning();
+  async createWaitingItem(userId: string, item: InsertWaitingItem): Promise<WaitingItem> {
+    const result = await db.insert(waitingItems).values({ ...item, userId }).returning();
     return result[0];
   }
-  async updateWaitingItem(id: string, updates: Partial<WaitingItem>): Promise<WaitingItem | undefined> {
-    const result = await db.update(waitingItems).set(updates).where(eq(waitingItems.id, id)).returning();
+  async updateWaitingItem(userId: string, id: string, updates: Partial<WaitingItem>): Promise<WaitingItem | undefined> {
+    const result = await db.update(waitingItems).set(updates).where(and(eq(waitingItems.id, id), eq(waitingItems.userId, userId))).returning();
     return result[0];
   }
-  async deleteWaitingItem(id: string): Promise<boolean> {
-    const result = await db.delete(waitingItems).where(eq(waitingItems.id, id)).returning();
+  async deleteWaitingItem(userId: string, id: string): Promise<boolean> {
+    const result = await db.delete(waitingItems).where(and(eq(waitingItems.id, id), eq(waitingItems.userId, userId))).returning();
     return result.length > 0;
   }
 
   // Deals (CRM)
-  async getDeals(): Promise<Deal[]> {
-    return await db.select().from(deals);
+  async getDeals(userId: string): Promise<Deal[]> {
+    return await db.select().from(deals).where(eq(deals.userId, userId));
   }
-  async createDeal(deal: InsertDeal): Promise<Deal> {
-    const result = await db.insert(deals).values(deal).returning();
+  async createDeal(userId: string, deal: InsertDeal): Promise<Deal> {
+    const result = await db.insert(deals).values({ ...deal, userId }).returning();
     return result[0];
   }
-  async updateDeal(id: string, updates: Partial<Deal>): Promise<Deal | undefined> {
-    const result = await db.update(deals).set(updates).where(eq(deals.id, id)).returning();
+  async updateDeal(userId: string, id: string, updates: Partial<Deal>): Promise<Deal | undefined> {
+    const result = await db.update(deals).set(updates).where(and(eq(deals.id, id), eq(deals.userId, userId))).returning();
     return result[0];
   }
-  async deleteDeal(id: string): Promise<boolean> {
-    const result = await db.delete(deals).where(eq(deals.id, id)).returning();
+  async deleteDeal(userId: string, id: string): Promise<boolean> {
+    const result = await db.delete(deals).where(and(eq(deals.id, id), eq(deals.userId, userId))).returning();
     return result.length > 0;
   }
 
   // Time Blocks
-  async getTimeBlocks(date: string): Promise<TimeBlock[]> {
-    return await db.select().from(timeBlocks).where(eq(timeBlocks.date, date));
+  async getTimeBlocks(userId: string, date: string): Promise<TimeBlock[]> {
+    return await db.select().from(timeBlocks).where(and(eq(timeBlocks.date, date), eq(timeBlocks.userId, userId)));
   }
-  async createTimeBlock(block: InsertTimeBlock): Promise<TimeBlock> {
-    const result = await db.insert(timeBlocks).values(block).returning();
+  async createTimeBlock(userId: string, block: InsertTimeBlock): Promise<TimeBlock> {
+    const result = await db.insert(timeBlocks).values({ ...block, userId }).returning();
     return result[0];
   }
-  async updateTimeBlock(id: string, updates: Partial<TimeBlock>): Promise<TimeBlock | undefined> {
-    const result = await db.update(timeBlocks).set(updates).where(eq(timeBlocks.id, id)).returning();
+  async updateTimeBlock(userId: string, id: string, updates: Partial<TimeBlock>): Promise<TimeBlock | undefined> {
+    const result = await db.update(timeBlocks).set(updates).where(and(eq(timeBlocks.id, id), eq(timeBlocks.userId, userId))).returning();
     return result[0];
   }
-  async deleteTimeBlock(id: string): Promise<boolean> {
-    const result = await db.delete(timeBlocks).where(eq(timeBlocks.id, id)).returning();
+  async deleteTimeBlock(userId: string, id: string): Promise<boolean> {
+    const result = await db.delete(timeBlocks).where(and(eq(timeBlocks.id, id), eq(timeBlocks.userId, userId))).returning();
     return result.length > 0;
   }
 
   // Expenses
-  async getRecurringExpenses(): Promise<RecurringExpense[]> {
-    return await db.select().from(recurringExpenses);
+  async getRecurringExpenses(userId: string): Promise<RecurringExpense[]> {
+    return await db.select().from(recurringExpenses).where(eq(recurringExpenses.userId, userId));
   }
-  async createRecurringExpense(expense: InsertRecurringExpense): Promise<RecurringExpense> {
-    const result = await db.insert(recurringExpenses).values(expense).returning();
+  async createRecurringExpense(userId: string, expense: InsertRecurringExpense): Promise<RecurringExpense> {
+    const result = await db.insert(recurringExpenses).values({ ...expense, userId }).returning();
     return result[0];
   }
-  async updateRecurringExpense(id: string, updates: Partial<RecurringExpense>): Promise<RecurringExpense | undefined> {
-    const result = await db.update(recurringExpenses).set(updates).where(eq(recurringExpenses.id, id)).returning();
+  async updateRecurringExpense(userId: string, id: string, updates: Partial<RecurringExpense>): Promise<RecurringExpense | undefined> {
+    const result = await db.update(recurringExpenses).set(updates).where(and(eq(recurringExpenses.id, id), eq(recurringExpenses.userId, userId))).returning();
     return result[0];
   }
-  async deleteRecurringExpense(id: string): Promise<boolean> {
-    const result = await db.delete(recurringExpenses).where(eq(recurringExpenses.id, id)).returning();
+  async deleteRecurringExpense(userId: string, id: string): Promise<boolean> {
+    const result = await db.delete(recurringExpenses).where(and(eq(recurringExpenses.id, id), eq(recurringExpenses.userId, userId))).returning();
     return result.length > 0;
   }
-  async getVariableExpenses(): Promise<VariableExpense[]> {
-    return await db.select().from(variableExpenses).orderBy(desc(variableExpenses.date));
+  async getVariableExpenses(userId: string): Promise<VariableExpense[]> {
+    return await db.select().from(variableExpenses).where(eq(variableExpenses.userId, userId)).orderBy(desc(variableExpenses.date));
   }
-  async createVariableExpense(expense: InsertVariableExpense): Promise<VariableExpense> {
-    const result = await db.insert(variableExpenses).values(expense).returning();
+  async createVariableExpense(userId: string, expense: InsertVariableExpense): Promise<VariableExpense> {
+    const result = await db.insert(variableExpenses).values({ ...expense, userId }).returning();
     return result[0];
   }
-  async deleteVariableExpense(id: string): Promise<boolean> {
-    const result = await db.delete(variableExpenses).where(eq(variableExpenses.id, id)).returning();
+  async deleteVariableExpense(userId: string, id: string): Promise<boolean> {
+    const result = await db.delete(variableExpenses).where(and(eq(variableExpenses.id, id), eq(variableExpenses.userId, userId))).returning();
     return result.length > 0;
   }
 
   // Meetings
-  async getMeetings(): Promise<Meeting[]> {
-    return await db.select().from(meetings).orderBy(meetings.date);
+  async getMeetings(userId: string): Promise<Meeting[]> {
+    return await db.select().from(meetings).where(eq(meetings.userId, userId)).orderBy(meetings.date);
   }
-  async createMeeting(meeting: InsertMeeting): Promise<Meeting> {
-    const result = await db.insert(meetings).values(meeting as any).returning();
+  async createMeeting(userId: string, meeting: InsertMeeting): Promise<Meeting> {
+    const result = await db.insert(meetings).values({ ...meeting, userId } as any).returning();
     return result[0];
   }
-  async updateMeeting(id: string, updates: Partial<Meeting>): Promise<Meeting | undefined> {
-    const result = await db.update(meetings).set(updates as any).where(eq(meetings.id, id)).returning();
+  async updateMeeting(userId: string, id: string, updates: Partial<Meeting>): Promise<Meeting | undefined> {
+    const result = await db.update(meetings).set(updates as any).where(and(eq(meetings.id, id), eq(meetings.userId, userId))).returning();
     return result[0];
   }
-  async deleteMeeting(id: string): Promise<boolean> {
-    const result = await db.delete(meetings).where(eq(meetings.id, id)).returning();
+  async deleteMeeting(userId: string, id: string): Promise<boolean> {
+    const result = await db.delete(meetings).where(and(eq(meetings.id, id), eq(meetings.userId, userId))).returning();
     return result.length > 0;
   }
 
   // AI Chat
-  async getAiConversations(): Promise<AiConversation[]> {
-    return await db.select().from(aiConversations).orderBy(desc(aiConversations.createdAt));
+  async getAiConversations(userId: string): Promise<AiConversation[]> {
+    return await db.select().from(aiConversations).where(eq(aiConversations.userId, userId)).orderBy(desc(aiConversations.createdAt));
   }
-  async createAiConversation(conv: InsertAiConversation): Promise<AiConversation> {
-    const result = await db.insert(aiConversations).values(conv as any).returning();
+  async createAiConversation(userId: string, conv: InsertAiConversation): Promise<AiConversation> {
+    const result = await db.insert(aiConversations).values({ ...conv, userId } as any).returning();
     return result[0];
   }
-  async deleteAiConversation(id: string): Promise<boolean> {
-    await db.delete(aiMessages).where(eq(aiMessages.conversationId, id));
-    const result = await db.delete(aiConversations).where(eq(aiConversations.id, id)).returning();
+  async deleteAiConversation(userId: string, id: string): Promise<boolean> {
+    await db.delete(aiMessages).where(and(eq(aiMessages.conversationId, id), eq(aiMessages.userId, userId)));
+    const result = await db.delete(aiConversations).where(and(eq(aiConversations.id, id), eq(aiConversations.userId, userId))).returning();
     return result.length > 0;
   }
-  async getAiMessages(conversationId: string): Promise<AiMessage[]> {
-    return await db.select().from(aiMessages).where(eq(aiMessages.conversationId, conversationId)).orderBy(aiMessages.createdAt);
+  async getAiMessages(userId: string, conversationId: string): Promise<AiMessage[]> {
+    return await db.select().from(aiMessages).where(and(eq(aiMessages.conversationId, conversationId), eq(aiMessages.userId, userId))).orderBy(aiMessages.createdAt);
   }
-  async createAiMessage(msg: InsertAiMessage): Promise<AiMessage> {
-    const result = await db.insert(aiMessages).values(msg as any).returning();
+  async createAiMessage(userId: string, msg: InsertAiMessage): Promise<AiMessage> {
+    const result = await db.insert(aiMessages).values({ ...msg, userId } as any).returning();
+    return result[0];
+  }
+
+  // User Settings
+  async getUserSettings(userId: string): Promise<UserSettings> {
+    const result = await db.select().from(userSettings).where(eq(userSettings.userId, userId));
+    if (result.length === 0) {
+      const created = await db.insert(userSettings).values({ userId }).returning();
+      return created[0];
+    }
+    return result[0];
+  }
+  async updateUserSettings(userId: string, updates: Partial<UserSettings>): Promise<UserSettings> {
+    const current = await this.getUserSettings(userId);
+    const result = await db.update(userSettings).set(updates).where(eq(userSettings.id, current.id)).returning();
     return result[0];
   }
 }

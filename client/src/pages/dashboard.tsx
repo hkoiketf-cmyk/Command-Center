@@ -3,7 +3,9 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import GridLayout from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
-import { Zap, Plus, Monitor, Trash2, Pencil, Check, X as XIcon, Settings, Menu, Palette, Moon, Sun } from "lucide-react";
+import { Zap, Plus, Monitor, Trash2, Pencil, Check, X as XIcon, Settings, Menu, Palette, Moon, Sun, LogOut, User } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { WidgetWrapper } from "@/components/widget-wrapper";
 import { NotesWidget } from "@/components/notes-widget";
 import { PrioritiesWidget } from "@/components/priorities-widget";
@@ -134,6 +136,7 @@ const BG_COLORS = [
 
 export default function Dashboard() {
   const { toast } = useToast();
+  const { user, logout } = useAuth();
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(1200);
   const [isMobile, setIsMobile] = useState(false);
@@ -148,6 +151,25 @@ export default function Dashboard() {
   const [exitReason, setExitReason] = useState("");
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [editingAppName, setEditingAppName] = useState(false);
+  const [appNameValue, setAppNameValue] = useState("");
+  const appNameInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: userSettings } = useQuery<{ id: string; userId: string; appName: string }>({
+    queryKey: ["/api/user-settings"],
+  });
+
+  const updateUserSettings = useMutation({
+    mutationFn: async (updates: { appName: string }) => {
+      const res = await apiRequest("PATCH", "/api/user-settings", updates);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user-settings"] });
+    },
+  });
+
+  const appName = userSettings?.appName || "HunterOS";
 
   const { data: desktopList = [], isLoading: desktopsLoading } = useQuery<Desktop[]>({
     queryKey: ["/api/desktops"],
@@ -673,16 +695,18 @@ export default function Dashboard() {
                 <Zap className="h-5 w-5 text-primary-foreground" />
               </div>
               <span className="text-sm font-semibold truncate" data-testid="text-mobile-desktop-name">
-                {activeDesktop?.name || "HunterOS"}
+                {activeDesktop?.name || appName}
               </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowMobileMenu(true)}
-                data-testid="button-mobile-menu"
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowMobileMenu(true)}
+                  data-testid="button-mobile-menu"
+                >
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </div>
             </div>
           </header>
 
@@ -789,6 +813,28 @@ export default function Dashboard() {
                       <ThemeToggle />
                     </div>
                   </div>
+                  <div className="space-y-2 pt-3 border-t border-border">
+                    <div className="flex items-center gap-2 px-2 py-1">
+                      <Avatar className="h-7 w-7">
+                        <AvatarImage src={user?.profileImageUrl || undefined} alt={user?.firstName || "User"} />
+                        <AvatarFallback className="text-xs">
+                          {(user?.firstName?.[0] || "U").toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm text-muted-foreground truncate">
+                        {user?.firstName ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ""}` : user?.email || "User"}
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      className="justify-start gap-2 w-full"
+                      onClick={() => { window.location.href = "/api/logout"; }}
+                      data-testid="button-mobile-logout"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Sign Out
+                    </Button>
+                  </div>
                 </div>
               </ScrollArea>
             </SheetContent>
@@ -802,7 +848,35 @@ export default function Dashboard() {
                 <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
                   <Zap className="h-5 w-5 text-primary-foreground" />
                 </div>
-                <h1 className="text-xl font-bold tracking-tight hidden sm:block">HunterOS</h1>
+                {editingAppName ? (
+                  <Input
+                    ref={appNameInputRef}
+                    value={appNameValue}
+                    onChange={(e) => setAppNameValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        if (appNameValue.trim()) updateUserSettings.mutate({ appName: appNameValue.trim() });
+                        setEditingAppName(false);
+                      }
+                      if (e.key === "Escape") setEditingAppName(false);
+                    }}
+                    onBlur={() => {
+                      if (appNameValue.trim()) updateUserSettings.mutate({ appName: appNameValue.trim() });
+                      setEditingAppName(false);
+                    }}
+                    className="h-7 w-32 text-sm font-bold px-2"
+                    data-testid="input-app-name"
+                  />
+                ) : (
+                  <h1
+                    className="text-xl font-bold tracking-tight hidden sm:block cursor-pointer"
+                    onDoubleClick={() => { setEditingAppName(true); setAppNameValue(appName); setTimeout(() => appNameInputRef.current?.focus(), 50); }}
+                    title="Double-click to rename"
+                    data-testid="text-app-name"
+                  >
+                    {appName}
+                  </h1>
+                )}
               </div>
             </div>
 
@@ -936,6 +1010,23 @@ export default function Dashboard() {
               <VentureManager />
               <AddWidgetDialog onAddWidget={(type, title) => addWidget.mutate({ type, title })} />
               <ThemeToggle />
+              <div className="flex items-center gap-1.5 ml-1 pl-1.5 border-l border-border">
+                <Avatar className="h-7 w-7">
+                  <AvatarImage src={user?.profileImageUrl || undefined} alt={user?.firstName || "User"} />
+                  <AvatarFallback className="text-xs">
+                    {(user?.firstName?.[0] || "U").toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => { window.location.href = "/api/logout"; }}
+                  title="Sign out"
+                  data-testid="button-logout"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </header>

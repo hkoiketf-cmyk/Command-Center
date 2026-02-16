@@ -1,11 +1,22 @@
 # HunterOS - Personal Dashboard
 
 ## Overview
-HunterOS is a modular personal dashboard web application for tracking:
+HunterOS is a multi-user modular personal dashboard web application for solopreneurs. Each user gets their own isolated workspace with customizable app name. Features include:
 - Notes (with markdown and code block support)
 - Top 3 priorities per business venture
 - Revenue graphs
 - Embedded iframes for external tools
+
+## Authentication
+- Uses Replit Auth (OIDC) for login/signup (Google, GitHub, email)
+- Auth module at `server/replit_integrations/auth/`
+- Auth models at `shared/models/auth.ts` (users, sessions tables)
+- All data tables have `userId` column for multi-user data isolation
+- All API routes protected with `isAuthenticated` middleware
+- Frontend uses `useAuth()` hook from `client/src/hooks/use-auth.ts`
+- Landing page shown for logged-out users, dashboard for logged-in users
+- Per-user customizable app name via `user_settings` table
+- User avatar and logout button in dashboard header
 
 ## Tech Stack
 - **Frontend**: React + TypeScript + Vite

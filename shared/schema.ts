@@ -3,23 +3,23 @@ import { pgTable, text, varchar, integer, jsonb, boolean, real, timestamp } from
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = pgTable("users", {
+export * from "./models/auth";
+
+// User Settings
+export const userSettings = pgTable("user_settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  userId: varchar("user_id").notNull().unique(),
+  appName: text("app_name").notNull().default("HunterOS"),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-});
-
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({ id: true });
+export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
+export type UserSettings = typeof userSettings.$inferSelect;
 
 // Desktops table
 export const desktops = pgTable("desktops", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   name: text("name").notNull(),
   backgroundColor: text("background_color").notNull().default("#09090b"),
   order: integer("order").notNull().default(0),
@@ -54,6 +54,7 @@ export type LayoutItem = z.infer<typeof layoutItemSchema>;
 // Widgets table
 export const widgets = pgTable("widgets", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   type: text("type").notNull().$type<WidgetType>(),
   title: text("title").notNull(),
   content: jsonb("content").default({}),
@@ -74,6 +75,7 @@ export type Widget = typeof widgets.$inferSelect;
 // Business ventures for priorities widget
 export const ventures = pgTable("ventures", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   name: text("name").notNull(),
   color: text("color").notNull().default("#3B82F6"),
 });
@@ -88,6 +90,7 @@ export type Venture = typeof ventures.$inferSelect;
 // Priorities for a venture (max 3 per venture)
 export const priorities = pgTable("priorities", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   ventureId: varchar("venture_id").notNull().references(() => ventures.id, { onDelete: "cascade" }),
   text: text("text").notNull(),
   completed: boolean("completed").default(false),
@@ -104,6 +107,7 @@ export type Priority = typeof priorities.$inferSelect;
 // Revenue data for graphs
 export const revenueData = pgTable("revenue_data", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   ventureId: varchar("venture_id").notNull().references(() => ventures.id, { onDelete: "cascade" }),
   month: text("month").notNull(),
   amount: real("amount").notNull().default(0),
@@ -122,7 +126,7 @@ export type RevenueData = typeof revenueData.$inferSelect;
 // Dashboard layout persistence
 export const dashboardLayouts = pgTable("dashboard_layouts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().default("default"),
+  userId: varchar("user_id").notNull(),
   layouts: jsonb("layouts").$type<LayoutItem[]>().default([]),
 });
 
@@ -167,6 +171,7 @@ export type ContextModeContent = {};
 // Focus contracts for context mode widget
 export const focusContracts = pgTable("focus_contracts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   desktopId: varchar("desktop_id").notNull().references(() => desktops.id, { onDelete: "cascade" }),
   date: text("date").notNull(),
   objective: text("objective").default(""),
@@ -192,6 +197,7 @@ export type ExitGuardMode = "off" | "soft_warn" | "strict";
 
 export const appSettings = pgTable("app_settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   showContextModal: boolean("show_context_modal").default(true),
   exitGuardMode: text("exit_guard_mode").$type<ExitGuardMode>().default("soft_warn"),
 });
@@ -208,6 +214,7 @@ export type AppSettings = typeof appSettings.$inferSelect;
 // Quick Capture Inbox
 export const captureItems = pgTable("capture_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   text: text("text").notNull(),
   processed: boolean("processed").default(false),
   createdAt: text("created_at").notNull().default(sql`now()::text`),
@@ -220,6 +227,7 @@ export type CaptureItem = typeof captureItems.$inferSelect;
 // Habit Streak Tracker
 export const habits = pgTable("habits", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   name: text("name").notNull(),
   color: text("color").notNull().default("#3B82F6"),
   order: integer("order").notNull().default(0),
@@ -231,6 +239,7 @@ export type Habit = typeof habits.$inferSelect;
 
 export const habitEntries = pgTable("habit_entries", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   habitId: varchar("habit_id").notNull().references(() => habits.id, { onDelete: "cascade" }),
   date: text("date").notNull(),
   completed: boolean("completed").default(true),
@@ -243,6 +252,7 @@ export type HabitEntry = typeof habitEntries.$inferSelect;
 // Daily Journal
 export const journalEntries = pgTable("journal_entries", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   date: text("date").notNull(),
   content: text("content").notNull().default(""),
 });
@@ -254,6 +264,7 @@ export type JournalEntry = typeof journalEntries.$inferSelect;
 // Weekly Scorecard
 export const scorecardMetrics = pgTable("scorecard_metrics", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   name: text("name").notNull(),
   target: real("target").notNull().default(0),
   unit: text("unit").default(""),
@@ -266,6 +277,7 @@ export type ScorecardMetric = typeof scorecardMetrics.$inferSelect;
 
 export const scorecardEntries = pgTable("scorecard_entries", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   metricId: varchar("metric_id").notNull().references(() => scorecardMetrics.id, { onDelete: "cascade" }),
   weekStart: text("week_start").notNull(),
   value: real("value").notNull().default(0),
@@ -278,6 +290,7 @@ export type ScorecardEntry = typeof scorecardEntries.$inferSelect;
 // KPI Dashboard
 export const kpis = pgTable("kpis", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   name: text("name").notNull(),
   currentValue: real("current_value").notNull().default(0),
   targetValue: real("target_value").notNull().default(0),
@@ -293,6 +306,7 @@ export type Kpi = typeof kpis.$inferSelect;
 // Waiting-For List
 export const waitingItems = pgTable("waiting_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   person: text("person").notNull(),
   description: text("description").notNull(),
   dateSent: text("date_sent").notNull(),
@@ -307,6 +321,7 @@ export type WaitingItem = typeof waitingItems.$inferSelect;
 // CRM Mini Pipeline
 export const deals = pgTable("deals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   name: text("name").notNull(),
   value: real("value").default(0),
   stage: text("stage").notNull().default("lead"),
@@ -322,6 +337,7 @@ export type Deal = typeof deals.$inferSelect;
 // Time Block Planner
 export const timeBlocks = pgTable("time_blocks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   date: text("date").notNull(),
   startTime: text("start_time").notNull(),
   endTime: text("end_time").notNull(),
@@ -336,6 +352,7 @@ export type TimeBlock = typeof timeBlocks.$inferSelect;
 // Expense Burn Rate
 export const recurringExpenses = pgTable("recurring_expenses", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   name: text("name").notNull(),
   amount: real("amount").notNull().default(0),
   category: text("category").default(""),
@@ -347,6 +364,7 @@ export type RecurringExpense = typeof recurringExpenses.$inferSelect;
 
 export const variableExpenses = pgTable("variable_expenses", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   name: text("name").notNull(),
   amount: real("amount").notNull().default(0),
   date: text("date").notNull(),
@@ -360,6 +378,7 @@ export type VariableExpense = typeof variableExpenses.$inferSelect;
 // Meeting Prep & Agenda
 export const meetings = pgTable("meetings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   title: text("title").notNull(),
   person: text("person").default(""),
   date: text("date").notNull(),
@@ -394,6 +413,7 @@ export type TimerContent = { mode?: "countdown" | "countup"; hours?: number; min
 // AI Chat tables
 export const aiConversations = pgTable("ai_conversations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   title: text("title").notNull().default("New Chat"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -404,6 +424,7 @@ export type AiConversation = typeof aiConversations.$inferSelect;
 
 export const aiMessages = pgTable("ai_messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   conversationId: varchar("conversation_id").notNull(),
   role: text("role").notNull(),
   content: text("content").notNull(),

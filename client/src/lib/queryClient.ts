@@ -41,6 +41,12 @@ export const getQueryFn: <T>(options: {
     return await res.json();
   };
 
+function handleGlobal401(error: Error) {
+  if (/^401:/.test(error.message)) {
+    window.location.href = "/api/login";
+  }
+}
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -52,6 +58,7 @@ export const queryClient = new QueryClient({
     },
     mutations: {
       retry: false,
+      onError: handleGlobal401,
     },
   },
 });
