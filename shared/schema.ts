@@ -436,6 +436,33 @@ export const insertAiMessageSchema = createInsertSchema(aiMessages).omit({ id: t
 export type InsertAiMessage = z.infer<typeof insertAiMessageSchema>;
 export type AiMessage = typeof aiMessages.$inferSelect;
 
+// Dashboard Presets (Templates)
+export const presetWidgetSchema = z.object({
+  type: z.string(),
+  title: z.string(),
+  content: z.any().optional(),
+  cardColor: z.string().nullable().optional(),
+  layout: layoutItemSchema.optional(),
+});
+
+export type PresetWidget = z.infer<typeof presetWidgetSchema>;
+
+export const dashboardPresets = pgTable("dashboard_presets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  category: text("category"),
+  isPublic: boolean("is_public").notNull().default(false),
+  widgets: jsonb("widgets").notNull().$type<PresetWidget[]>(),
+  backgroundColor: text("background_color"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertDashboardPresetSchema = createInsertSchema(dashboardPresets).omit({ id: true, createdAt: true });
+export type InsertDashboardPreset = z.infer<typeof insertDashboardPresetSchema>;
+export type DashboardPreset = typeof dashboardPresets.$inferSelect;
+
 export const accessCodes = pgTable("access_codes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   code: varchar("code").notNull().unique(),

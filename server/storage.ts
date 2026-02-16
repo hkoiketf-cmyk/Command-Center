@@ -74,6 +74,9 @@ import {
   accessCodes,
   type AccessCode,
   type InsertAccessCode,
+  dashboardPresets,
+  type DashboardPreset,
+  type InsertDashboardPreset,
   users,
   type User,
 } from "@shared/schema";
@@ -170,6 +173,11 @@ export interface IStorage {
   getAccessCodes(createdBy: string): Promise<AccessCode[]>;
   createAccessCode(data: InsertAccessCode): Promise<AccessCode>;
   incrementAccessCodeUsage(id: string): Promise<void>;
+  getPresets(userId: string): Promise<DashboardPreset[]>;
+  getPreset(id: string): Promise<DashboardPreset | undefined>;
+  createPreset(data: InsertDashboardPreset): Promise<DashboardPreset>;
+  updatePreset(userId: string, id: string, updates: Partial<DashboardPreset>): Promise<DashboardPreset | undefined>;
+  deletePreset(userId: string, id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -570,6 +578,36 @@ export class DatabaseStorage implements IStorage {
   }
   async incrementAccessCodeUsage(id: string): Promise<void> {
     await db.execute(sql`UPDATE access_codes SET used_count = used_count + 1 WHERE id = ${id}`);
+  }
+
+  async getPresets(userId: string): Promise<DashboardPreset[]> {
+    return await db.select().from(dashboardPresets)
+      .where(sql`${dashboardPresets.userId} = ${userId} OR ${dashboardPresets.isPublic} = true`)
+      .orderBy(desc(dashboardPresets.createdAt));
+  }
+
+  async getPreset(id: string): Promise<DashboardPreset | undefined> {
+    const result = await db.select().from(dashboardPresets).where(eq(dashboardPresets.id, id));
+    return result[0];
+  }
+
+  async createPreset(data: InsertDashboardPreset): Promise<DashboardPreset> {
+    const result = await db.insert(dashboardPresets).values(data).returning();
+    return result[0];
+  }
+
+  async updatePreset(userId: string, id: string, updates: Partial<DashboardPreset>): Promise<DashboardPreset | undefined> {
+    const result = await db.update(dashboardPresets).set(updates)
+      .where(and(eq(dashboardPresets.id, id), eq(dashboardPresets.userId, userId)))
+      .returning();
+    return result[0];
+  }
+
+  async deletePreset(userId: string, id: string): Promise<boolean> {
+    const result = await db.delete(dashboardPresets)
+      .where(and(eq(dashboardPresets.id, id), eq(dashboardPresets.userId, userId)))
+      .returning();
+    return result.length > 0;
   }
 }
 

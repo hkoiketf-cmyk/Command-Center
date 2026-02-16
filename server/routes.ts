@@ -921,12 +921,17 @@ export async function registerRoutes(
   app.get("/api/user-settings", isAuthenticated, async (req, res) => {
     try {
       const settings = await storage.getUserSettings(getUserId(req));
+      const adminIds = (process.env.ADMIN_USER_IDS || "").split(",").map(s => s.trim()).filter(Boolean);
+      const userId = getUserId(req);
+      const user = await storage.getUserById(userId);
+      const userIsAdmin = adminIds.includes(userId) || !!(user?.email && adminIds.includes(user.email));
       const masked = {
         ...settings,
         openaiApiKey: settings.openaiApiKey
           ? `sk-...${settings.openaiApiKey.slice(-4)}`
           : null,
         hasOpenaiKey: !!settings.openaiApiKey,
+        isAdmin: userIsAdmin,
       };
       res.json(masked);
     } catch (error) {
@@ -987,6 +992,167 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Google Calendar events error:", error.message);
       res.status(500).json({ error: error.message || "Failed to fetch events" });
+    }
+  });
+
+  // ============ DASHBOARD PRESETS ============
+
+  const isAdminUser = async (req: any): Promise<boolean> => {
+    const adminIds = (process.env.ADMIN_USER_IDS || "").split(",").map(s => s.trim()).filter(Boolean);
+    const userId = getUserId(req);
+    if (adminIds.includes(userId)) return true;
+    const user = await storage.getUserById(userId);
+    if (user?.email && adminIds.includes(user.email)) return true;
+    return false;
+  };
+
+  app.get("/api/presets", isAuthenticated, async (req, res) => {
+    try {
+      const presets = await storage.getPresets(getUserId(req));
+      res.json(presets);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch presets" });
+    }
+  });
+
+  app.post("/api/presets", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const { name, description, category, isPublic, widgets, backgroundColor } = req.body;
+
+      if (!name || !widgets || !Array.isArray(widgets)) {
+        return res.status(400).json({ error: "Name and widgets array are required" });
+      }
+
+      if (isPublic && !await isAdminUser(req)) {
+        return res.status(403).json({ error: "Only admins can create public presets" });
+      }
+
+      const preset = await storage.createPreset({
+        userId,
+        name,
+        description: description || null,
+        category: category || null,
+        isPublic: isPublic && await isAdminUser(req) ? true : false,
+        widgets,
+        backgroundColor: backgroundColor || null,
+      });
+      res.json(preset);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create preset" });
+    }
+  });
+
+  app.post("/api/presets/save-desktop/:desktopId", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const { desktopId } = req.params;
+      const { name, description, category, isPublic } = req.body;
+
+      if (!name) {
+        return res.status(400).json({ error: "Name is required" });
+      }
+
+      const desktop = await storage.getDesktop(userId, desktopId);
+      if (!desktop) {
+        return res.status(404).json({ error: "Desktop not found" });
+      }
+
+      const desktopWidgets = await storage.getWidgetsByDesktop(userId, desktopId);
+      const widgetSnapshots = desktopWidgets.map(w => ({
+        type: w.type,
+        title: w.title,
+        content: w.content || {},
+        cardColor: w.cardColor || null,
+        layout: w.layout || undefined,
+      }));
+
+      if (isPublic && !await isAdminUser(req)) {
+        return res.status(403).json({ error: "Only admins can create public presets" });
+      }
+
+      const preset = await storage.createPreset({
+        userId,
+        name,
+        description: description || null,
+        category: category || null,
+        isPublic: isPublic && await isAdminUser(req) ? true : false,
+        widgets: widgetSnapshots,
+        backgroundColor: desktop.backgroundColor || null,
+      });
+      res.json(preset);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to save desktop as preset" });
+    }
+  });
+
+  app.post("/api/presets/:id/apply", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const preset = await storage.getPreset(req.params.id);
+
+      if (!preset) {
+        return res.status(404).json({ error: "Preset not found" });
+      }
+
+      if (!preset.isPublic && preset.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const existingDesktops = await storage.getDesktops(userId);
+      const newDesktop = await storage.createDesktop(userId, {
+        userId,
+        name: req.body.desktopName || preset.name,
+        backgroundColor: preset.backgroundColor || "#09090b",
+        order: existingDesktops.length,
+      });
+
+      const presetWidgets = preset.widgets as any[];
+      for (const pw of presetWidgets) {
+        await storage.createWidget(userId, {
+          userId,
+          type: pw.type,
+          title: pw.title,
+          content: pw.content || {},
+          cardColor: pw.cardColor || null,
+          desktopId: newDesktop.id,
+          layout: pw.layout || null,
+          collapsed: false,
+          pinnedAllDesktops: false,
+        });
+      }
+
+      res.json({ desktop: newDesktop, widgetCount: presetWidgets.length });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to apply preset" });
+    }
+  });
+
+  app.patch("/api/presets/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const { name, description, category, isPublic } = req.body;
+      const updates: any = {};
+      if (name !== undefined) updates.name = name;
+      if (description !== undefined) updates.description = description;
+      if (category !== undefined) updates.category = category;
+      if (isPublic !== undefined && await isAdminUser(req)) updates.isPublic = isPublic;
+
+      const preset = await storage.updatePreset(userId, req.params.id, updates);
+      if (!preset) return res.status(404).json({ error: "Preset not found or access denied" });
+      res.json(preset);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update preset" });
+    }
+  });
+
+  app.delete("/api/presets/:id", isAuthenticated, async (req, res) => {
+    try {
+      const deleted = await storage.deletePreset(getUserId(req), req.params.id);
+      if (!deleted) return res.status(404).json({ error: "Preset not found or access denied" });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete preset" });
     }
   });
 

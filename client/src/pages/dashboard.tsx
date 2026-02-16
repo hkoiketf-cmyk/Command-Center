@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import GridLayout from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
-import { Zap, Plus, Monitor, Trash2, Pencil, Check, X as XIcon, Settings, Menu, Palette, Moon, Sun, LogOut, User, CreditCard, KeyRound } from "lucide-react";
+import { Zap, Plus, Monitor, Trash2, Pencil, Check, X as XIcon, Settings, Menu, Palette, Moon, Sun, LogOut, User, CreditCard, KeyRound, Library } from "lucide-react";
 import { AdminCodesDialog } from "@/components/admin-codes-dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -29,6 +29,7 @@ import { AiChatWidget } from "@/components/ai-chat-widget";
 import { TimerWidget } from "@/components/timer-widget";
 import { HunterAI } from "@/components/hunter-ai";
 import { AddWidgetDialog } from "@/components/add-widget-dialog";
+import { PresetLibrary } from "@/components/preset-library";
 import { VentureManager } from "@/components/venture-manager";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -153,11 +154,12 @@ export default function Dashboard() {
   const [exitReason, setExitReason] = useState("");
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showPresetLibrary, setShowPresetLibrary] = useState(false);
   const [editingAppName, setEditingAppName] = useState(false);
   const [appNameValue, setAppNameValue] = useState("");
   const appNameInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: userSettings } = useQuery<{ id: string; userId: string; appName: string }>({
+  const { data: userSettings } = useQuery<{ id: string; userId: string; appName: string; isAdmin?: boolean }>({
     queryKey: ["/api/user-settings"],
   });
 
@@ -750,6 +752,18 @@ export default function Dashboard() {
                         <Plus className="h-4 w-4" />
                         Add Desktop
                       </Button>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start gap-2"
+                        onClick={() => {
+                          setShowPresetLibrary(true);
+                          setShowMobileMenu(false);
+                        }}
+                        data-testid="button-mobile-preset-library"
+                      >
+                        <Library className="h-4 w-4" />
+                        Preset Library
+                      </Button>
                     </div>
                   </div>
 
@@ -945,6 +959,15 @@ export default function Dashboard() {
                 data-testid="button-add-desktop"
               >
                 <Plus className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 shrink-0"
+                onClick={() => setShowPresetLibrary(true)}
+                data-testid="button-preset-library"
+              >
+                <Library className="h-4 w-4" />
               </Button>
             </div>
 
@@ -1286,6 +1309,14 @@ export default function Dashboard() {
       </AlertDialog>
 
       <HunterAI />
+
+      <PresetLibrary
+        open={showPresetLibrary}
+        onOpenChange={setShowPresetLibrary}
+        activeDesktopId={activeDesktopId}
+        isAdmin={userSettings?.isAdmin || false}
+        onPresetApplied={(desktopId) => setActiveDesktopId(desktopId)}
+      />
 
       <Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
         <DialogContent className="sm:max-w-sm" data-testid="settings-dialog">
