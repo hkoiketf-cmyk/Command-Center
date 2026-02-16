@@ -4,7 +4,6 @@ import { storage } from "./storage";
 import { insertWidgetSchema, insertVentureSchema, insertPrioritySchema, insertRevenueDataSchema, insertDesktopSchema, insertFocusContractSchema, insertCaptureItemSchema, insertHabitSchema, insertHabitEntrySchema, insertJournalEntrySchema, insertScorecardMetricSchema, insertScorecardEntrySchema, insertKpiSchema, insertWaitingItemSchema, insertDealSchema, insertTimeBlockSchema, insertRecurringExpenseSchema, insertVariableExpenseSchema, insertMeetingSchema, insertAiConversationSchema, insertAiMessageSchema } from "@shared/schema";
 import { z } from "zod";
 import OpenAI from "openai";
-import { listCalendars, listEvents } from "./google-calendar";
 import { isAuthenticated } from "./replit_integrations/auth";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 import { sql } from "drizzle-orm";
@@ -979,35 +978,9 @@ export async function registerRoutes(
     }
   });
 
-  // ============ GOOGLE CALENDAR (via Replit connector) ============
-
-  app.get("/api/google-calendar/calendars", isAuthenticated, async (req, res) => {
-    try {
-      const calendars = await listCalendars();
-      res.json(calendars);
-    } catch (error: any) {
-      console.error("Google Calendar list error:", error.message);
-      res.status(500).json({ error: error.message || "Failed to fetch calendars" });
-    }
-  });
-
-  app.get("/api/google-calendar/events", isAuthenticated, async (req, res) => {
-    try {
-      const calendarId = (req.query.calendarId as string) || "primary";
-      const timeMin = req.query.timeMin as string;
-      const timeMax = req.query.timeMax as string;
-
-      if (!timeMin || !timeMax) {
-        return res.status(400).json({ error: "timeMin and timeMax query params required" });
-      }
-
-      const events = await listEvents(calendarId, timeMin, timeMax);
-      res.json(events);
-    } catch (error: any) {
-      console.error("Google Calendar events error:", error.message);
-      res.status(500).json({ error: error.message || "Failed to fetch events" });
-    }
-  });
+  // ============ GOOGLE CALENDAR ============
+  // Calendar widget now uses per-user iframe embed (no server-side API needed)
+  // Each user connects their own Google Calendar directly in the widget
 
   // ============ DASHBOARD PRESETS ============
 

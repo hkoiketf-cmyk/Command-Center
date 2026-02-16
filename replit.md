@@ -105,7 +105,7 @@ shared/
 14. **Time Blocks** - Vertical timeline with color-coded blocks, day navigation, 12-hour format
 15. **Expense Tracker** - Recurring (monthly) + variable expenses, displays monthly burn rate
 16. **Meeting Prep** - Two-phase workflow (prep with talking points → notes with action items)
-17. **Google Calendar** - Native Google Calendar integration via Replit connector (OAuth sign-in), displays events with day/week/month/agenda views, navigation, calendar selector
+17. **Google Calendar** - Per-user Google Calendar embed via iframe, each user connects their own calendar (by email/ID or embed URL), week/month/agenda views
 18. **AI Chat** - Embed any AI assistant (ChatGPT, Claude, Gemini, Perplexity, etc.) via URL, quick-select popular tools or paste custom URL
 19. **Timer** - Countdown or count-up (stopwatch) timer with customizable duration, progress bar, multiple alert sound options, mute toggle
 
@@ -226,8 +226,7 @@ shared/
 - `POST /api/ai/conversations/:id/chat` - Send message and get streaming SSE response (requires OPENAI_API_KEY secret)
 
 ### Google Calendar
-- `GET /api/google-calendar/calendars` - Get user's calendar list (via Replit connector OAuth)
-- `GET /api/google-calendar/events?calendarId=&timeMin=&timeMax=` - Get events for a calendar
+- No server-side API needed - widget uses per-user iframe embed directly
 
 ### Stripe Payments
 - `GET /api/stripe/publishable-key` - Get Stripe publishable key (public)
