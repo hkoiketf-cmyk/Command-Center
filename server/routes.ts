@@ -1185,7 +1185,7 @@ export async function registerRoutes(
   const isAdmin = async (userId: string): Promise<boolean> => {
     const adminValues = (process.env.ADMIN_USER_IDS || "").split(",").map((s) => s.trim()).filter(Boolean);
     if (adminValues.includes(userId)) return true;
-    const user = await storage.getUser(userId);
+    const user = await storage.getUserById(userId);
     if (user?.email && adminValues.includes(user.email)) return true;
     return false;
   };
