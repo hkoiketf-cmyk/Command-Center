@@ -1095,25 +1095,37 @@ export default function Dashboard() {
             <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
               <Monitor className="h-8 w-8 text-muted-foreground" />
             </div>
-            <h2 className={`text-xl font-semibold mb-2 ${isLightBg ? "text-gray-900" : "text-white"}`}>Create Your First Desktop</h2>
+            <h2 className={`text-xl font-semibold mb-2 ${isLightBg ? "text-gray-900" : "text-white"}`}>Welcome to Your Dashboard</h2>
             <p className={`mb-4 max-w-md ${isLightBg ? "text-gray-600" : "text-white/60"}`}>
-              Desktops let you organize widgets into separate layouts. Create one to get started.
+              Get started by creating your first dashboard and adding widgets to organize your work.
             </p>
-            <Button onClick={() => createDesktop.mutate()} data-testid="button-create-first-desktop">
-              <Plus className="h-4 w-4 mr-2" />
-              Create Desktop
-            </Button>
+            <div className="flex items-center gap-2 flex-wrap justify-center">
+              <Button onClick={() => createDesktop.mutate()} data-testid="button-create-first-desktop">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Dashboard
+              </Button>
+              <Button variant="outline" onClick={() => setShowPresetLibrary(true)} data-testid="button-browse-templates">
+                <Library className="h-4 w-4 mr-2" />
+                Browse Templates
+              </Button>
+            </div>
           </div>
         ) : widgets.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-center">
             <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
               <Zap className="h-8 w-8 text-muted-foreground" />
             </div>
-            <h2 className={`text-xl font-semibold mb-2 ${isLightBg ? "text-gray-900" : "text-white"}`}>Empty Desktop</h2>
+            <h2 className={`text-xl font-semibold mb-2 ${isLightBg ? "text-gray-900" : "text-white"}`}>Add Widgets to Your Dashboard</h2>
             <p className={`mb-4 max-w-md ${isLightBg ? "text-gray-600" : "text-white/60"}`}>
-              Add widgets to "{activeDesktop?.name}" to track notes, priorities, revenue, and more.
+              Add widgets to "{activeDesktop?.name}" to track notes, priorities, revenue, and more — or start from a template.
             </p>
-            <AddWidgetDialog onAddWidget={(type, title) => addWidget.mutate({ type, title })} />
+            <div className="flex items-center gap-2 flex-wrap justify-center">
+              <AddWidgetDialog onAddWidget={(type, title) => addWidget.mutate({ type, title })} />
+              <Button variant="outline" onClick={() => setShowPresetLibrary(true)} data-testid="button-empty-browse-templates">
+                <Library className="h-4 w-4 mr-2" />
+                Browse Templates
+              </Button>
+            </div>
           </div>
         ) : isMobile ? (
           <div className="flex flex-col gap-3" data-testid="mobile-widget-list">

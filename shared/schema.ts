@@ -28,6 +28,7 @@ export const desktops = pgTable("desktops", {
 
 export const insertDesktopSchema = createInsertSchema(desktops).omit({
   id: true,
+  userId: true,
 });
 
 export type InsertDesktop = z.infer<typeof insertDesktopSchema>;
@@ -68,6 +69,7 @@ export const widgets = pgTable("widgets", {
 
 export const insertWidgetSchema = createInsertSchema(widgets).omit({
   id: true,
+  userId: true,
 });
 
 export type InsertWidget = z.infer<typeof insertWidgetSchema>;
