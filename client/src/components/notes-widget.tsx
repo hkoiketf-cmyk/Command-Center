@@ -1,7 +1,8 @@
-import { useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect, useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Palette, Bold, Italic, Heading1, Heading2, List, ListOrdered, Minus } from "lucide-react";
+import { Palette, Bold, Italic, Heading1, Heading2, List, ListOrdered, Minus, Link2 } from "lucide-react";
 import type { NotesContent } from "@shared/schema";
 
 interface NotesWidgetProps {
@@ -33,6 +34,67 @@ const NOTE_COLORS = [
 function getTextColorForBackground(bgColor: string): string {
   const color = NOTE_COLORS.find(c => c.value === bgColor);
   return color?.textColor || "";
+}
+
+function LinkInsertPopover({ onInsertLink }: { onInsertLink: (url: string, text: string) => void }) {
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkText, setLinkText] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const handleInsert = () => {
+    let url = linkUrl.trim();
+    if (!url) return;
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+      url = "https://" + url;
+    }
+    onInsertLink(url, linkText.trim());
+    setLinkUrl("");
+    setLinkText("");
+    setOpen(false);
+  };
+
+  return (
+    <Popover modal={true} open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          title="Insert Link"
+          data-testid="button-format-link"
+        >
+          <Link2 className="h-3.5 w-3.5" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 p-3 space-y-2" align="start">
+        <p className="text-xs font-medium">Insert Link</p>
+        <Input
+          placeholder="Display text (optional)"
+          value={linkText}
+          onChange={(e) => setLinkText(e.target.value)}
+          className="text-xs"
+          data-testid="input-link-text"
+        />
+        <Input
+          placeholder="https://example.com"
+          value={linkUrl}
+          onChange={(e) => setLinkUrl(e.target.value)}
+          className="text-xs"
+          onKeyDown={(e) => { if (e.key === "Enter") handleInsert(); }}
+          data-testid="input-link-url"
+        />
+        <Button
+          size="sm"
+          className="w-full"
+          onClick={handleInsert}
+          disabled={!linkUrl.trim()}
+          data-testid="button-insert-link"
+        >
+          Insert
+        </Button>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 export function NotesWidget({ content, onContentChange }: NotesWidgetProps) {
@@ -161,6 +223,28 @@ export function NotesWidget({ content, onContentChange }: NotesWidgetProps) {
         >
           <Minus className="h-3.5 w-3.5" />
         </Button>
+        <LinkInsertPopover
+          onInsertLink={(url, text) => {
+            if (editorRef.current) {
+              const linkHtml = `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: underline; cursor: pointer;">${text || url}</a>&nbsp;`;
+              editorRef.current.innerHTML += linkHtml;
+              handleInput();
+              setTimeout(() => {
+                if (editorRef.current) {
+                  editorRef.current.focus();
+                  const selection = window.getSelection();
+                  if (selection) {
+                    const range = document.createRange();
+                    range.selectNodeContents(editorRef.current);
+                    range.collapse(false);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                  }
+                }
+              }, 0);
+            }
+          }}
+        />
         <div className="flex-1" />
         <Popover modal={true}>
           <PopoverTrigger asChild>

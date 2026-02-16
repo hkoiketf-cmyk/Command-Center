@@ -89,7 +89,7 @@ shared/
 - `POST /api/revenue` - Create revenue data point
 
 ## Widget Types
-1. **Notes** - Sticky notes with rich text formatting toolbar (bold, italic, headings, lists), color-coded backgrounds with auto-adjusting text colors
+1. **Notes** - Sticky notes with rich text formatting toolbar (bold, italic, headings, lists, links), color-coded backgrounds with auto-adjusting text colors
 2. **Code Block** - Execute and render HTML/JavaScript code (like a mini embedded app), with preview/code toggle
 3. **Priorities** - Track top 3 priorities per business venture
 4. **Revenue** - Customer payment tracking per month with charts
