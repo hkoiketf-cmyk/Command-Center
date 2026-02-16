@@ -21,6 +21,8 @@ import { CrmPipelineWidget } from "@/components/crm-pipeline-widget";
 import { TimeBlocksWidget } from "@/components/time-blocks-widget";
 import { ExpenseTrackerWidget } from "@/components/expense-tracker-widget";
 import { MeetingPrepWidget } from "@/components/meeting-prep-widget";
+import { GoogleCalendarWidget } from "@/components/google-calendar-widget";
+import { AiChatWidget } from "@/components/ai-chat-widget";
 import { AddWidgetDialog } from "@/components/add-widget-dialog";
 import { VentureManager } from "@/components/venture-manager";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -65,7 +67,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Widget, WidgetType, LayoutItem, NotesContent, PrioritiesContent, RevenueContent, IframeContent, CodeContent, Desktop, FocusContract, AppSettings, ExitGuardMode } from "@shared/schema";
+import type { Widget, WidgetType, LayoutItem, NotesContent, PrioritiesContent, RevenueContent, IframeContent, CodeContent, GoogleCalendarContent, Desktop, FocusContract, AppSettings, ExitGuardMode } from "@shared/schema";
 
 type GridLayoutItem = {
   i: string;
@@ -97,6 +99,8 @@ const defaultWidgetSizes: Record<WidgetType, { w: number; h: number; minW: numbe
   time_blocks: { w: 4, h: 10, minW: 2, minH: 6 },
   expense_tracker: { w: 4, h: 7, minW: 2, minH: 4 },
   meeting_prep: { w: 5, h: 8, minW: 3, minH: 5 },
+  google_calendar: { w: 6, h: 8, minW: 3, minH: 5 },
+  ai_chat: { w: 4, h: 8, minW: 2, minH: 5 },
 };
 
 const BG_COLORS = [
@@ -628,6 +632,15 @@ export default function Dashboard() {
         return <ExpenseTrackerWidget />;
       case "meeting_prep":
         return <MeetingPrepWidget />;
+      case "google_calendar":
+        return (
+          <GoogleCalendarWidget
+            content={(widget.content as GoogleCalendarContent) || {}}
+            onContentChange={(content) => handleContentChange(widget, content)}
+          />
+        );
+      case "ai_chat":
+        return <AiChatWidget />;
       default:
         return <div>Unknown widget type</div>;
     }

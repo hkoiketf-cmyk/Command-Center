@@ -1,8 +1,9 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertWidgetSchema, insertVentureSchema, insertPrioritySchema, insertRevenueDataSchema, insertDesktopSchema, insertFocusContractSchema, insertCaptureItemSchema, insertHabitSchema, insertHabitEntrySchema, insertJournalEntrySchema, insertScorecardMetricSchema, insertScorecardEntrySchema, insertKpiSchema, insertWaitingItemSchema, insertDealSchema, insertTimeBlockSchema, insertRecurringExpenseSchema, insertVariableExpenseSchema, insertMeetingSchema } from "@shared/schema";
+import { insertWidgetSchema, insertVentureSchema, insertPrioritySchema, insertRevenueDataSchema, insertDesktopSchema, insertFocusContractSchema, insertCaptureItemSchema, insertHabitSchema, insertHabitEntrySchema, insertJournalEntrySchema, insertScorecardMetricSchema, insertScorecardEntrySchema, insertKpiSchema, insertWaitingItemSchema, insertDealSchema, insertTimeBlockSchema, insertRecurringExpenseSchema, insertVariableExpenseSchema, insertMeetingSchema, insertAiConversationSchema, insertAiMessageSchema } from "@shared/schema";
 import { z } from "zod";
+import OpenAI from "openai";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -802,6 +803,108 @@ export async function registerRoutes(
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete meeting" });
+    }
+  });
+
+  // ============ AI CHAT ============
+
+  app.get("/api/ai/conversations", async (req, res) => {
+    try {
+      const conversations = await storage.getAiConversations();
+      res.json(conversations);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch conversations" });
+    }
+  });
+
+  app.post("/api/ai/conversations", async (req, res) => {
+    try {
+      const conv = await storage.createAiConversation({ title: req.body.title || "New Chat" });
+      res.status(201).json(conv);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create conversation" });
+    }
+  });
+
+  app.delete("/api/ai/conversations/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteAiConversation(req.params.id);
+      if (!deleted) return res.status(404).json({ error: "Conversation not found" });
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete conversation" });
+    }
+  });
+
+  app.get("/api/ai/conversations/:id/messages", async (req, res) => {
+    try {
+      const messages = await storage.getAiMessages(req.params.id);
+      res.json(messages);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch messages" });
+    }
+  });
+
+  app.post("/api/ai/conversations/:id/chat", async (req, res) => {
+    try {
+      const apiKey = process.env.OPENAI_API_KEY;
+      if (!apiKey) {
+        return res.status(400).json({ error: "OpenAI API key not configured. Please add OPENAI_API_KEY to your secrets." });
+      }
+
+      const { message } = req.body;
+      if (!message || typeof message !== "string") {
+        return res.status(400).json({ error: "Message is required" });
+      }
+
+      const conversationId = req.params.id;
+
+      await storage.createAiMessage({ conversationId, role: "user", content: message });
+
+      const history = await storage.getAiMessages(conversationId);
+      const openaiMessages = history.map((m) => ({
+        role: m.role as "user" | "assistant" | "system",
+        content: m.content,
+      }));
+
+      const openai = new OpenAI({ apiKey });
+
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+
+      const stream = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: "You are a helpful assistant embedded in a personal productivity dashboard called HunterOS. Be concise and practical. Help the user with brainstorming, writing, planning, and problem-solving." },
+          ...openaiMessages,
+        ],
+        stream: true,
+        max_tokens: 2048,
+      });
+
+      let fullResponse = "";
+
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content || "";
+        if (content) {
+          fullResponse += content;
+          res.write(`data: ${JSON.stringify({ content })}\n\n`);
+        }
+      }
+
+      await storage.createAiMessage({ conversationId, role: "assistant", content: fullResponse });
+
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      res.end();
+    } catch (error: any) {
+      console.error("AI chat error:", error);
+      if (!res.headersSent) {
+        res.status(500).json({ error: error.message || "Failed to get AI response" });
+      } else {
+        res.write(`data: ${JSON.stringify({ error: error.message || "Stream error" })}\n\n`);
+        res.end();
+      }
     }
   });
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, Target, TrendingUp, Globe, Plus, Code, Crosshair, Inbox, Flame, BookOpen, BarChart3, Gauge, Clock, Kanban, CalendarClock, DollarSign, Users } from "lucide-react";
+import { FileText, Target, TrendingUp, Globe, Plus, Code, Crosshair, Inbox, Flame, BookOpen, BarChart3, Gauge, Clock, Kanban, CalendarClock, DollarSign, Users, Calendar, Bot } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -113,6 +113,18 @@ const widgetOptions: { type: WidgetType; label: string; description: string; ico
     label: "Meeting Prep",
     description: "Prepare agendas & capture action items",
     icon: Users,
+  },
+  {
+    type: "google_calendar",
+    label: "Google Calendar",
+    description: "Embed your Google Calendar view",
+    icon: Calendar,
+  },
+  {
+    type: "ai_chat",
+    label: "AI Chat",
+    description: "OpenAI-powered assistant for brainstorming",
+    icon: Bot,
   },
 ];
 

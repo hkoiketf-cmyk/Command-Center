@@ -33,7 +33,7 @@ export type InsertDesktop = z.infer<typeof insertDesktopSchema>;
 export type Desktop = typeof desktops.$inferSelect;
 
 // Widget types enum
-export const widgetTypes = ["notes", "priorities", "revenue", "iframe", "code", "context_mode", "quick_capture", "habit_tracker", "daily_journal", "weekly_scorecard", "kpi_dashboard", "waiting_for", "crm_pipeline", "time_blocks", "expense_tracker", "meeting_prep"] as const;
+export const widgetTypes = ["notes", "priorities", "revenue", "iframe", "code", "context_mode", "quick_capture", "habit_tracker", "daily_journal", "weekly_scorecard", "kpi_dashboard", "waiting_for", "crm_pipeline", "time_blocks", "expense_tracker", "meeting_prep", "google_calendar", "ai_chat"] as const;
 export type WidgetType = typeof widgetTypes[number];
 
 // Layout item for react-grid-layout
@@ -387,3 +387,28 @@ export type CrmPipelineContent = {};
 export type TimeBlocksContent = { startHour?: number; endHour?: number };
 export type ExpenseTrackerContent = {};
 export type MeetingPrepContent = {};
+export type GoogleCalendarContent = { calendarUrl?: string };
+export type AiChatContent = {};
+
+// AI Chat tables
+export const aiConversations = pgTable("ai_conversations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull().default("New Chat"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertAiConversationSchema = createInsertSchema(aiConversations).omit({ id: true, createdAt: true });
+export type InsertAiConversation = z.infer<typeof insertAiConversationSchema>;
+export type AiConversation = typeof aiConversations.$inferSelect;
+
+export const aiMessages = pgTable("ai_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  conversationId: varchar("conversation_id").notNull(),
+  role: text("role").notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertAiMessageSchema = createInsertSchema(aiMessages).omit({ id: true, createdAt: true });
+export type InsertAiMessage = z.infer<typeof insertAiMessageSchema>;
+export type AiMessage = typeof aiMessages.$inferSelect;

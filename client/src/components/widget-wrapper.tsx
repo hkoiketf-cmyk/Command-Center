@@ -153,6 +153,24 @@ const WIDGET_INFO: Record<WidgetType, { description: string; tips: string[] }> =
       "Mark meetings complete when done",
     ],
   },
+  google_calendar: {
+    description: "Embed your Google Calendar directly in the dashboard. See your day, week, month, or agenda view.",
+    tips: [
+      "Go to Google Calendar Settings to get your embed code",
+      "Switch between day, week, month, and agenda views",
+      "Anyone can connect their own calendar",
+      "Click 'Open' to jump to Google Calendar in a new tab",
+    ],
+  },
+  ai_chat: {
+    description: "An AI assistant built right into your dashboard. Ask questions, brainstorm, draft emails, or think through problems.",
+    tips: [
+      "Type a message and press Enter or click Send",
+      "Conversations are saved so you can pick up where you left off",
+      "Start a new conversation anytime with the + button",
+      "Great for quick brainstorming or writing help",
+    ],
+  },
 };
 
 function isLightColor(hex: string): boolean {

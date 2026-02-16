@@ -66,6 +66,12 @@ import {
   type InsertVariableExpense,
   type Meeting,
   type InsertMeeting,
+  aiConversations,
+  aiMessages,
+  type AiConversation,
+  type InsertAiConversation,
+  type AiMessage,
+  type InsertAiMessage,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -160,6 +166,12 @@ export interface IStorage {
   createMeeting(meeting: InsertMeeting): Promise<Meeting>;
   updateMeeting(id: string, updates: Partial<Meeting>): Promise<Meeting | undefined>;
   deleteMeeting(id: string): Promise<boolean>;
+  // AI Chat
+  getAiConversations(): Promise<AiConversation[]>;
+  createAiConversation(conv: InsertAiConversation): Promise<AiConversation>;
+  deleteAiConversation(id: string): Promise<boolean>;
+  getAiMessages(conversationId: string): Promise<AiMessage[]>;
+  createAiMessage(msg: InsertAiMessage): Promise<AiMessage>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -511,6 +523,27 @@ export class DatabaseStorage implements IStorage {
   async deleteMeeting(id: string): Promise<boolean> {
     const result = await db.delete(meetings).where(eq(meetings.id, id)).returning();
     return result.length > 0;
+  }
+
+  // AI Chat
+  async getAiConversations(): Promise<AiConversation[]> {
+    return await db.select().from(aiConversations).orderBy(desc(aiConversations.createdAt));
+  }
+  async createAiConversation(conv: InsertAiConversation): Promise<AiConversation> {
+    const result = await db.insert(aiConversations).values(conv as any).returning();
+    return result[0];
+  }
+  async deleteAiConversation(id: string): Promise<boolean> {
+    await db.delete(aiMessages).where(eq(aiMessages.conversationId, id));
+    const result = await db.delete(aiConversations).where(eq(aiConversations.id, id)).returning();
+    return result.length > 0;
+  }
+  async getAiMessages(conversationId: string): Promise<AiMessage[]> {
+    return await db.select().from(aiMessages).where(eq(aiMessages.conversationId, conversationId)).orderBy(aiMessages.createdAt);
+  }
+  async createAiMessage(msg: InsertAiMessage): Promise<AiMessage> {
+    const result = await db.insert(aiMessages).values(msg as any).returning();
+    return result[0];
   }
 }
 

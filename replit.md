@@ -94,6 +94,8 @@ shared/
 14. **Time Blocks** - Vertical timeline with color-coded blocks, day navigation, 12-hour format
 15. **Expense Tracker** - Recurring (monthly) + variable expenses, displays monthly burn rate
 16. **Meeting Prep** - Two-phase workflow (prep with talking points → notes with action items)
+17. **Google Calendar** - Embed Google Calendar via public URL, with day/week/month/agenda view switching
+18. **AI Chat** - OpenAI-powered assistant with streaming responses, conversation history, auto-created conversations
 
 ## Features
 - **Multiple Desktops**: Create separate desktop layouts (e.g., "Business", "Personal") with tab switching
@@ -193,6 +195,13 @@ shared/
 - `POST /api/meetings` - Create meeting
 - `PATCH /api/meetings/:id` - Update meeting (objective, talkingPoints, notes, actionItems, completed)
 - `DELETE /api/meetings/:id` - Delete meeting
+
+### AI Chat
+- `GET /api/ai/conversations` - Get all AI conversations
+- `POST /api/ai/conversations` - Create conversation
+- `DELETE /api/ai/conversations/:id` - Delete conversation and messages
+- `GET /api/ai/conversations/:id/messages` - Get messages for conversation
+- `POST /api/ai/conversations/:id/chat` - Send message and get streaming SSE response (requires OPENAI_API_KEY secret)
 
 ## Running the App
 ```bash
