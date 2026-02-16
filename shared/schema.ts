@@ -33,7 +33,7 @@ export type InsertDesktop = z.infer<typeof insertDesktopSchema>;
 export type Desktop = typeof desktops.$inferSelect;
 
 // Widget types enum
-export const widgetTypes = ["notes", "priorities", "revenue", "iframe", "code", "context_mode"] as const;
+export const widgetTypes = ["notes", "priorities", "revenue", "iframe", "code", "context_mode", "quick_capture", "habit_tracker", "daily_journal", "weekly_scorecard", "kpi_dashboard", "waiting_for", "crm_pipeline", "time_blocks", "expense_tracker", "meeting_prep"] as const;
 export type WidgetType = typeof widgetTypes[number];
 
 // Layout item for react-grid-layout
@@ -202,3 +202,188 @@ export const insertAppSettingsSchema = createInsertSchema(appSettings).omit({
 
 export type InsertAppSettings = z.infer<typeof insertAppSettingsSchema>;
 export type AppSettings = typeof appSettings.$inferSelect;
+
+// ============ NEW WIDGET TABLES ============
+
+// Quick Capture Inbox
+export const captureItems = pgTable("capture_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  text: text("text").notNull(),
+  processed: boolean("processed").default(false),
+  createdAt: text("created_at").notNull().default(sql`now()::text`),
+});
+
+export const insertCaptureItemSchema = createInsertSchema(captureItems).omit({ id: true });
+export type InsertCaptureItem = z.infer<typeof insertCaptureItemSchema>;
+export type CaptureItem = typeof captureItems.$inferSelect;
+
+// Habit Streak Tracker
+export const habits = pgTable("habits", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  color: text("color").notNull().default("#3B82F6"),
+  order: integer("order").notNull().default(0),
+});
+
+export const insertHabitSchema = createInsertSchema(habits).omit({ id: true });
+export type InsertHabit = z.infer<typeof insertHabitSchema>;
+export type Habit = typeof habits.$inferSelect;
+
+export const habitEntries = pgTable("habit_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  habitId: varchar("habit_id").notNull().references(() => habits.id, { onDelete: "cascade" }),
+  date: text("date").notNull(),
+  completed: boolean("completed").default(true),
+});
+
+export const insertHabitEntrySchema = createInsertSchema(habitEntries).omit({ id: true });
+export type InsertHabitEntry = z.infer<typeof insertHabitEntrySchema>;
+export type HabitEntry = typeof habitEntries.$inferSelect;
+
+// Daily Journal
+export const journalEntries = pgTable("journal_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  date: text("date").notNull(),
+  content: text("content").notNull().default(""),
+});
+
+export const insertJournalEntrySchema = createInsertSchema(journalEntries).omit({ id: true });
+export type InsertJournalEntry = z.infer<typeof insertJournalEntrySchema>;
+export type JournalEntry = typeof journalEntries.$inferSelect;
+
+// Weekly Scorecard
+export const scorecardMetrics = pgTable("scorecard_metrics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  target: real("target").notNull().default(0),
+  unit: text("unit").default(""),
+  order: integer("order").notNull().default(0),
+});
+
+export const insertScorecardMetricSchema = createInsertSchema(scorecardMetrics).omit({ id: true });
+export type InsertScorecardMetric = z.infer<typeof insertScorecardMetricSchema>;
+export type ScorecardMetric = typeof scorecardMetrics.$inferSelect;
+
+export const scorecardEntries = pgTable("scorecard_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  metricId: varchar("metric_id").notNull().references(() => scorecardMetrics.id, { onDelete: "cascade" }),
+  weekStart: text("week_start").notNull(),
+  value: real("value").notNull().default(0),
+});
+
+export const insertScorecardEntrySchema = createInsertSchema(scorecardEntries).omit({ id: true });
+export type InsertScorecardEntry = z.infer<typeof insertScorecardEntrySchema>;
+export type ScorecardEntry = typeof scorecardEntries.$inferSelect;
+
+// KPI Dashboard
+export const kpis = pgTable("kpis", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  currentValue: real("current_value").notNull().default(0),
+  targetValue: real("target_value").notNull().default(0),
+  unit: text("unit").default(""),
+  prefix: text("prefix").default(""),
+  order: integer("order").notNull().default(0),
+});
+
+export const insertKpiSchema = createInsertSchema(kpis).omit({ id: true });
+export type InsertKpi = z.infer<typeof insertKpiSchema>;
+export type Kpi = typeof kpis.$inferSelect;
+
+// Waiting-For List
+export const waitingItems = pgTable("waiting_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  person: text("person").notNull(),
+  description: text("description").notNull(),
+  dateSent: text("date_sent").notNull(),
+  expectedDate: text("expected_date"),
+  completed: boolean("completed").default(false),
+});
+
+export const insertWaitingItemSchema = createInsertSchema(waitingItems).omit({ id: true });
+export type InsertWaitingItem = z.infer<typeof insertWaitingItemSchema>;
+export type WaitingItem = typeof waitingItems.$inferSelect;
+
+// CRM Mini Pipeline
+export const deals = pgTable("deals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  value: real("value").default(0),
+  stage: text("stage").notNull().default("lead"),
+  lastContactDate: text("last_contact_date").notNull(),
+  nextAction: text("next_action").default(""),
+  createdAt: text("created_at").notNull().default(sql`now()::text`),
+});
+
+export const insertDealSchema = createInsertSchema(deals).omit({ id: true });
+export type InsertDeal = z.infer<typeof insertDealSchema>;
+export type Deal = typeof deals.$inferSelect;
+
+// Time Block Planner
+export const timeBlocks = pgTable("time_blocks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  date: text("date").notNull(),
+  startTime: text("start_time").notNull(),
+  endTime: text("end_time").notNull(),
+  label: text("label").notNull(),
+  color: text("color").notNull().default("#3B82F6"),
+});
+
+export const insertTimeBlockSchema = createInsertSchema(timeBlocks).omit({ id: true });
+export type InsertTimeBlock = z.infer<typeof insertTimeBlockSchema>;
+export type TimeBlock = typeof timeBlocks.$inferSelect;
+
+// Expense Burn Rate
+export const recurringExpenses = pgTable("recurring_expenses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  amount: real("amount").notNull().default(0),
+  category: text("category").default(""),
+});
+
+export const insertRecurringExpenseSchema = createInsertSchema(recurringExpenses).omit({ id: true });
+export type InsertRecurringExpense = z.infer<typeof insertRecurringExpenseSchema>;
+export type RecurringExpense = typeof recurringExpenses.$inferSelect;
+
+export const variableExpenses = pgTable("variable_expenses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  amount: real("amount").notNull().default(0),
+  date: text("date").notNull(),
+  category: text("category").default(""),
+});
+
+export const insertVariableExpenseSchema = createInsertSchema(variableExpenses).omit({ id: true });
+export type InsertVariableExpense = z.infer<typeof insertVariableExpenseSchema>;
+export type VariableExpense = typeof variableExpenses.$inferSelect;
+
+// Meeting Prep & Agenda
+export const meetings = pgTable("meetings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  person: text("person").default(""),
+  date: text("date").notNull(),
+  time: text("time").default(""),
+  objective: text("objective").default(""),
+  talkingPoints: jsonb("talking_points").$type<string[]>().default([]),
+  desiredOutcome: text("desired_outcome").default(""),
+  notes: text("notes").default(""),
+  actionItems: jsonb("action_items").$type<string[]>().default([]),
+  completed: boolean("completed").default(false),
+});
+
+export const insertMeetingSchema = createInsertSchema(meetings).omit({ id: true });
+export type InsertMeeting = z.infer<typeof insertMeetingSchema>;
+export type Meeting = typeof meetings.$inferSelect;
+
+// Content types for new widgets
+export type QuickCaptureContent = {};
+export type HabitTrackerContent = {};
+export type DailyJournalContent = {};
+export type WeeklyScorecardContent = {};
+export type KpiDashboardContent = {};
+export type WaitingForContent = {};
+export type CrmPipelineContent = {};
+export type TimeBlocksContent = { startHour?: number; endHour?: number };
+export type ExpenseTrackerContent = {};
+export type MeetingPrepContent = {};

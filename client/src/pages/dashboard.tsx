@@ -11,6 +11,16 @@ import { RevenueWidget } from "@/components/revenue-widget";
 import { IframeWidget } from "@/components/iframe-widget";
 import { CodeWidget } from "@/components/code-widget";
 import { ContextModeWidget } from "@/components/context-mode-widget";
+import { QuickCaptureWidget } from "@/components/quick-capture-widget";
+import { HabitTrackerWidget } from "@/components/habit-tracker-widget";
+import { DailyJournalWidget } from "@/components/daily-journal-widget";
+import { WeeklyScorecardWidget } from "@/components/weekly-scorecard-widget";
+import { KpiDashboardWidget } from "@/components/kpi-dashboard-widget";
+import { WaitingForWidget } from "@/components/waiting-for-widget";
+import { CrmPipelineWidget } from "@/components/crm-pipeline-widget";
+import { TimeBlocksWidget } from "@/components/time-blocks-widget";
+import { ExpenseTrackerWidget } from "@/components/expense-tracker-widget";
+import { MeetingPrepWidget } from "@/components/meeting-prep-widget";
 import { AddWidgetDialog } from "@/components/add-widget-dialog";
 import { VentureManager } from "@/components/venture-manager";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -77,6 +87,16 @@ const defaultWidgetSizes: Record<WidgetType, { w: number; h: number; minW: numbe
   iframe: { w: 6, h: 8, minW: 1, minH: 3 },
   code: { w: 6, h: 8, minW: 2, minH: 4 },
   context_mode: { w: 5, h: 10, minW: 3, minH: 6 },
+  quick_capture: { w: 3, h: 6, minW: 2, minH: 4 },
+  habit_tracker: { w: 6, h: 7, minW: 3, minH: 4 },
+  daily_journal: { w: 4, h: 8, minW: 2, minH: 4 },
+  weekly_scorecard: { w: 6, h: 7, minW: 3, minH: 4 },
+  kpi_dashboard: { w: 4, h: 6, minW: 2, minH: 3 },
+  waiting_for: { w: 4, h: 6, minW: 2, minH: 4 },
+  crm_pipeline: { w: 12, h: 8, minW: 6, minH: 5 },
+  time_blocks: { w: 4, h: 10, minW: 2, minH: 6 },
+  expense_tracker: { w: 4, h: 7, minW: 2, minH: 4 },
+  meeting_prep: { w: 5, h: 8, minW: 3, minH: 5 },
 };
 
 const BG_COLORS = [
@@ -588,6 +608,26 @@ export default function Dashboard() {
             desktopName={activeDesktop?.name || ""}
           />
         );
+      case "quick_capture":
+        return <QuickCaptureWidget />;
+      case "habit_tracker":
+        return <HabitTrackerWidget />;
+      case "daily_journal":
+        return <DailyJournalWidget />;
+      case "weekly_scorecard":
+        return <WeeklyScorecardWidget />;
+      case "kpi_dashboard":
+        return <KpiDashboardWidget />;
+      case "waiting_for":
+        return <WaitingForWidget />;
+      case "crm_pipeline":
+        return <CrmPipelineWidget />;
+      case "time_blocks":
+        return <TimeBlocksWidget />;
+      case "expense_tracker":
+        return <ExpenseTrackerWidget />;
+      case "meeting_prep":
+        return <MeetingPrepWidget />;
       default:
         return <div>Unknown widget type</div>;
     }

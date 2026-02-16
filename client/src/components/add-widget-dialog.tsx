@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, Target, TrendingUp, Globe, Plus, Code, Crosshair } from "lucide-react";
+import { FileText, Target, TrendingUp, Globe, Plus, Code, Crosshair, Inbox, Flame, BookOpen, BarChart3, Gauge, Clock, Kanban, CalendarClock, DollarSign, Users } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -54,6 +54,66 @@ const widgetOptions: { type: WidgetType; label: string; description: string; ico
     description: "Focus contract for intentional work",
     icon: Crosshair,
   },
+  {
+    type: "quick_capture",
+    label: "Quick Capture",
+    description: "Fast inbox for fleeting thoughts",
+    icon: Inbox,
+  },
+  {
+    type: "habit_tracker",
+    label: "Habit Tracker",
+    description: "Daily habit streaks with visual grid",
+    icon: Flame,
+  },
+  {
+    type: "daily_journal",
+    label: "Daily Journal",
+    description: "Dated daily log entries",
+    icon: BookOpen,
+  },
+  {
+    type: "weekly_scorecard",
+    label: "Weekly Scorecard",
+    description: "Track measurable activities vs targets",
+    icon: BarChart3,
+  },
+  {
+    type: "kpi_dashboard",
+    label: "KPI Dashboard",
+    description: "Key numbers with progress indicators",
+    icon: Gauge,
+  },
+  {
+    type: "waiting_for",
+    label: "Waiting For",
+    description: "Track items in other people's courts",
+    icon: Clock,
+  },
+  {
+    type: "crm_pipeline",
+    label: "CRM Pipeline",
+    description: "Mini deal pipeline with stale alerts",
+    icon: Kanban,
+  },
+  {
+    type: "time_blocks",
+    label: "Time Blocks",
+    description: "Visual daily time block planner",
+    icon: CalendarClock,
+  },
+  {
+    type: "expense_tracker",
+    label: "Expense Tracker",
+    description: "Monthly burn rate at a glance",
+    icon: DollarSign,
+  },
+  {
+    type: "meeting_prep",
+    label: "Meeting Prep",
+    description: "Prepare agendas & capture action items",
+    icon: Users,
+  },
 ];
 
 export function AddWidgetDialog({ onAddWidget }: AddWidgetDialogProps) {
@@ -92,7 +152,7 @@ export function AddWidgetDialog({ onAddWidget }: AddWidgetDialogProps) {
           Add Widget
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Widget</DialogTitle>
           <DialogDescription>
@@ -100,7 +160,7 @@ export function AddWidgetDialog({ onAddWidget }: AddWidgetDialogProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-3 py-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 py-4">
           {widgetOptions.map((option) => {
             const Icon = option.icon;
             return (
