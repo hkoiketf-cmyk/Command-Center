@@ -12,13 +12,43 @@ interface GoogleCalendarContent {
 
 function extractCalendarSrc(input: string): string | null {
   if (!input.trim()) return null;
-  const srcMatch = input.match(/src="([^"]+)"/);
+  const trimmed = input.trim();
+
+  const srcMatch = trimmed.match(/src="([^"]+)"/);
   if (srcMatch) return srcMatch[1];
-  if (input.includes("calendar.google.com")) {
-    let url = input.trim();
-    if (!url.startsWith("http")) url = "https://" + url;
-    return url;
+
+  const emailMatch = trimmed.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
+  if (emailMatch) {
+    return `https://calendar.google.com/calendar/embed?src=${encodeURIComponent(trimmed)}`;
   }
+
+  let url = trimmed;
+  if (!url.startsWith("http")) url = "https://" + url;
+
+  if (url.includes("calendar.google.com")) {
+    try {
+      const parsed = new URL(url);
+      if (parsed.pathname.includes("/embed")) {
+        return url;
+      }
+      if (parsed.pathname.includes("/r") || parsed.pathname.includes("/b/")) {
+        const srcParam = parsed.searchParams.get("src") || parsed.searchParams.get("cid");
+        if (srcParam) {
+          return `https://calendar.google.com/calendar/embed?src=${encodeURIComponent(srcParam)}`;
+        }
+      }
+      if (parsed.pathname.includes("/ical") || url.includes(".ics")) {
+        const icalMatch = url.match(/calendar\/([^/]+)\//);
+        if (icalMatch) {
+          return `https://calendar.google.com/calendar/embed?src=${encodeURIComponent(icalMatch[1])}`;
+        }
+      }
+      return url;
+    } catch {
+      return null;
+    }
+  }
+
   return null;
 }
 
@@ -46,9 +76,10 @@ export function GoogleCalendarWidget({
   content: GoogleCalendarContent;
   onContentChange: (content: GoogleCalendarContent) => void;
 }) {
+  const safeContent = content || {};
   const [inputValue, setInputValue] = useState("");
   const [view, setView] = useState<CalendarView>("week");
-  const [showSetup, setShowSetup] = useState(!content.calendarUrl);
+  const [showSetup, setShowSetup] = useState(!safeContent.calendarUrl);
   const [error, setError] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -59,18 +90,18 @@ export function GoogleCalendarWidget({
       setShowSetup(false);
       setError("");
     } else {
-      setError("Could not find a valid Google Calendar URL. Please paste the embed code or sharing URL from Google Calendar.");
+      setError("Could not find a valid Google Calendar URL. Try pasting the embed code from Google Calendar settings, or your calendar's email address (e.g. example@gmail.com).");
     }
   };
 
-  if (showSetup || !content.calendarUrl) {
+  if (showSetup || !safeContent.calendarUrl) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4 p-4" data-testid="calendar-setup">
         <Calendar className="h-10 w-10 text-muted-foreground" />
         <div className="text-center space-y-1">
           <div className="text-sm font-medium">Connect Your Google Calendar</div>
-          <div className="text-xs text-muted-foreground max-w-[280px] leading-relaxed">
-            Go to Google Calendar Settings, find your calendar under "Integrate calendar", copy the embed code or public URL, and paste it below.
+          <div className="text-xs text-muted-foreground max-w-[300px] leading-relaxed">
+            Paste your calendar's embed code, public URL, or email address below.
           </div>
         </div>
 
@@ -78,7 +109,7 @@ export function GoogleCalendarWidget({
           <Input
             value={inputValue}
             onChange={(e) => { setInputValue(e.target.value); setError(""); }}
-            placeholder="Paste embed code or calendar URL..."
+            placeholder="Paste embed code, URL, or email..."
             className="text-sm"
             autoFocus
             data-testid="input-calendar-url"
@@ -89,21 +120,35 @@ export function GoogleCalendarWidget({
           </Button>
         </form>
 
-        <div className="text-[11px] text-muted-foreground max-w-[280px] space-y-1">
-          <p className="font-medium">How to get your embed URL:</p>
-          <ol className="list-decimal pl-4 space-y-0.5">
-            <li>Open Google Calendar on the web</li>
-            <li>Click the gear icon, then "Settings"</li>
-            <li>Select your calendar on the left</li>
-            <li>Scroll to "Integrate calendar"</li>
-            <li>Copy the "Embed code" or "Public URL"</li>
-          </ol>
+        <div className="text-[11px] text-muted-foreground max-w-[300px] space-y-2">
+          <div className="space-y-1">
+            <p className="font-medium">How to get your embed URL:</p>
+            <ol className="list-decimal pl-4 space-y-0.5">
+              <li>Open Google Calendar on the web</li>
+              <li>Click the gear icon, then "Settings"</li>
+              <li>Select your calendar on the left</li>
+              <li>Scroll to "Integrate calendar"</li>
+              <li>Copy the "Embed code" or "Public URL"</li>
+            </ol>
+          </div>
+          <div className="p-2 rounded-md bg-muted/50 border border-border">
+            <p className="font-medium">Important:</p>
+            <p>Your calendar must be set to <strong>public</strong> for the embed to display. In Settings, check "Make available to public" under "Access permissions".</p>
+          </div>
+          <div className="space-y-0.5">
+            <p className="font-medium">You can also paste:</p>
+            <ul className="list-disc pl-4 space-y-0.5">
+              <li>Your Google account email (e.g. you@gmail.com)</li>
+              <li>A calendar sharing or public URL</li>
+              <li>The full &lt;iframe&gt; embed code</li>
+            </ul>
+          </div>
         </div>
       </div>
     );
   }
 
-  const calendarSrc = buildCalendarUrl(content.calendarUrl, view);
+  const calendarSrc = buildCalendarUrl(safeContent.calendarUrl!, view);
 
   return (
     <div className="flex flex-col h-full" data-testid="widget-google-calendar">

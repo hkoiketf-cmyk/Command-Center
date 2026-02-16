@@ -34,8 +34,9 @@ export function AiChatWidget({
   content: AiChatContent;
   onContentChange: (content: AiChatContent) => void;
 }) {
+  const safeContent = content || {};
   const [inputValue, setInputValue] = useState("");
-  const [showSetup, setShowSetup] = useState(!content.embedUrl);
+  const [showSetup, setShowSetup] = useState(!safeContent.embedUrl);
   const [error, setError] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -56,7 +57,7 @@ export function AiChatWidget({
     setError("");
   };
 
-  if (showSetup || !content.embedUrl) {
+  if (showSetup || !safeContent.embedUrl) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4 p-4" data-testid="ai-chat-setup">
         <Bot className="h-10 w-10 text-muted-foreground" />
@@ -111,7 +112,7 @@ export function AiChatWidget({
           variant="ghost"
           size="sm"
           className="h-7 text-xs"
-          onClick={() => window.open(content.embedUrl, "_blank")}
+          onClick={() => window.open(safeContent.embedUrl, "_blank")}
           data-testid="button-open-ai-external"
         >
           <ExternalLink className="h-3 w-3 mr-1" /> Open
@@ -128,7 +129,7 @@ export function AiChatWidget({
       </div>
       <div className="flex-1 min-h-0">
         <iframe
-          src={content.embedUrl}
+          src={safeContent.embedUrl}
           className="w-full h-full border-0"
           title="AI Chat"
           sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
