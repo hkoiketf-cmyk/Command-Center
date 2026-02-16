@@ -183,14 +183,74 @@ const WIDGET_INFO: Record<WidgetType, { description: string; tips: string[] }> =
   },
 };
 
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const c = hex.replace("#", "");
+  return {
+    r: parseInt(c.substring(0, 2), 16),
+    g: parseInt(c.substring(2, 4), 16),
+    b: parseInt(c.substring(4, 6), 16),
+  };
+}
+
+function getLuminance(r: number, g: number, b: number): number {
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+}
+
 function isLightColor(hex: string): boolean {
   if (!hex) return false;
-  const c = hex.replace("#", "");
-  const r = parseInt(c.substring(0, 2), 16);
-  const g = parseInt(c.substring(2, 4), 16);
-  const b = parseInt(c.substring(4, 6), 16);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.6;
+  const { r, g, b } = hexToRgb(hex);
+  return getLuminance(r, g, b) > 0.6;
+}
+
+function rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: number } {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0;
+  const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+      case g: h = ((b - r) / d + 2) / 6; break;
+      case b: h = ((r - g) / d + 4) / 6; break;
+    }
+  }
+  return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+}
+
+function getCardColorOverrides(hex: string): Record<string, string> {
+  const { r, g, b } = hexToRgb(hex);
+  const { h, s } = rgbToHsl(r, g, b);
+  const light = isLightColor(hex);
+
+  if (light) {
+    return {
+      "--foreground": `${h} ${Math.min(s, 10)}% 10%`,
+      "--card-foreground": `${h} ${Math.min(s, 10)}% 10%`,
+      "--muted-foreground": `${h} ${Math.min(s, 10)}% 35%`,
+      "--muted": `${h} ${Math.min(s, 15)}% 85%`,
+      "--border": `${h} ${Math.min(s, 15)}% 75%`,
+      "--input": `${h} ${Math.min(s, 15)}% 70%`,
+      "--accent": `${h} ${Math.min(s, 15)}% 88%`,
+      "--accent-foreground": `${h} ${Math.min(s, 10)}% 10%`,
+      "--secondary": `${h} ${Math.min(s, 15)}% 82%`,
+      "--secondary-foreground": `${h} ${Math.min(s, 10)}% 10%`,
+    };
+  } else {
+    return {
+      "--foreground": "0 0% 95%",
+      "--card-foreground": "0 0% 95%",
+      "--muted-foreground": "0 0% 65%",
+      "--muted": `${h} ${Math.min(s, 20)}% 20%`,
+      "--border": `${h} ${Math.min(s, 20)}% 28%`,
+      "--input": `${h} ${Math.min(s, 20)}% 25%`,
+      "--accent": `${h} ${Math.min(s, 20)}% 22%`,
+      "--accent-foreground": "0 0% 95%",
+      "--secondary": `${h} ${Math.min(s, 20)}% 25%`,
+      "--secondary-foreground": "0 0% 95%",
+    };
+  }
 }
 
 const CARD_COLORS = [
@@ -380,8 +440,11 @@ export function WidgetWrapper({
     onRemove();
   };
 
-  const cardStyle = cardColor ? { backgroundColor: cardColor, borderColor: `${cardColor}cc` } : {};
   const hasCustomColor = !!cardColor;
+  const colorOverrides = hasCustomColor ? getCardColorOverrides(cardColor!) : {};
+  const cardStyle = hasCustomColor
+    ? { backgroundColor: cardColor, borderColor: `${cardColor}cc`, ...colorOverrides }
+    : {};
   const isLight = hasCustomColor && isLightColor(cardColor!);
   const customTextClass = hasCustomColor ? (isLight ? "text-gray-800/60" : "text-white/60") : "text-muted-foreground";
   const customTextBoldClass = hasCustomColor ? (isLight ? "text-gray-900" : "text-white") : "";
@@ -395,7 +458,7 @@ export function WidgetWrapper({
       <Card
         ref={cardRef}
         className={cn("flex flex-col overflow-hidden", isMobile ? "" : "h-full", className)}
-        style={{ ...cardStyle, ...mobileCardStyle }}
+        style={{ ...cardStyle, ...mobileCardStyle } as React.CSSProperties}
       >
         <CardHeader className={cn("flex flex-row items-center justify-between gap-2 border-b border-border shrink-0", isMobile ? "py-3 px-3" : "py-3 px-4")}>
           <div className={cn("flex items-center flex-1 min-w-0", isMobile ? "gap-2" : "gap-2")}>
