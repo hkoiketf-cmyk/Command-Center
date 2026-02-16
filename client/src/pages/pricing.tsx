@@ -165,7 +165,7 @@ export default function Pricing() {
                   {subscription?.plan === "monthly" && <Badge>Current Plan</Badge>}
                 </CardTitle>
                 <div className="mt-2">
-                  <span className="text-4xl font-bold">$5</span>
+                  <span className="text-4xl font-bold">$9</span>
                   <span className="text-muted-foreground">/month</span>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
@@ -207,11 +207,11 @@ export default function Pricing() {
                   {subscription?.plan === "yearly" && <Badge>Current Plan</Badge>}
                 </CardTitle>
                 <div className="mt-2">
-                  <span className="text-4xl font-bold">$78</span>
+                  <span className="text-4xl font-bold">$75.60</span>
                   <span className="text-muted-foreground">/year</span>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
-                  $6.50/mo — Includes 3-day free trial
+                  $6.30/mo — Includes 3-day free trial
                 </p>
               </CardHeader>
               <CardContent>

@@ -429,7 +429,7 @@ export default function Landing() {
                 <CardContent className="pt-6 pb-6">
                   <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-1">Monthly</p>
                   <div className="flex items-baseline gap-1 mb-4">
-                    <span className="text-4xl font-bold">$5</span>
+                    <span className="text-4xl font-bold">$9</span>
                     <span className="text-muted-foreground">/month</span>
                   </div>
                   <ul className="space-y-2 mb-6">
@@ -449,17 +449,17 @@ export default function Landing() {
               <Card className="relative border-primary/30" data-testid="card-pricing-yearly">
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                   <span className="bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full" data-testid="badge-save-yearly">
-                    Save 35%
+                    Save 30%
                   </span>
                 </div>
                 <CardContent className="pt-6 pb-6">
                   <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-1">Yearly</p>
                   <div className="flex items-baseline gap-1 mb-4">
-                    <span className="text-4xl font-bold">$78</span>
+                    <span className="text-4xl font-bold">$75.60</span>
                     <span className="text-muted-foreground">/year</span>
                   </div>
                   <ul className="space-y-2 mb-6">
-                    {["Everything in Monthly", "2 months free", "Google Calendar sync", "Priority support"].map((f) => (
+                    {["Everything in Monthly", "Save over $32/year", "Google Calendar sync", "Priority support"].map((f) => (
                       <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Check className="w-4 h-4 text-primary flex-shrink-0" />
                         {f}

@@ -1182,15 +1182,18 @@ export async function registerRoutes(
     }
   });
 
-  const isAdmin = (userId: string): boolean => {
-    const adminIds = (process.env.ADMIN_USER_IDS || "").split(",").map((s) => s.trim()).filter(Boolean);
-    return adminIds.includes(userId);
+  const isAdmin = async (userId: string): Promise<boolean> => {
+    const adminValues = (process.env.ADMIN_USER_IDS || "").split(",").map((s) => s.trim()).filter(Boolean);
+    if (adminValues.includes(userId)) return true;
+    const user = await storage.getUser(userId);
+    if (user?.email && adminValues.includes(user.email)) return true;
+    return false;
   };
 
   app.post("/api/access-codes", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
-      if (!isAdmin(userId)) {
+      if (!(await isAdmin(userId))) {
         return res.status(403).json({ error: "Admin access required" });
       }
       const { label, maxUses } = req.body;
@@ -1212,7 +1215,7 @@ export async function registerRoutes(
   app.get("/api/access-codes", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
-      if (!isAdmin(userId)) {
+      if (!(await isAdmin(userId))) {
         return res.status(403).json({ error: "Admin access required" });
       }
       const codes = await storage.getAccessCodes(userId);
