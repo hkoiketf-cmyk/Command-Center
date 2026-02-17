@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Wand2, Send, Eye, Code, Loader2, RotateCcw, Check, Key, CheckCircle2, X, MessageSquare, History, Zap, Shield, CircleCheck, AlertTriangle, Square, SplitSquareHorizontal, StopCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -89,7 +89,9 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
   const [currentIteration, setCurrentIteration] = useState(0);
   const [lastCritique, setLastCritique] = useState<CritiqueResult | null>(null);
   const [iframeErrors, setIframeErrors] = useState<string[]>([]);
+  const [previewCode, setPreviewCode] = useState(initialCode || "");
   const abortRef = useRef<AbortController | null>(null);
+  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chatLogRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const { toast } = useToast();
@@ -124,6 +126,7 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
+      if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
     };
   }, []);
 
@@ -215,6 +218,23 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
     return code;
   };
 
+  const schedulePreviewUpdate = useCallback((code: string) => {
+    if (previewTimerRef.current) {
+      clearTimeout(previewTimerRef.current);
+    }
+    previewTimerRef.current = setTimeout(() => {
+      setPreviewCode(code);
+    }, 800);
+  }, []);
+
+  const flushPreview = useCallback((code: string) => {
+    if (previewTimerRef.current) {
+      clearTimeout(previewTimerRef.current);
+      previewTimerRef.current = null;
+    }
+    setPreviewCode(code);
+  }, []);
+
   const buildConversationHistory = (): { role: string; content: string }[] => {
     const messages: { role: string; content: string }[] = [];
     for (const msg of conversation) {
@@ -290,6 +310,7 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
     setConversation(prev => [...prev, { role: "user", content: userPrompt, summary: userPrompt }]);
 
     try {
+      abortRef.current?.abort();
       abortRef.current = new AbortController();
       const signal = abortRef.current.signal;
 
@@ -303,10 +324,14 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
           prompt: userPrompt,
           mode: "generate",
           conversationHistory: [],
-        }, signal, (text) => setGeneratedCode(text));
+        }, signal, (text) => {
+          setGeneratedCode(text);
+          schedulePreviewUpdate(text);
+        });
 
         let currentCode = cleanCode(rawCode);
         setGeneratedCode(currentCode);
+        flushPreview(currentCode);
 
         let finalIterationCount = 1;
 
@@ -353,14 +378,19 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
             mode: "refine",
             conversationHistory: [],
             originalPrompt: userPrompt,
-          }, signal, (text) => setGeneratedCode(text));
+          }, signal, (text) => {
+            setGeneratedCode(text);
+            schedulePreviewUpdate(text);
+          });
 
           currentCode = cleanCode(fixedRaw);
           setGeneratedCode(currentCode);
+          flushPreview(currentCode);
         }
 
         const finalCode = currentCode;
         setGeneratedCode(finalCode);
+        flushPreview(finalCode);
 
         const iterLabel = finalIterationCount === 1
           ? "Built in 1 pass"
@@ -377,8 +407,9 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
           }
         }
       } else {
-        setGenerationPhase("Applying your changes...");
+        const MAX_REFINE_ITERATIONS = 2;
         setCurrentIteration(1);
+        setGenerationPhase("Applying your changes...");
 
         const history = buildConversationHistory();
 
@@ -388,42 +419,60 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
           mode: "refine",
           conversationHistory: history,
           originalPrompt: originalPrompt || undefined,
-        }, signal, (text) => setGeneratedCode(text));
+        }, signal, (text) => {
+          setGeneratedCode(text);
+          schedulePreviewUpdate(text);
+        });
 
         let currentCode = cleanCode(refinedRaw);
         setGeneratedCode(currentCode);
+        flushPreview(currentCode);
 
-        setGenerationPhase("Quality check on changes...");
-        const critique = await critiqueCode(currentCode, originalPrompt || userPrompt);
-        setLastCritique(critique);
+        for (let i = 1; i <= MAX_REFINE_ITERATIONS; i++) {
+          if (signal.aborted) break;
+          setCurrentIteration(i);
 
-        addCheckpoint(currentCode, 1, critique, "Refinement");
+          setGenerationPhase(`Quality check ${i}/${MAX_REFINE_ITERATIONS}...`);
+          const critique = await critiqueCode(currentCode, originalPrompt || userPrompt);
+          setLastCritique(critique);
+          addCheckpoint(currentCode, i, critique, i === 1 ? "Refinement" : `Refinement fix ${i}`);
 
-        if (!critique.passed) {
-          const criticalIssues = critique.issues.filter((iss: CritiqueIssue) => iss.severity === "critical" || iss.severity === "major");
-          if (criticalIssues.length > 0) {
-            setGenerationPhase("Fixing issues from refinement...");
-            setGeneratedCode("");
+          const actionableIssues = critique.issues.filter(
+            (iss: CritiqueIssue) => iss.severity === "critical" || iss.severity === "major"
+          );
 
-            const issueList = criticalIssues
-              .map((iss: CritiqueIssue) => `- [${iss.severity.toUpperCase()}] ${iss.description}: ${iss.fix}`)
-              .join("\n");
-
-            const fixedRaw = await streamFromEndpoint({
-              prompt: `Fix ONLY these specific issues. Do NOT rewrite or restructure anything else. Preserve all existing features, styling, and functionality.\n\nISSUES TO FIX:\n${issueList}\n\nReturn the complete HTML with ONLY the listed issues fixed.`,
-              currentCode: currentCode,
-              mode: "refine",
-              conversationHistory: history,
-              originalPrompt: originalPrompt || userPrompt,
-            }, signal, (text) => setGeneratedCode(text));
-
-            currentCode = cleanCode(fixedRaw);
-            setGeneratedCode(currentCode);
-
-            const reCritique = await critiqueCode(currentCode, originalPrompt || userPrompt);
-            setLastCritique(reCritique);
-            addCheckpoint(currentCode, 2, reCritique, "Refinement fix");
+          if (critique.passed || i === MAX_REFINE_ITERATIONS || actionableIssues.length === 0) {
+            if (critique.passed) {
+              setGenerationPhase(`Changes passed QA (score: ${critique.score}/10)`);
+            } else if (actionableIssues.length === 0) {
+              setGenerationPhase(`No major issues (score: ${critique.score}/10)`);
+            } else {
+              setGenerationPhase(`Applied changes (score: ${critique.score}/10)`);
+            }
+            break;
           }
+
+          const issueList = actionableIssues
+            .map((iss: CritiqueIssue) => `- [${iss.severity.toUpperCase()}] ${iss.description}: ${iss.fix}`)
+            .join("\n");
+
+          setGenerationPhase(`Fixing ${actionableIssues.length} issues...`);
+          setGeneratedCode("");
+
+          const fixedRaw = await streamFromEndpoint({
+            prompt: `Fix these specific issues in the widget code. You MUST output the complete, corrected HTML code - not explanations or descriptions of what to fix. Actually apply the fixes to the code.\n\nISSUES TO FIX:\n${issueList}\n\nPreserve all existing features and styling. Return the COMPLETE fixed HTML starting with <!DOCTYPE html>.`,
+            currentCode: currentCode,
+            mode: "refine",
+            conversationHistory: history,
+            originalPrompt: originalPrompt || userPrompt,
+          }, signal, (text) => {
+            setGeneratedCode(text);
+            schedulePreviewUpdate(text);
+          });
+
+          currentCode = cleanCode(fixedRaw);
+          setGeneratedCode(currentCode);
+          flushPreview(currentCode);
         }
 
         setConversation(prev => [...prev, { role: "assistant", content: currentCode, summary: "Applied changes" }]);
@@ -442,7 +491,7 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
       setIsGenerating(false);
       setCurrentIteration(0);
     }
-  }, [isGenerating, generatedCode, widgetTitle, conversation, originalPrompt]);
+  }, [isGenerating, generatedCode, widgetTitle, conversation, originalPrompt, schedulePreviewUpdate, flushPreview]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -466,6 +515,7 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
 
   const handleStartOver = () => {
     setGeneratedCode("");
+    setPreviewCode("");
     setWidgetTitle("");
     setViewMode("preview");
     setPrompt("");
@@ -484,6 +534,7 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
     if (index < 0 || index >= checkpoints.length) return;
     const cp = checkpoints[index];
     setGeneratedCode(cp.code);
+    setPreviewCode(cp.code);
     setActiveCheckpoint(index);
     setLastCritique({ passed: cp.passed, score: cp.score, issues: cp.issues });
     setIframeErrors([]);
@@ -524,6 +575,8 @@ ${rawCode}
 </body>
 </html>`;
   };
+
+  const wrappedPreview = useMemo(() => wrapCode(previewCode), [previewCode]);
 
   const isEditMode = !!initialCode;
   const hasConversation = conversation.length > 0;
@@ -886,8 +939,8 @@ ${rawCode}
               <div className={`${viewMode === "split" ? "w-1/2" : "w-full"} min-h-0 border rounded-lg overflow-hidden`}>
                 <iframe
                   ref={iframeRef}
-                  srcDoc={wrapCode(generatedCode)}
-                  sandbox="allow-scripts allow-same-origin"
+                  srcDoc={wrappedPreview}
+                  sandbox="allow-scripts"
                   className="w-full h-full border-0"
                   title="AI Widget Preview"
                   data-testid="iframe-ai-widget-preview"

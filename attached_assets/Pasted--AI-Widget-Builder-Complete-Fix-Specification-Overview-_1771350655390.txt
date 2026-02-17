@@ -1,0 +1,660 @@
+# AI Widget Builder — Complete Fix Specification
+
+## Overview
+
+This document contains all fixes needed for the AI Widget Builder system across two files:
+- `client/src/components/ai-widget-builder.tsx` (frontend)
+- `server/routes.ts` (backend endpoints: `/api/ai/generate-widget` and `/api/ai/critique-widget`)
+- `client/src/components/custom-widget.tsx` (deployed widget renderer)
+
+Apply every fix below. Each section contains the WHAT, WHY, and exact implementation.
+
+---
+
+## FIX 1: Stop iframe thrashing during streaming (CRITICAL — biggest UX problem)
+
+### Problem
+Every streaming chunk calls `setGeneratedCode(text)`, and the iframe's `srcDoc` is computed inline as `srcDoc={wrapCode(generatedCode)}`. This means the iframe fully reloads on every single SSE chunk — potentially 50-100 times per second. The widget flickers violently, burns CPU, and any widget state (timers, inputs) resets constantly.
+
+### Solution
+Use a **debounced preview** — the code editor updates live during streaming, but the iframe only refreshes every 800ms and once more when streaming finishes.
+
+### Implementation
+
+**Add these new state/ref variables at the top of the component (near the other useState declarations):**
+
+```tsx
+const [previewCode, setPreviewCode] = useState(initialCode || "");
+const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+```
+
+**Add a memoized wrapped preview (after the existing `wrapCode` function):**
+
+```tsx
+const wrappedPreview = useMemo(() => wrapCode(previewCode), [previewCode]);
+```
+
+**Create a helper to schedule debounced preview updates (put this after the `cleanCode` function):**
+
+```tsx
+const schedulePreviewUpdate = useCallback((code: string) => {
+  if (previewTimerRef.current) {
+    clearTimeout(previewTimerRef.current);
+  }
+  previewTimerRef.current = setTimeout(() => {
+    setPreviewCode(code);
+  }, 800);
+}, []);
+
+const flushPreview = useCallback((code: string) => {
+  if (previewTimerRef.current) {
+    clearTimeout(previewTimerRef.current);
+    previewTimerRef.current = null;
+  }
+  setPreviewCode(code);
+}, []);
+```
+
+**In every place where streaming calls `setGeneratedCode`, ALSO call the debounced preview:**
+
+Find all `streamFromEndpoint` calls. Their `onChunk` callbacks currently look like:
+```tsx
+(text) => setGeneratedCode(text)
+```
+
+Change each one to:
+```tsx
+(text) => {
+  setGeneratedCode(text);
+  schedulePreviewUpdate(text);
+}
+```
+
+**After each streaming call completes (after `cleanCode` is called), flush the preview immediately:**
+
+Everywhere you see this pattern:
+```tsx
+currentCode = cleanCode(rawCode);
+setGeneratedCode(currentCode);
+```
+
+Add right after:
+```tsx
+flushPreview(currentCode);
+```
+
+Do this for ALL occurrences — initial generation, fix iterations, and refinement paths.
+
+**Change the iframe `srcDoc` from:**
+```tsx
+srcDoc={wrapCode(generatedCode)}
+```
+**To:**
+```tsx
+srcDoc={wrappedPreview}
+```
+
+**Also sync previewCode when restoring checkpoints. In `handleRestoreCheckpoint`:**
+```tsx
+const handleRestoreCheckpoint = (index: number) => {
+  if (index < 0 || index >= checkpoints.length) return;
+  const cp = checkpoints[index];
+  setGeneratedCode(cp.code);
+  setPreviewCode(cp.code);  // ADD THIS
+  setActiveCheckpoint(index);
+  // ... rest unchanged
+};
+```
+
+**And in `handleStartOver`, reset it too:**
+```tsx
+setPreviewCode("");  // ADD THIS alongside the setGeneratedCode("") line
+```
+
+**Clean up timer on unmount — update the existing useEffect cleanup:**
+```tsx
+useEffect(() => {
+  return () => {
+    abortRef.current?.abort();
+    if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+  };
+}, []);
+```
+
+---
+
+## FIX 2: Sandbox security — remove `allow-same-origin` (SECURITY)
+
+### Problem
+The iframe sandbox has `allow-scripts allow-same-origin`. When combined, the sandboxed content can access the parent page's cookies, localStorage, and make authenticated API requests to your backend. A hallucinated or malicious widget could call `/api/user-settings` and exfiltrate the user's OpenAI key.
+
+### Solution
+Remove `allow-same-origin` from the sandbox. This means widget-local `localStorage` won't work (it'll throw), but this is acceptable because:
+1. Widgets should NOT share the parent's storage anyway
+2. The system prompt already tells widgets to use localStorage for API keys — we need to update the prompt to use an in-memory fallback pattern instead
+
+### Implementation
+
+**In `ai-widget-builder.tsx`, change the iframe sandbox:**
+```tsx
+// FROM:
+sandbox="allow-scripts allow-same-origin"
+
+// TO:
+sandbox="allow-scripts"
+```
+
+**In `custom-widget.tsx`, same change on the deployed widget iframe:**
+```tsx
+// FROM:
+sandbox="allow-scripts allow-same-origin"
+
+// TO:
+sandbox="allow-scripts"
+```
+
+**In `server/routes.ts`, update the `baseConstraints` string in the generate-widget endpoint.** Replace the localStorage/API key sections with this:
+
+Find and replace this block in `baseConstraints`:
+```
+- This widget runs in a sandboxed iframe with allow-scripts and allow-same-origin.
+- You CAN use fetch(), XMLHttpRequest, localStorage, and sessionStorage.
+```
+
+Replace with:
+```
+- This widget runs in a sandboxed iframe with allow-scripts ONLY (no allow-same-origin).
+- You CAN use fetch() and XMLHttpRequest for external APIs.
+- You CANNOT use localStorage or sessionStorage (they will throw SecurityError in this sandbox).
+- For persistent state like API keys, store them in a JavaScript variable and show a setup screen on each page load where the user can paste their key. This is the expected UX.
+```
+
+Also find and replace the `API KEY PATTERN` section in `baseConstraints`:
+```
+API KEY PATTERN (use when the widget needs an external API):
+- On first load, check localStorage for the API key
+- If no key found, show a setup screen with an input field and "Save Key" button
+- When key is saved, store in localStorage and immediately load data
+- Show a small gear/settings icon to change the key later
+- NEVER hardcode API keys
+```
+
+Replace with:
+```
+API KEY PATTERN (use when the widget needs an external API):
+- Store the API key in a JavaScript variable (NOT localStorage — it's blocked in this sandbox)
+- On load, show a setup screen with an input field and "Save & Connect" button
+- When key is entered, store in the JS variable, hide the setup screen, and immediately fetch data
+- Show a small gear/settings icon to re-enter the key if needed
+- NEVER hardcode API keys
+- The key will need to be re-entered when the page reloads — this is expected and fine
+```
+
+And find/replace the `DATA FETCHING PATTERN` section — remove the localStorage caching references:
+```
+DATA FETCHING PATTERN:
+- Wrap fetch calls in async functions with try/catch
+- Show a loading spinner/skeleton while data loads
+- Show clear error messages if fetch fails
+- If data needs refreshing, use setInterval and show "Last updated: X" timestamp
+- Cache data in localStorage with a timestamp to avoid excessive API calls
+```
+
+Replace with:
+```
+DATA FETCHING PATTERN:
+- Wrap fetch calls in async functions with try/catch
+- Show a loading spinner/skeleton while data loads
+- Show clear error messages if fetch fails (show the actual error message, not just "error occurred")
+- If data needs refreshing, use setInterval and show "Last updated: X" timestamp
+- Keep fetched data in a JavaScript variable for the session
+```
+
+---
+
+## FIX 3: Force JSON response format on critique endpoint (RELIABILITY)
+
+### Problem
+The critique endpoint asks GPT-4o-mini to return JSON but doesn't use OpenAI's `response_format` parameter. When the model returns malformed JSON, the catch block silently returns `{ passed: true, score: 7, issues: [] }` — meaning broken code passes QA with a fake score of 7.
+
+### Solution
+Add `response_format: { type: "json_object" }` to the API call and improve the fallback.
+
+### Implementation
+
+**In `server/routes.ts`, in the `/api/ai/critique-widget` endpoint, update the OpenAI call:**
+
+```ts
+const response = await openai.chat.completions.create({
+  model: "gpt-4o-mini",
+  response_format: { type: "json_object" },  // ADD THIS LINE
+  messages: [
+    // ... messages stay the same
+  ],
+  max_tokens: 2000,
+  temperature: 0.1,
+});
+```
+
+**Update the JSON parse fallback to not silently pass:**
+
+Find this block:
+```ts
+try {
+  const cleaned = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+  const critique = JSON.parse(cleaned);
+  res.json(critique);
+} catch {
+  res.json({ passed: true, score: 7, issues: [] });
+}
+```
+
+Replace with:
+```ts
+try {
+  const cleaned = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+  const critique = JSON.parse(cleaned);
+  // Validate the response has the expected shape
+  if (typeof critique.passed !== "boolean" || typeof critique.score !== "number" || !Array.isArray(critique.issues)) {
+    console.warn("Critique returned unexpected shape:", critique);
+    res.json({ passed: false, score: 5, issues: [{ category: "system", severity: "minor", description: "QA returned incomplete analysis — manual review recommended", fix: "" }] });
+  } else {
+    res.json(critique);
+  }
+} catch (parseErr) {
+  console.warn("Critique JSON parse failed:", parseErr, "Raw content:", content);
+  res.json({ passed: false, score: 5, issues: [{ category: "system", severity: "minor", description: "QA analysis could not be parsed — manual review recommended", fix: "" }] });
+}
+```
+
+---
+
+## FIX 4: Give refinements the same iteration depth as initial generation (QUALITY)
+
+### Problem
+Initial generation gets up to 3 critique→fix loops. But when a user types a follow-up edit ("make the background blue"), the refinement path only does 1 critique + at most 1 fix. Follow-up edits are held to a lower quality bar, which is why edits often introduce regressions.
+
+### Solution
+Refactor the refinement path to use the same iterative loop (up to 2 passes for refinements — not 3, since the base code already passed QA once).
+
+### Implementation
+
+**In the `generateWidget` function, find the entire `else` block (the refinement path) that starts with:**
+```tsx
+} else {
+  setGenerationPhase("Applying your changes...");
+  setCurrentIteration(1);
+```
+
+**Replace the entire else block with this:**
+
+```tsx
+} else {
+  const MAX_REFINE_ITERATIONS = 2;
+  setCurrentIteration(1);
+  setGenerationPhase("Applying your changes...");
+
+  const history = buildConversationHistory();
+
+  const refinedRaw = await streamFromEndpoint({
+    prompt: userPrompt,
+    currentCode: generatedCode,
+    mode: "refine",
+    conversationHistory: history,
+    originalPrompt: originalPrompt || undefined,
+  }, signal, (text) => {
+    setGeneratedCode(text);
+    schedulePreviewUpdate(text);
+  });
+
+  let currentCode = cleanCode(refinedRaw);
+  setGeneratedCode(currentCode);
+  flushPreview(currentCode);
+
+  for (let i = 1; i <= MAX_REFINE_ITERATIONS; i++) {
+    if (signal.aborted) break;
+    setCurrentIteration(i);
+
+    setGenerationPhase(`Quality check ${i}/${MAX_REFINE_ITERATIONS}...`);
+    const critique = await critiqueCode(currentCode, originalPrompt || userPrompt);
+    setLastCritique(critique);
+    addCheckpoint(currentCode, i, critique, i === 1 ? "Refinement" : `Refinement fix ${i}`);
+
+    const actionableIssues = critique.issues.filter(
+      (iss: CritiqueIssue) => iss.severity === "critical" || iss.severity === "major"
+    );
+
+    if (critique.passed || i === MAX_REFINE_ITERATIONS || actionableIssues.length === 0) {
+      if (critique.passed) {
+        setGenerationPhase(`Changes passed QA (score: ${critique.score}/10)`);
+      } else if (actionableIssues.length === 0) {
+        setGenerationPhase(`No major issues (score: ${critique.score}/10)`);
+      } else {
+        setGenerationPhase(`Applied changes (score: ${critique.score}/10)`);
+      }
+      break;
+    }
+
+    const issueList = actionableIssues
+      .map((iss: CritiqueIssue) => `- [${iss.severity.toUpperCase()}] ${iss.description}: ${iss.fix}`)
+      .join("\n");
+
+    setGenerationPhase(`Fixing ${actionableIssues.length} issues...`);
+    setGeneratedCode("");
+
+    const fixedRaw = await streamFromEndpoint({
+      prompt: `Fix ONLY these specific issues. Do NOT rewrite or restructure anything else. Preserve all existing features, styling, and functionality.\n\nISSUES TO FIX:\n${issueList}\n\nReturn the complete HTML with ONLY the listed issues fixed.`,
+      currentCode: currentCode,
+      mode: "refine",
+      conversationHistory: history,
+      originalPrompt: originalPrompt || userPrompt,
+    }, signal, (text) => {
+      setGeneratedCode(text);
+      schedulePreviewUpdate(text);
+    });
+
+    currentCode = cleanCode(fixedRaw);
+    setGeneratedCode(currentCode);
+    flushPreview(currentCode);
+  }
+
+  setConversation(prev => [...prev, { role: "assistant", content: currentCode, summary: "Applied changes" }]);
+}
+```
+
+---
+
+## FIX 5: Add error bridge to deployed widgets in custom-widget.tsx (DEBUGGING)
+
+### Problem
+The `ai-widget-builder.tsx` preview injects an error bridge script that catches runtime errors and posts them to the parent via `postMessage`. But `custom-widget.tsx` (the deployed widget on the dashboard) doesn't include this bridge. Once a widget is added to the dashboard, runtime errors are completely invisible.
+
+### Solution
+Add the same error bridge injection to `custom-widget.tsx`.
+
+### Implementation
+
+**In `custom-widget.tsx`, update the `wrappedCode` useMemo:**
+
+```tsx
+const wrappedCode = useMemo(() => {
+  if (!code) return "";
+  const trimmed = code.trim();
+
+  const errorBridge = `<script>
+window.onerror = function(msg, src, line) {
+  try { parent.postMessage({ type: "iframe-error", source: "custom-widget", message: msg + (line ? " (line " + line + ")" : "") }, "*"); } catch(e) {}
+  return true;
+};
+</script>`;
+
+  if (trimmed.toLowerCase().startsWith("<!doctype") || trimmed.toLowerCase().startsWith("<html")) {
+    return code.replace(/<head([^>]*)>/i, `<head$1>${errorBridge}`);
+  }
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  ${errorBridge}
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: transparent;
+    }
+  </style>
+</head>
+<body>
+${code}
+</body>
+</html>`;
+}, [code]);
+```
+
+---
+
+## FIX 6: Remove dead "review" mode from backend (CLEANUP)
+
+### Problem
+The backend `/api/ai/generate-widget` endpoint has a complete `mode === "review"` branch with its own system prompt. The frontend never sends `mode: "review"` — it only uses `"generate"` and `"refine"`. This is dead code that adds confusion and could accidentally be triggered.
+
+### Solution
+Delete the entire `if (mode === "review")` block from the endpoint.
+
+### Implementation
+
+**In `server/routes.ts`, in the `/api/ai/generate-widget` endpoint, find and delete this entire block:**
+
+```ts
+if (mode === "review") {
+  messages = [
+    {
+      role: "system",
+      content: `You are a senior front-end engineer doing a thorough quality review...`
+      // ... entire review system prompt
+    },
+    { role: "user", content: prompt }
+  ];
+} else if (mode === "refine") {
+```
+
+**Replace the `if (mode === "review") { ... } else if (mode === "refine") {` with just:**
+```ts
+if (mode === "refine") {
+```
+
+Everything else stays the same.
+
+---
+
+## FIX 7: Fix AbortController race condition (BUG)
+
+### Problem
+If `generateWidget` is called twice quickly, the second call overwrites `abortRef.current` with a new AbortController without aborting the first one. The first stream continues running as a zombie.
+
+### Solution
+Abort any existing controller before creating a new one.
+
+### Implementation
+
+**In `generateWidget`, find this line:**
+```tsx
+abortRef.current = new AbortController();
+```
+
+**Replace with:**
+```tsx
+abortRef.current?.abort();
+abortRef.current = new AbortController();
+```
+
+---
+
+## FIX 8: Improve system prompts for better widget quality (QUALITY)
+
+### Problem
+The current prompts produce widgets that often have:
+- Broken JavaScript (functions defined but never called)
+- Overly generic designs
+- Missing error states
+- Non-responsive layouts
+
+The prompts are detailed but have some gaps.
+
+### Solution
+Tighten the generation prompt with stronger examples and constraints.
+
+### Implementation
+
+**In `server/routes.ts`, in the GENERATE mode system prompt (the `else` block for initial generation), add these lines to the end of the system prompt content, BEFORE the closing backtick:**
+
+Add this after the existing "BEFORE YOU WRITE CODE, plan your approach:" section:
+
+```
+COMMON MISTAKES TO AVOID:
+1. Do NOT define functions like function updateDisplay() {} and then forget to call them. Every function must be invoked.
+2. Do NOT use document.getElementById("myBtn").addEventListener(...) if the element id is actually "my-btn" or doesn't exist yet. Double-check IDs match.
+3. Do NOT assume fetch() will succeed. Always wrap in try/catch and show the error in the UI.
+4. Do NOT use localStorage or sessionStorage — they are blocked in this sandbox. Use JavaScript variables instead.
+5. Do NOT leave placeholder text like "API_KEY_HERE" or "YOUR_KEY". Build the input UI for it.
+6. Do NOT use inline onclick handlers. Always use addEventListener in the script section.
+7. Test your logic: if a button says "Start Timer", trace through what happens when clicked. Does the handler exist? Does it reference the right element? Does it update the display?
+
+OUTPUT CHECKLIST (verify before responding):
+[ ] Every button/input has a working addEventListener
+[ ] All DOM references use correct, matching IDs
+[ ] All functions are actually called (not just defined)
+[ ] fetch() calls have try/catch with user-visible error messages
+[ ] No localStorage/sessionStorage usage
+[ ] Widget looks good at 300px wide (mobile) and 800px wide (desktop)
+[ ] Dark color scheme with readable contrast
+[ ] Smooth animations on load and state changes
+```
+
+---
+
+## FIX 9: Improve critique prompt to catch real issues (QUALITY)
+
+### Problem
+The critique sometimes invents issues or misses real ones (like undefined functions). The prompt needs to be more focused on catching the bugs that actually occur.
+
+### Implementation
+
+**In `server/routes.ts`, in the `/api/ai/critique-widget` endpoint, update the system prompt content:**
+
+Find the system message content that starts with `You are a strict QA engineer reviewing an HTML widget.`
+
+Replace the ENTIRE system message content with:
+
+```
+You are a strict QA engineer testing an HTML widget in a sandboxed iframe (allow-scripts only, NO allow-same-origin). The widget must work perfectly on first load.
+
+The user asked for: "${userPrompt || "a widget"}"
+
+TEST THESE IN ORDER (stop at first critical issue category):
+
+1. JAVASCRIPT ERRORS (most common failures):
+   - Are ALL <script> tags placed AFTER the HTML elements they reference? Scripts in <head> that reference DOM elements WILL fail.
+   - Does every getElementById/querySelector target an element that actually exists with that exact ID/class?
+   - Is every function that's defined actually CALLED somewhere? Look for functions defined but never invoked.
+   - Are all event listeners attached to elements that exist? Check for typos in element IDs.
+   - Does the code use localStorage or sessionStorage? These WILL throw SecurityError in this sandbox. Flag as CRITICAL.
+   - Are there any undefined variables or references to functions that don't exist?
+
+2. INTERACTIVITY:
+   - Does every button, input, select, and form element have a working event handler?
+   - If there's a timer/counter, does it actually start and update the display?
+   - If there's a form, does submitting it do something visible?
+
+3. API/DATA:
+   - If fetch() is used, is it wrapped in try/catch with a visible error message on failure?
+   - If an API key is needed, is there a UI to enter it (not hardcoded)?
+   - Are the API URLs real and correctly formatted?
+
+4. COMPLETENESS:
+   - Does the widget actually do what the user asked for?
+   - Are major requested features present and functional?
+
+DO NOT flag these as issues:
+- Style preferences ("could use more spacing")
+- Minor color tweaks
+- "Could be improved" suggestions
+- Missing features the user didn't ask for
+
+Respond with ONLY valid JSON:
+{
+  "passed": true/false,
+  "score": 1-10,
+  "issues": [
+    { "category": "functionality|data|visual|completeness", "severity": "critical|major|minor", "description": "specific problem found", "fix": "exact code change needed — be specific about which element/function/line" }
+  ]
+}
+
+Set passed=false ONLY for critical or major issues. Score 8+ means production-ready. Score 6-7 means usable with minor issues. Below 6 means significant problems.
+```
+
+---
+
+## FIX 10: Handle vague prompts — add clarification for underspecified requests (UX)
+
+### Problem
+The user wants to be able to give vague input like "make me a weather widget" and have the system either ask smart questions or make reasonable creative decisions. Currently vague prompts produce generic, often broken widgets.
+
+### Solution
+Add a prompt enrichment step — before generating, if the prompt is short/vague (under ~50 chars and doesn't mention specifics), prepend a "creative director" instruction that tells the LLM to interpret the request generously and make opinionated design choices.
+
+### Implementation
+
+**In `server/routes.ts`, in the GENERATE mode (the `else` block), add prompt enrichment BEFORE building the messages array:**
+
+Add this code right after the `else {` for generate mode:
+
+```ts
+// Enrich vague prompts
+let enrichedPrompt = prompt;
+const isVague = prompt.trim().split(/\s+/).length < 12 && !prompt.includes("button") && !prompt.includes("color") && !prompt.includes("layout") && !prompt.includes("api") && !prompt.includes("fetch");
+
+if (isVague) {
+  enrichedPrompt = `The user said: "${prompt}"
+
+This is a brief request. Make OPINIONATED creative decisions:
+- Choose a specific, beautiful color palette (not just generic dark blue)
+- Add thoughtful micro-interactions and animations
+- Include realistic sample data (real city names, real-sounding metrics, etc.)
+- Add a descriptive title bar/header to the widget
+- Make it feel polished and premium — like a widget in a $50/month SaaS app
+- If the concept is ambiguous, pick the most interesting interpretation
+- Build it COMPLETE and WORKING — don't leave anything as a placeholder
+
+Build this widget now:`;
+}
+```
+
+Then change the user message in the generate messages array from:
+```ts
+{ role: "user", content: prompt }
+```
+To:
+```ts
+{ role: "user", content: enrichedPrompt }
+```
+
+---
+
+## Summary of all files changed
+
+### `client/src/components/ai-widget-builder.tsx`
+- FIX 1: Debounced iframe preview (new state, ref, helper functions, updated streaming callbacks, updated iframe srcDoc)
+- FIX 4: Refinement iteration loop (replace entire else block in generateWidget)
+- FIX 7: AbortController race condition (one-line addition)
+
+### `server/routes.ts` — `/api/ai/generate-widget` endpoint
+- FIX 2: Updated baseConstraints to remove localStorage references and update sandbox description
+- FIX 6: Removed dead "review" mode branch
+- FIX 8: Added common mistakes and output checklist to generate prompt
+- FIX 10: Added vague prompt enrichment before generation
+
+### `server/routes.ts` — `/api/ai/critique-widget` endpoint
+- FIX 3: Added `response_format: { type: "json_object" }` and improved fallback handling
+- FIX 9: Replaced critique system prompt with more focused version
+
+### `client/src/components/custom-widget.tsx`
+- FIX 2: Changed sandbox to `allow-scripts` only
+- FIX 5: Added error bridge to wrappedCode useMemo
+
+---
+
+## Testing checklist after applying fixes
+
+1. **Generate a simple widget** ("pomodoro timer") — verify no flickering during streaming, preview updates smoothly
+2. **Generate a vague widget** ("weather widget") — verify it makes creative decisions and produces a polished result
+3. **Refine a widget** ("make it blue", "add a reset button") — verify changes are applied without breaking existing features
+4. **Check iframe security** — open browser devtools, verify the iframe does NOT have access to parent localStorage
+5. **Check critique works** — look at server logs, verify critique returns valid JSON with real scores
+6. **Test error visibility** — intentionally break a widget's JS, verify error banner appears
+7. **Add widget to dashboard** — verify it renders correctly in custom-widget.tsx with the updated sandbox
+8. **Test abort** — start generation, click Stop, verify it stops cleanly and you can start a new generation

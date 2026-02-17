@@ -1666,10 +1666,12 @@ Today's date is ${today}.`,
       res.flushHeaders();
 
       const baseConstraints = `TECHNICAL CONSTRAINTS:
-- This widget runs in a sandboxed iframe with allow-scripts and allow-same-origin.
-- You CAN use fetch(), XMLHttpRequest, localStorage, and sessionStorage.
+- This widget runs in a sandboxed iframe with sandbox="allow-scripts" ONLY.
+- localStorage and sessionStorage are NOT available (no allow-same-origin).
+- You CAN use fetch(), XMLHttpRequest to load external data.
 - You CAN load external CDN libraries: Chart.js, D3.js, Font Awesome, Google Fonts, animate.css, axios, moment.js, etc. via <script src="https://cdn.jsdelivr.net/..."> or https://cdnjs.cloudflare.com.
 - You CANNOT access the parent page's DOM or data. Do NOT try to read window.parent properties or manipulate the parent page.
+- For persisting data (API keys, user settings), use in-memory JavaScript variables with a setup UI that asks on each load, OR use a simple closure pattern. Do NOT use localStorage.
 - Target container: 250-800px wide, 200-500px tall. MUST be fully responsive.
 
 CRITICAL JAVASCRIPT RULES (follow these exactly):
@@ -1679,15 +1681,15 @@ CRITICAL JAVASCRIPT RULES (follow these exactly):
 4. NEVER use onclick="functionName()" inline attributes. ALWAYS use addEventListener or document.getElementById().addEventListener().
 5. NEVER define functions and leave them uncalled. Every function must be invoked where appropriate.
 6. If using fetch() for API data, ALWAYS include proper error handling with try/catch or .catch(), and show a user-friendly message on failure.
-7. If an API key is needed, include a settings/config section in the widget UI where the user can paste their API key, save it to localStorage, and the widget uses it from there.
+7. If an API key is needed, include a settings/config section in the widget UI where the user can paste their API key. Store it in a JavaScript closure variable (NOT localStorage). Re-prompt on each page load.
 8. For API calls, use HTTPS endpoints. Handle CORS issues by noting them in the UI if they occur.
 9. Test your logic mentally: trace through every user interaction and verify the code handles it.
 
 API KEY PATTERN (use when the widget needs an external API):
-- On first load, check localStorage for the API key
-- If no key found, show a setup screen with an input field and "Save Key" button
-- When key is saved, store in localStorage and immediately load data
+- On first load, show a setup screen with an input field and "Save Key" button
+- When key is saved, store in a JavaScript variable (closure) and immediately load data
 - Show a small gear/settings icon to change the key later
+- The key will need to be re-entered each time the page is refreshed (no localStorage available)
 - NEVER hardcode API keys
 
 DATA FETCHING PATTERN:
@@ -1695,7 +1697,7 @@ DATA FETCHING PATTERN:
 - Show a loading spinner/skeleton while data loads
 - Show clear error messages if fetch fails
 - If data needs refreshing, use setInterval and show "Last updated: X" timestamp
-- Cache data in localStorage with a timestamp to avoid excessive API calls
+- Keep fetched data in JavaScript variables (no localStorage available)
 
 QUALITY REQUIREMENTS:
 1. Start with <!DOCTYPE html>. Include complete <html>, <head> (with <title>), and <body>.
@@ -1711,33 +1713,7 @@ QUALITY REQUIREMENTS:
 
       let messages: { role: "system" | "user" | "assistant"; content: string }[] = [];
 
-      if (mode === "review") {
-        messages = [
-          {
-            role: "system",
-            content: `You are a senior front-end engineer doing a thorough quality review of HTML widget code. Your job is to take the code and make it PRODUCTION-QUALITY.
-
-OUTPUT FORMAT: Only the complete, improved HTML code. No explanations, no markdown fences, no comments about changes. Start directly with <!DOCTYPE html>.
-
-REVIEW AND FIX ALL OF THESE:
-- Fix any JavaScript bugs, missing event listeners, broken logic, undefined variables, or runtime errors
-- Ensure ALL interactive elements actually work (buttons do things, inputs process data, timers count)
-- If fetch/API calls are present, ensure they have proper error handling, loading states, and actually work
-- If an API key is needed, ensure there's a UI for the user to enter it (stored in localStorage)
-- Ensure all JavaScript is in a <script> tag at the END of <body>, after all HTML elements
-- Make responsive for 250-800px containers
-- Ensure dark-friendly colors (no white backgrounds)
-- Add a descriptive <title> tag
-- Ensure no content overflow or scrollbar issues
-
-${baseConstraints}
-
-THE CODE TO REVIEW AND IMPROVE:
-${currentCode}`
-          },
-          { role: "user", content: prompt }
-        ];
-      } else if (mode === "refine") {
+      if (mode === "refine") {
         const userRequestHistory: string[] = [];
         if (Array.isArray(conversationHistory)) {
           for (const msg of conversationHistory) {
@@ -1765,6 +1741,7 @@ CRITICAL RULES:
 - Never simplify, remove, or replace features that were already working.
 - The current code below is the GROUND TRUTH of what the widget looks like. Your job is to make targeted edits to it.
 - IMPORTANT: If fixing JavaScript issues, make sure ALL scripts are at the END of <body> after all HTML elements, ALL event listeners are properly attached, and ALL functions are actually called.
+- IMPORTANT: Do NOT use localStorage or sessionStorage - they are not available in sandbox="allow-scripts" mode. Use in-memory variables instead.
 
 ${baseConstraints}
 
@@ -1819,9 +1796,12 @@ STRUCTURE YOUR CODE EXACTLY LIKE THIS:
 </html>
 \`\`\`
 
+HANDLING VAGUE PROMPTS:
+If the user's description is vague or short (e.g. "a timer", "todo list", "weather"), interpret it generously and build a fully-featured, polished version. Add sensible features, professional styling, and interactivity. Make reasonable assumptions about what would make the widget useful and complete.
+
 BEFORE YOU WRITE CODE, plan your approach:
 1. What external API or data source does this need? What's the endpoint URL and format?
-2. Does the user need to provide an API key? If so, implement the localStorage key management pattern.
+2. Does the user need to provide an API key? If so, implement the in-memory key management pattern (no localStorage).
 3. What are ALL the interactive elements and their exact behaviors?
 4. What states does the widget have? (loading, error, empty, populated, settings)
 5. What's the visual layout? (header with title, main content, controls/footer)
@@ -1839,7 +1819,7 @@ Then write the COMPLETE, FULLY WORKING code. Every button must do something. Eve
         stream: true,
         messages,
         max_tokens: 16000,
-        temperature: mode === "review" ? 0.2 : mode === "refine" ? 0.3 : 0.6,
+        temperature: mode === "refine" ? 0.3 : 0.6,
       });
 
       for await (const chunk of stream) {
@@ -1891,8 +1871,10 @@ Then write the COMPLETE, FULLY WORKING code. Every button must do something. Eve
 
 The user asked for: "${userPrompt || "a widget"}"
 
+IMPORTANT CONTEXT: This widget runs in sandbox="allow-scripts" ONLY. localStorage and sessionStorage are NOT available. If the code uses localStorage, that IS a critical bug.
+
 Check these categories:
-1. FUNCTIONALITY: Do all buttons/inputs/interactive elements have working JavaScript event listeners? Are there undefined variables, missing functions, or runtime errors? Are scripts placed AFTER the HTML elements they reference? Are all functions actually called (not just defined)?
+1. FUNCTIONALITY: Do all buttons/inputs/interactive elements have working JavaScript event listeners? Are there undefined variables, missing functions, or runtime errors? Are scripts placed AFTER the HTML elements they reference? Are all functions actually called (not just defined)? Does the code try to use localStorage/sessionStorage (which won't work)?
 2. DATA/API: If the widget needs external data (APIs, fetch calls), are they properly implemented with error handling? Is there a way for the user to enter API keys if needed? Do fetch URLs look correct?
 3. VISUAL: Is the layout broken? Is text unreadable? Are colors clashing? Is spacing extremely off?
 4. COMPLETENESS: Does it actually fulfill what the user asked for? Are major requested features missing or non-functional?
@@ -1904,7 +1886,7 @@ CRITICAL: For each issue, the "fix" field must contain SPECIFIC, ACTIONABLE code
 IMPORTANT: Only report REAL issues. If the code looks good and works, say it passes.
 Minor style preferences are NOT issues. "Could be better" is NOT an issue.
 
-Respond with ONLY valid JSON (no markdown, no code fences):
+You MUST respond with valid JSON matching this schema:
 {
   "passed": true/false,
   "score": 1-10,
@@ -1922,6 +1904,7 @@ Only set passed=false if there are critical or major issues. Minor issues alone 
         ],
         max_tokens: 2000,
         temperature: 0.1,
+        response_format: { type: "json_object" },
       });
 
       const content = response.choices[0]?.message?.content || "";

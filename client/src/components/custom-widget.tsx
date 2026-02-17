@@ -30,15 +30,22 @@ export function CustomWidget({ content, onContentChange }: CustomWidgetProps) {
 
   const wrappedCode = useMemo(() => {
     if (!code) return "";
+    const errorBridge = `<script>
+window.onerror = function(msg, src, line) {
+  try { parent.postMessage({ type: "iframe-error", source: "custom-widget", message: msg + (line ? " (line " + line + ")" : "") }, "*"); } catch(e) {}
+  return true;
+};
+</script>`;
     const trimmed = code.trim();
     if (trimmed.toLowerCase().startsWith("<!doctype") || trimmed.toLowerCase().startsWith("<html")) {
-      return code;
+      return code.replace(/<head([^>]*)>/i, `<head$1>${errorBridge}`);
     }
     return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  ${errorBridge}
   <style>
     * { box-sizing: border-box; }
     body { 
@@ -93,7 +100,7 @@ ${code}
     <div className="h-full relative group" data-testid="custom-widget-container">
       <iframe
         srcDoc={wrappedCode}
-        sandbox="allow-scripts allow-same-origin"
+        sandbox="allow-scripts"
         className="w-full h-full border-0 rounded"
         title={template?.name || content?.templateName || "Custom Widget"}
         data-testid="iframe-custom-widget"
