@@ -26,7 +26,6 @@ import { CrmPipelineWidget } from "@/components/crm-pipeline-widget";
 import { TimeBlocksWidget } from "@/components/time-blocks-widget";
 import { ExpenseTrackerWidget } from "@/components/expense-tracker-widget";
 import { MeetingPrepWidget } from "@/components/meeting-prep-widget";
-import { GoogleCalendarWidget } from "@/components/google-calendar-widget";
 import { AiChatWidget } from "@/components/ai-chat-widget";
 import { TimerWidget } from "@/components/timer-widget";
 import { HunterAI } from "@/components/hunter-ai";
@@ -75,7 +74,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Widget, WidgetType, LayoutItem, NotesContent, PrioritiesContent, RevenueContent, IframeContent, CodeContent, GoogleCalendarContent, AiChatContent, TimerContent, Desktop, FocusContract, AppSettings, ExitGuardMode } from "@shared/schema";
+import type { Widget, WidgetType, LayoutItem, NotesContent, PrioritiesContent, RevenueContent, IframeContent, CodeContent, AiChatContent, TimerContent, Desktop, FocusContract, AppSettings, ExitGuardMode } from "@shared/schema";
 
 type GridLayoutItem = {
   i: string;
@@ -665,10 +664,9 @@ export default function Dashboard() {
         return <MeetingPrepWidget />;
       case "google_calendar":
         return (
-          <GoogleCalendarWidget
-            content={(widget.content as GoogleCalendarContent) || {}}
-            onContentChange={(content) => handleContentChange(widget, content)}
-          />
+          <div className="flex items-center justify-center h-full text-sm text-muted-foreground p-4 text-center">
+            Google Calendar widget has been removed. You can delete this widget.
+          </div>
         );
       case "ai_chat":
         return (

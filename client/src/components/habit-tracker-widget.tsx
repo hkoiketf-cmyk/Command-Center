@@ -238,10 +238,33 @@ export function HabitTrackerWidget() {
     );
   };
 
+  const getMonthCount = (habitId: string): { completed: number; total: number } => {
+    const year = refDate.getFullYear();
+    const month = refDate.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const todayDate = new Date();
+    let completed = 0;
+    let total = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(year, month, d);
+      if (date <= todayDate) {
+        total++;
+        if (entrySet.has(`${habitId}:${formatDate(date)}`)) completed++;
+      }
+    }
+    return { completed, total };
+  };
+
   const renderMonthView = (habit: Habit) => {
     const weeks = getMonthDates(refDate.getFullYear(), refDate.getMonth());
+    const { completed, total } = getMonthCount(habit.id);
+    const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
     return (
-      <div className="space-y-1">
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between gap-2 px-0.5">
+          <span className="text-[10px] text-muted-foreground">{completed}/{total} days</span>
+          <span className="text-[10px] font-medium" style={{ color: habit.color }}>{pct}%</span>
+        </div>
         <div className="grid grid-cols-7 gap-0.5">
           {DAY_LABELS_SHORT.map((d, i) => (
             <div key={i} className="text-center text-[10px] text-muted-foreground font-medium">{d}</div>
@@ -258,12 +281,14 @@ export function HabitTrackerWidget() {
               return (
                 <button
                   key={date}
-                  className={`relative flex flex-col items-center justify-center rounded-sm aspect-square transition-all text-[9px] ${
+                  className={`flex items-center justify-center rounded-sm aspect-square transition-all text-[9px] ${
                     isToday ? "ring-1.5 ring-primary/50" : ""
                   } ${isFuture ? "opacity-30 cursor-default" : "cursor-pointer"}`}
                   style={{
-                    backgroundColor: isDone ? habit.color + "20" : "transparent",
+                    backgroundColor: isDone ? habit.color + "40" : "transparent",
                     border: `1px solid ${isDone ? habit.color : "hsl(var(--border))"}`,
+                    color: isDone ? habit.color : undefined,
+                    fontWeight: isDone ? 600 : 400,
                   }}
                   onClick={() => {
                     if (!isFuture) toggleEntry.mutate({ habitId: habit.id, date, exists: isDone });
@@ -272,8 +297,7 @@ export function HabitTrackerWidget() {
                   title={date}
                   data-testid={`habit-cell-${habit.id}-${date}`}
                 >
-                  <span className="text-muted-foreground leading-none">{dayNum}</span>
-                  {isDone && <Check className="h-2.5 w-2.5 absolute" style={{ color: habit.color }} />}
+                  <span className={isDone ? "" : "text-muted-foreground"} style={isDone ? { color: habit.color } : {}}>{dayNum}</span>
                 </button>
               );
             })}
@@ -283,41 +307,73 @@ export function HabitTrackerWidget() {
     );
   };
 
+  const getYearCount = (habitId: string): { completed: number; total: number } => {
+    const year = refDate.getFullYear();
+    const todayDate = new Date();
+    let completed = 0;
+    let total = 0;
+    for (let m = 0; m < 12; m++) {
+      const daysInMonth = new Date(year, m + 1, 0).getDate();
+      for (let d = 1; d <= daysInMonth; d++) {
+        const date = new Date(year, m, d);
+        if (date <= todayDate) {
+          total++;
+          if (entrySet.has(`${habitId}:${formatDate(date)}`)) completed++;
+        }
+      }
+    }
+    return { completed, total };
+  };
+
   const renderYearView = (habit: Habit) => {
     const months = getYearMonths(refDate.getFullYear());
+    const yearCount = getYearCount(habit.id);
+    const yearPct = yearCount.total > 0 ? Math.round((yearCount.completed / yearCount.total) * 100) : 0;
     return (
-      <div className="grid grid-cols-4 gap-2">
-        {months.map(({ month, year }) => {
-          const daysInMonth = new Date(year, month + 1, 0).getDate();
-          let completed = 0;
-          for (let d = 1; d <= daysInMonth; d++) {
-            const dateStr = formatDate(new Date(year, month, d));
-            if (entrySet.has(`${habit.id}:${dateStr}`)) completed++;
-          }
-          const pct = Math.round((completed / daysInMonth) * 100);
-          const isCurrent = month === new Date().getMonth() && year === new Date().getFullYear();
-          return (
-            <button
-              key={month}
-              className={`flex flex-col items-center gap-0.5 p-1.5 rounded-md border transition-all ${
-                isCurrent ? "ring-1 ring-primary/50" : ""
-              }`}
-              style={{
-                backgroundColor: completed > 0 ? habit.color + Math.min(Math.round(pct * 0.6), 60).toString(16).padStart(2, "0") : "transparent",
-                borderColor: completed > 0 ? habit.color : "hsl(var(--border))",
-              }}
-              onClick={() => {
-                setRefDate(new Date(year, month, 1));
-                setViewMode("month");
-              }}
-              data-testid={`habit-year-${habit.id}-${month}`}
-            >
-              <span className="text-[10px] font-medium">{MONTH_NAMES[month]}</span>
-              <span className="text-[9px] text-muted-foreground">{completed}/{daysInMonth}</span>
-              {pct >= 80 && <Check className="h-2.5 w-2.5" style={{ color: habit.color }} />}
-            </button>
-          );
-        })}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between gap-2 px-0.5">
+          <span className="text-[10px] text-muted-foreground">{yearCount.completed}/{yearCount.total} days</span>
+          <span className="text-[10px] font-medium" style={{ color: habit.color }}>{yearPct}%</span>
+        </div>
+        <div className="grid grid-cols-4 gap-2">
+          {months.map(({ month, year }) => {
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const todayDate = new Date();
+            let completed = 0;
+            let countableDays = 0;
+            for (let d = 1; d <= daysInMonth; d++) {
+              const date = new Date(year, month, d);
+              if (date <= todayDate) {
+                countableDays++;
+                if (entrySet.has(`${habit.id}:${formatDate(date)}`)) completed++;
+              }
+            }
+            const pct = countableDays > 0 ? Math.round((completed / countableDays) * 100) : 0;
+            const isCurrent = month === new Date().getMonth() && year === new Date().getFullYear();
+            const isFutureMonth = new Date(year, month, 1) > todayDate;
+            return (
+              <button
+                key={month}
+                className={`flex flex-col items-center gap-0.5 p-1.5 rounded-md border transition-all ${
+                  isCurrent ? "ring-1 ring-primary/50" : ""
+                } ${isFutureMonth ? "opacity-30" : ""}`}
+                style={{
+                  backgroundColor: completed > 0 ? habit.color + Math.min(Math.round(pct * 0.6), 60).toString(16).padStart(2, "0") : "transparent",
+                  borderColor: completed > 0 ? habit.color : "hsl(var(--border))",
+                }}
+                onClick={() => {
+                  setRefDate(new Date(year, month, 1));
+                  setViewMode("month");
+                }}
+                data-testid={`habit-year-${habit.id}-${month}`}
+              >
+                <span className="text-[10px] font-medium">{MONTH_NAMES[month]}</span>
+                <span className="text-[9px] text-muted-foreground">{completed}/{countableDays}</span>
+                {pct > 0 && <span className="text-[9px] font-medium" style={{ color: habit.color }}>{pct}%</span>}
+              </button>
+            );
+          })}
+        </div>
       </div>
     );
   };

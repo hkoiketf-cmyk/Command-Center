@@ -115,12 +115,6 @@ const widgetOptions: { type: WidgetType; label: string; description: string; ico
     icon: Users,
   },
   {
-    type: "google_calendar",
-    label: "Google Calendar",
-    description: "Embed your Google Calendar view",
-    icon: Calendar,
-  },
-  {
     type: "timer",
     label: "Timer",
     description: "Countdown or count-up timer with sound alerts",
