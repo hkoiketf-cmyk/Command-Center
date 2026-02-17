@@ -172,6 +172,64 @@ export function HabitTrackerWidget() {
     return days > 0 ? Math.round((completed / days) * 100) : 0;
   };
 
+  const getPeriodStreak = (habitId: string): number => {
+    if (viewMode === "week") {
+      const dates = getWeekDates(refDate);
+      let streak = 0;
+      const todayStr = formatDate(new Date());
+      const validDates = dates.filter(d => d <= todayStr).reverse();
+      for (const date of validDates) {
+        if (entrySet.has(`${habitId}:${date}`)) {
+          streak++;
+        } else {
+          break;
+        }
+      }
+      return streak;
+    } else if (viewMode === "month") {
+      const year = refDate.getFullYear();
+      const month = refDate.getMonth();
+      const todayDate = new Date();
+      const lastDay = new Date(year, month + 1, 0).getDate();
+      let streak = 0;
+      let startDay = lastDay;
+      const endOfMonth = new Date(year, month, lastDay);
+      if (endOfMonth > todayDate) {
+        startDay = todayDate.getDate();
+      }
+      for (let d = startDay; d >= 1; d--) {
+        const dateStr = formatDate(new Date(year, month, d));
+        if (new Date(year, month, d) > todayDate) continue;
+        if (entrySet.has(`${habitId}:${dateStr}`)) {
+          streak++;
+        } else {
+          break;
+        }
+      }
+      return streak;
+    } else {
+      return getStreak(habitId);
+    }
+  };
+
+  const getPeriodTotal = (habitId: string): number => {
+    if (viewMode === "week") {
+      const dates = getWeekDates(refDate);
+      const todayStr = formatDate(new Date());
+      return dates.filter(d => d <= todayStr && entrySet.has(`${habitId}:${d}`)).length;
+    } else if (viewMode === "month") {
+      return getMonthCount(habitId).completed;
+    } else {
+      return getYearCount(habitId).completed;
+    }
+  };
+
+  const getPeriodLabel = (): string => {
+    if (viewMode === "week") return "this week";
+    if (viewMode === "month") return MONTH_NAMES[refDate.getMonth()];
+    return `${refDate.getFullYear()}`;
+  };
+
   const activeHabit = selectedHabitId ? habits.find(h => h.id === selectedHabitId) : null;
   const displayHabits = activeHabit ? [activeHabit] : habits;
 
@@ -443,6 +501,8 @@ export function HabitTrackerWidget() {
       <div className="flex-1 overflow-y-auto space-y-3">
         {displayHabits.map((habit) => {
           const streak = getStreak(habit.id);
+          const periodStreak = getPeriodStreak(habit.id);
+          const periodTotal = getPeriodTotal(habit.id);
           const longestStreak = getLongestStreak(habit.id);
           const milestone = getStreakMilestone(streak);
           const completionRate = getCompletionRate(habit.id, 30);
@@ -506,12 +566,12 @@ export function HabitTrackerWidget() {
                   <div className="flex items-center gap-1 shrink-0">
                     <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-0.5" data-testid={`badge-total-${habit.id}`}>
                       <Check className="h-3 w-3" style={{ color: habit.color }} />
-                      {entries.filter(e => e.habitId === habit.id).length}d
+                      {periodTotal}d
                     </Badge>
-                    {streak > 0 && (
+                    {periodStreak > 0 && (
                       <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-0.5" data-testid={`badge-streak-${habit.id}`}>
                         <Flame className="h-3 w-3" style={{ color: habit.color }} />
-                        {streak}
+                        {periodStreak}
                       </Badge>
                     )}
                     <Button
@@ -554,6 +614,7 @@ export function HabitTrackerWidget() {
               {viewMode === "year" && renderYearView(habit)}
 
               <div className="flex items-center gap-3 text-[10px] text-muted-foreground pt-0.5 flex-wrap">
+                <span data-testid={`stat-streak-${habit.id}`}>Streak: {streak}d</span>
                 <span data-testid={`stat-best-${habit.id}`}>Best: {longestStreak}d</span>
                 <span data-testid={`stat-rate-${habit.id}`}>30d: {completionRate}%</span>
               </div>
