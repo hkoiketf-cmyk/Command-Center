@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ChevronDown, ChevronUp, X, GripVertical, Palette, Pin, MoreVertical, ArrowUp, ArrowDown, GripHorizontal, Info } from "lucide-react";
+import { ChevronDown, ChevronUp, X, GripVertical, Palette, Pin, MoreVertical, ArrowUp, ArrowDown, GripHorizontal, Info, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -181,6 +181,14 @@ const WIDGET_INFO: Record<WidgetType, { description: string; tips: string[] }> =
       "Click the gear icon to change timer settings",
     ],
   },
+  custom: {
+    description: "A custom widget built from HTML/CSS/JavaScript code. Can be created by admins or generated using the AI Widget Builder.",
+    tips: [
+      "Click the edit button to modify the widget code",
+      "Custom widgets run in a sandboxed iframe for security",
+      "Use the AI Widget Builder to generate widgets from a description",
+    ],
+  },
 };
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
@@ -293,6 +301,7 @@ interface WidgetWrapperProps {
   pinnedAllDesktops?: boolean;
   onTogglePin?: (pinned: boolean) => void;
   showPinOption?: boolean;
+  onDuplicate?: () => void;
   children: React.ReactNode;
   className?: string;
   isMobile?: boolean;
@@ -316,6 +325,7 @@ export function WidgetWrapper({
   pinnedAllDesktops,
   onTogglePin,
   showPinOption,
+  onDuplicate,
   children,
   className,
   isMobile,
@@ -551,7 +561,7 @@ export function WidgetWrapper({
                 <ArrowDown className={cn("h-4 w-4", customIconClass)} />
               </Button>
             )}
-            {showPinOption && onTogglePin && (
+            {(showPinOption || onDuplicate) && (
               <DropdownMenu modal={true}>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -566,14 +576,26 @@ export function WidgetWrapper({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="touch-manipulation">
-                  <DropdownMenuItem
-                    onClick={() => onTogglePin(!pinnedAllDesktops)}
-                    data-testid="button-toggle-pin"
-                    className="touch-manipulation"
-                  >
-                    <Pin className={cn("h-4 w-4 mr-2", pinnedAllDesktops && "text-primary")} />
-                    {pinnedAllDesktops ? "Unpin from all desktops" : "Pin to all desktops"}
-                  </DropdownMenuItem>
+                  {onDuplicate && (
+                    <DropdownMenuItem
+                      onClick={onDuplicate}
+                      data-testid="button-duplicate-widget"
+                      className="touch-manipulation"
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      Duplicate widget
+                    </DropdownMenuItem>
+                  )}
+                  {showPinOption && onTogglePin && (
+                    <DropdownMenuItem
+                      onClick={() => onTogglePin(!pinnedAllDesktops)}
+                      data-testid="button-toggle-pin"
+                      className="touch-manipulation"
+                    >
+                      <Pin className={cn("h-4 w-4 mr-2", pinnedAllDesktops && "text-primary")} />
+                      {pinnedAllDesktops ? "Unpin from all desktops" : "Pin to all desktops"}
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}

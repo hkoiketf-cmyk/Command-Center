@@ -1,8 +1,18 @@
 import { useState, useEffect } from "react";
-import { ExternalLink, RefreshCw } from "lucide-react";
+import { ExternalLink, RefreshCw, Globe } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+
 import type { IframeContent } from "@shared/schema";
+
+const QUICK_EMBEDS = [
+  { name: "Notion", url: "https://notion.so" },
+  { name: "Trello", url: "https://trello.com" },
+  { name: "Figma", url: "https://figma.com" },
+  { name: "Google Docs", url: "https://docs.google.com" },
+  { name: "Airtable", url: "https://airtable.com" },
+  { name: "Miro", url: "https://miro.com" },
+];
 
 interface IframeWidgetProps {
   content: IframeContent;
@@ -77,8 +87,28 @@ export function IframeWidget({ content, onContentChange }: IframeWidgetProps) {
             data-testid="iframe-embedded"
           />
         ) : (
-          <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
-            Enter a URL to embed external content
+          <div className="h-full flex flex-col items-center justify-center gap-3 p-4" data-testid="iframe-empty-state">
+            <Globe className="h-8 w-8 text-muted-foreground/40" />
+            <div className="text-center">
+              <p className="text-sm font-medium text-muted-foreground">Embed any web app</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">Paste a URL above, or try one of these:</p>
+            </div>
+            <div className="flex flex-wrap gap-1.5 justify-center">
+              {QUICK_EMBEDS.map((embed) => (
+                <Button
+                  key={embed.name}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setUrl(embed.url);
+                    onContentChange({ url: embed.url });
+                  }}
+                  data-testid={`button-quick-embed-${embed.name.toLowerCase().replace(/\s+/g, "-")}`}
+                >
+                  {embed.name}
+                </Button>
+              ))}
+            </div>
           </div>
         )}
       </div>

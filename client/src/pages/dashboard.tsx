@@ -446,6 +446,38 @@ export default function Dashboard() {
     },
   });
 
+  const duplicateWidget = useMutation({
+    mutationFn: async (widget: Widget) => {
+      if (!activeDesktopId) throw new Error("No active desktop");
+      const nextY = widgets.length > 0
+        ? Math.max(...widgets.map(w => ((w.layout as LayoutItem)?.y || 0) + ((w.layout as LayoutItem)?.h || 4)))
+        : 0;
+      const oldLayout = widget.layout as LayoutItem;
+      const layout: LayoutItem = {
+        i: crypto.randomUUID(),
+        x: 0,
+        y: nextY,
+        w: oldLayout?.w || 4,
+        h: oldLayout?.h || 4,
+        minW: oldLayout?.minW || 1,
+        minH: oldLayout?.minH || 3,
+      };
+      return apiRequest("POST", "/api/widgets", {
+        type: widget.type,
+        title: `${widget.title} (copy)`,
+        content: widget.content || {},
+        collapsed: false,
+        layout,
+        desktopId: activeDesktopId,
+        cardColor: widget.cardColor || null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/widgets", activeDesktopId] });
+      toast({ title: "Widget duplicated" });
+    },
+  });
+
   const updateWidgetLayout = useMutation({
     mutationFn: async (updates: { id: string; layout: LayoutItem }[]) => {
       await Promise.all(
@@ -1252,6 +1284,7 @@ export default function Dashboard() {
                   pinnedAllDesktops={widget.pinnedAllDesktops || false}
                   onTogglePin={(pinned) => handlePinToggle(widget, pinned)}
                   showPinOption={widget.type === "context_mode"}
+                  onDuplicate={() => duplicateWidget.mutate(widget)}
                   isMobile
                   onMoveUp={() => handleMobileReorder(widget.id, "up")}
                   onMoveDown={() => handleMobileReorder(widget.id, "down")}
@@ -1296,6 +1329,7 @@ export default function Dashboard() {
                   pinnedAllDesktops={widget.pinnedAllDesktops || false}
                   onTogglePin={(pinned) => handlePinToggle(widget, pinned)}
                   showPinOption={widget.type === "context_mode"}
+                  onDuplicate={() => duplicateWidget.mutate(widget)}
                 >
                   {renderWidgetContent(widget)}
                 </WidgetWrapper>
