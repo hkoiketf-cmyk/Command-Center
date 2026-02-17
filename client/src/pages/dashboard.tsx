@@ -708,6 +708,7 @@ export default function Dashboard() {
         return (
           <CustomWidget
             content={(widget.content as CustomWidgetContent) || {}}
+            onContentChange={(content) => handleContentChange(widget, content)}
           />
         );
       default:

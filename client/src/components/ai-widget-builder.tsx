@@ -10,6 +10,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 interface AiWidgetBuilderProps {
   onAddWidget: (code: string, title: string) => void;
   onClose: () => void;
+  initialCode?: string;
+  initialTitle?: string;
 }
 
 const PROMPT_SUGGESTIONS = [
@@ -21,14 +23,14 @@ const PROMPT_SUGGESTIONS = [
   "A mini habit streak counter with fire animations",
 ];
 
-export function AiWidgetBuilder({ onAddWidget, onClose }: AiWidgetBuilderProps) {
+export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitle }: AiWidgetBuilderProps) {
   const [prompt, setPrompt] = useState("");
-  const [generatedCode, setGeneratedCode] = useState("");
-  const [widgetTitle, setWidgetTitle] = useState("");
+  const [generatedCode, setGeneratedCode] = useState(initialCode || "");
+  const [widgetTitle, setWidgetTitle] = useState(initialTitle || "");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
+  const [showPreview, setShowPreview] = useState(!!initialCode);
   const [error, setError] = useState("");
-  const [history, setHistory] = useState<{ role: string; text: string }[]>([]);
+  const [generationPhase, setGenerationPhase] = useState("");
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [showApiKeyForm, setShowApiKeyForm] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -67,6 +69,67 @@ export function AiWidgetBuilder({ onAddWidget, onClose }: AiWidgetBuilderProps) 
     };
   }, []);
 
+  const streamFromEndpoint = async (body: Record<string, unknown>, signal: AbortSignal): Promise<string> => {
+    const response = await fetch("/api/ai/generate-widget", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal,
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || "Failed to generate widget");
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error("Failed to read response");
+
+    let fullText = "";
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("data: ")) {
+          const data = trimmed.slice(6);
+          if (data === "[DONE]") continue;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.content) {
+              fullText += parsed.content;
+              setGeneratedCode(fullText);
+            }
+            if (parsed.error) {
+              throw new Error(parsed.error);
+            }
+          } catch (e: any) {
+            if (e.message && !e.message.includes("JSON")) throw e;
+          }
+        }
+      }
+    }
+
+    return fullText;
+  };
+
+  const cleanCode = (raw: string): string => {
+    let code = raw.trim();
+    const fenceMatch = code.match(/```(?:html)?\s*\n?([\s\S]*?)```/);
+    if (fenceMatch) {
+      code = fenceMatch[1].trim();
+    }
+    return code;
+  };
+
   const generateWidget = useCallback(async (userPrompt: string) => {
     if (!userPrompt.trim() || isGenerating) return;
 
@@ -74,90 +137,48 @@ export function AiWidgetBuilder({ onAddWidget, onClose }: AiWidgetBuilderProps) 
     setError("");
     setShowPreview(false);
 
-    setHistory(prev => [...prev, { role: "user", text: userPrompt }]);
-
     try {
       abortRef.current = new AbortController();
+      const signal = abortRef.current.signal;
 
-      const response = await fetch("/api/ai/generate-widget", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: userPrompt,
-          currentCode: generatedCode || undefined,
-        }),
-        signal: abortRef.current.signal,
-      });
+      setGenerationPhase("Building your widget...");
+      const rawCode = await streamFromEndpoint({
+        prompt: userPrompt,
+        currentCode: generatedCode || undefined,
+        mode: "generate",
+      }, signal);
 
-      if (!response.ok) {
-        const err = await response.json();
-        setError(err.error || "Failed to generate widget");
-        setIsGenerating(false);
-        return;
-      }
+      let finalCode = cleanCode(rawCode);
 
-      const reader = response.body?.getReader();
-      if (!reader) {
-        setError("Failed to read response");
-        setIsGenerating(false);
-        return;
-      }
+      setGenerationPhase("Reviewing and improving...");
+      setGeneratedCode("");
+      const reviewedCode = await streamFromEndpoint({
+        prompt: `Review and improve this widget code. Fix any bugs, improve the visual design, ensure it's responsive and works well in a small container (300-600px wide). Make sure colors, typography, and spacing look polished and professional. Return the complete improved HTML code.`,
+        currentCode: finalCode,
+        mode: "review",
+      }, signal);
 
-      let fullCode = "";
-      const decoder = new TextDecoder();
-      let buffer = "";
+      finalCode = cleanCode(reviewedCode);
+      setGeneratedCode(finalCode);
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (trimmed.startsWith("data: ")) {
-            const data = trimmed.slice(6);
-            if (data === "[DONE]") continue;
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.content) {
-                fullCode += parsed.content;
-                setGeneratedCode(fullCode);
-              }
-              if (parsed.error) {
-                setError(parsed.error);
-              }
-            } catch {}
-          }
-        }
-      }
-
-      let cleanedCode = fullCode.trim();
-      const fenceMatch = cleanedCode.match(/```(?:html)?\s*\n?([\s\S]*?)```/);
-      if (fenceMatch) {
-        cleanedCode = fenceMatch[1].trim();
-      }
-      setGeneratedCode(cleanedCode);
-
-      if (!widgetTitle && cleanedCode) {
-        const titleMatch = cleanedCode.match(/<title>(.*?)<\/title>/i);
+      if (!widgetTitle && finalCode) {
+        const titleMatch = finalCode.match(/<title>(.*?)<\/title>/i);
         if (titleMatch) {
           setWidgetTitle(titleMatch[1]);
         } else {
-          const words = userPrompt.split(" ").slice(0, 4).join(" ");
+          const words = userPrompt.split(" ").slice(0, 5).join(" ");
           setWidgetTitle(words.charAt(0).toUpperCase() + words.slice(1));
         }
       }
 
-      setHistory(prev => [...prev, { role: "ai", text: "Widget generated successfully!" }]);
       setShowPreview(true);
       setPrompt("");
+      setGenerationPhase("");
     } catch (err: any) {
       if (err.name !== "AbortError") {
         setError(err.message || "Generation failed");
       }
+      setGenerationPhase("");
     } finally {
       setIsGenerating(false);
     }
@@ -187,9 +208,9 @@ export function AiWidgetBuilder({ onAddWidget, onClose }: AiWidgetBuilderProps) 
     setGeneratedCode("");
     setWidgetTitle("");
     setShowPreview(false);
-    setHistory([]);
     setPrompt("");
     setError("");
+    setGenerationPhase("");
   };
 
   const handleSaveApiKey = (e: React.FormEvent) => {
@@ -219,6 +240,8 @@ ${rawCode}
 </body>
 </html>`;
   };
+
+  const isEditMode = !!initialCode;
 
   return (
     <div className="flex flex-col h-full gap-4" data-testid="ai-widget-builder">
@@ -298,11 +321,13 @@ ${rawCode}
         )}
       </div>
 
-      {!generatedCode ? (
+      {!generatedCode && !isGenerating ? (
         <div className="flex flex-col items-center gap-4 py-2">
           <p className="text-sm text-muted-foreground text-center max-w-md">
-            Describe the widget you want and AI will build it for you.
-            You can iterate and refine until it's perfect.
+            {isEditMode 
+              ? "Your widget code was cleared. Use AI to rebuild or type in the prompt below."
+              : "Describe the widget you want and AI will build it for you. It generates the code, reviews it, and polishes it automatically."
+            }
           </p>
 
           {error && (
@@ -343,19 +368,28 @@ ${rawCode}
               disabled={!prompt.trim() || isGenerating || !hasKey}
               data-testid="button-generate-widget"
             >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Wand2 className="h-4 w-4 mr-2" />
-                  Generate Widget
-                </>
-              )}
+              <Wand2 className="h-4 w-4 mr-2" />
+              Generate Widget
             </Button>
           </form>
+        </div>
+      ) : isGenerating ? (
+        <div className="flex flex-col items-center justify-center gap-4 py-8 flex-1">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="text-center space-y-1">
+            <p className="text-sm font-medium">{generationPhase || "Generating..."}</p>
+            <p className="text-xs text-muted-foreground">AI is building and reviewing your widget</p>
+          </div>
+          {generatedCode && (
+            <div className="w-full max-w-md border rounded-lg overflow-hidden" style={{ height: "150px" }}>
+              <iframe
+                srcDoc={wrapCode(generatedCode)}
+                sandbox="allow-scripts"
+                className="w-full h-full border-0"
+                title="Widget Preview"
+              />
+            </div>
+          )}
         </div>
       ) : (
         <div className="flex flex-col gap-3 flex-1 min-h-0">
@@ -445,7 +479,7 @@ ${rawCode}
             data-testid="button-add-ai-widget"
           >
             <Check className="h-4 w-4 mr-2" />
-            Add to Dashboard
+            {isEditMode ? "Save Changes" : "Add to Dashboard"}
           </Button>
         </div>
       )}

@@ -1616,7 +1616,7 @@ Today's date is ${today}.`,
   app.post("/api/ai/generate-widget", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
-      const { prompt, currentCode } = req.body;
+      const { prompt, currentCode, mode } = req.body;
       if (!prompt || typeof prompt !== "string") {
         return res.status(400).json({ error: "A description of your widget is required." });
       }
@@ -1633,23 +1633,54 @@ Today's date is ${today}.`,
       res.setHeader("Connection", "keep-alive");
       res.flushHeaders();
 
-      const systemPrompt = `You are an expert web developer that creates self-contained HTML/CSS/JS widgets. The user will describe what they want, and you generate a single HTML document that works inside an iframe.
+      let systemPrompt: string;
 
-CRITICAL RULES:
-- Output ONLY the HTML code. No explanations, no markdown, no code fences. Just raw HTML.
-- The widget must be fully self-contained in a single HTML file.
-- Use inline <style> and <script> tags - no external dependencies unless from CDNs.
-- Allowed CDNs: Chart.js, D3.js, Font Awesome, Google Fonts, animate.css, or other popular CDNs.
-- The widget runs in a sandboxed iframe (allow-scripts only). No access to parent page, no localStorage, no fetch to external APIs.
-- Design for a small widget container (roughly 300-600px wide, 200-400px tall). Make it responsive.
-- Use modern CSS (flexbox, grid, custom properties). Make it visually polished.
-- Use a clean, modern design with good spacing, subtle shadows, and readable typography.
-- Default to a dark-friendly color scheme that works on any background (use semi-transparent backgrounds or dark cards).
-- Include interactive elements where appropriate (hover effects, animations, clickable items).
-- Always start with <!DOCTYPE html> and include complete <html>, <head>, and <body> tags.
-- If the user asks for data-driven widgets (charts, trackers, etc.), use realistic sample data.
+      if (mode === "review") {
+        systemPrompt = `You are a senior front-end engineer doing a thorough code review and improvement pass on an HTML widget. Your job is to take existing widget code and make it SIGNIFICANTLY better.
 
-${currentCode ? `The user's current widget code is:\n${currentCode}\n\nThey want you to modify or improve it based on their request.` : ""}`;
+OUTPUT RULES:
+- Output ONLY the complete, improved HTML code. No explanations, no markdown, no code fences. Just raw HTML starting with <!DOCTYPE html>.
+
+REVIEW CHECKLIST - Fix ALL of these:
+1. VISUAL DESIGN: Ensure professional look with proper spacing (min 16px padding), consistent border-radius, good color contrast, modern typography (use system-ui or import a clean Google Font like Inter/Poppins). No default browser styling should be visible.
+2. RESPONSIVE LAYOUT: Must work in 250px-800px width containers. Use flexbox/grid, not fixed widths. Use relative units (%, vw, rem) over fixed px where possible.
+3. COLOR SCHEME: Use a cohesive palette with a dark-friendly theme. Use CSS custom properties for colors. Backgrounds should use rgba() or semi-transparent values so the widget looks good on any parent background. Avoid pure white (#fff) backgrounds.
+4. INTERACTIVITY: Add hover states, transitions (0.2-0.3s ease), focus states for inputs, smooth animations. Make clickable elements obviously clickable with cursor:pointer.
+5. TYPOGRAPHY: Use a clear font hierarchy - headings larger/bolder, body text readable (min 14px), labels/captions smaller. Use line-height of 1.4-1.6 for body text.
+6. SHADOWS & BORDERS: Use subtle box-shadows (0 2px 8px rgba(0,0,0,0.1)) instead of harsh borders. If borders are used, they should be subtle (1px solid rgba()).
+7. EMPTY STATES: If the widget shows data, include realistic sample data, not placeholder text like "Lorem ipsum".
+8. ANIMATION: Add subtle CSS animations where appropriate (fade-in on load, smooth transitions). Don't overdo it.
+9. BUGS: Fix any JavaScript errors, missing closing tags, incorrect CSS properties.
+10. POLISH: Add a <title> tag that describes the widget. Ensure there's no horizontal scrollbar. Content should not overflow its container.
+
+The current code to review and improve:
+${currentCode}`;
+      } else {
+        systemPrompt = `You are a world-class front-end developer who builds stunning, production-quality HTML widgets. You take pride in creating widgets that look like they belong in a premium SaaS product.
+
+OUTPUT RULES:
+- Output ONLY the HTML code. No explanations, no markdown, no code fences. Just raw HTML starting with <!DOCTYPE html>.
+- The widget must be fully self-contained in a single HTML file with inline <style> and <script> tags.
+
+TECHNICAL CONSTRAINTS:
+- Runs in a sandboxed iframe (allow-scripts only). NO localStorage, NO sessionStorage, NO fetch/XMLHttpRequest, NO parent window access.
+- Allowed CDNs: Chart.js, D3.js, Font Awesome, Google Fonts, animate.css, or other popular CDNs via https://cdn.jsdelivr.net or https://cdnjs.cloudflare.com.
+- Target container: 250-800px wide, 200-500px tall. MUST be responsive.
+
+QUALITY STANDARDS (follow these precisely):
+1. Start with <!DOCTYPE html> and include complete <html>, <head> (with <title>), and <body> tags.
+2. Use CSS custom properties (--primary, --bg, --text, --accent, etc.) at :root for easy theming.
+3. Use a dark-friendly color scheme: dark cards (rgba(20,20,30,0.95)) with light text, subtle borders, professional shadows.
+4. Typography: Import a modern Google Font (Inter, Poppins, or similar) or use system-ui. Set proper font sizes, weights, and line-heights.
+5. Spacing: Use consistent padding (16-24px) and margins. No cramped layouts.
+6. Interactivity: cursor:pointer on clickable elements, hover effects with transitions (0.2s ease), focus outlines on inputs.
+7. Animations: Add subtle load-in animations (fadeIn, slideUp) using CSS @keyframes. Transitions on state changes.
+8. Data: Use realistic, meaningful sample data. If it's a tracker, use real-world metrics. If it's a timer, make it functional.
+9. Make ALL interactive elements actually work with JavaScript - buttons should do something, inputs should be functional.
+10. Polish: rounded corners (8-12px), subtle shadows (0 4px 12px rgba(0,0,0,0.15)), clean hierarchy.
+
+${currentCode ? `EXISTING CODE (user wants modifications):\n${currentCode}\n\nModify this code based on the user's request while keeping existing functionality intact.` : ""}`;
+      }
 
       const stream = await openai.chat.completions.create({
         model: "gpt-4o-mini",
@@ -1658,7 +1689,8 @@ ${currentCode ? `The user's current widget code is:\n${currentCode}\n\nThey want
           { role: "system", content: systemPrompt },
           { role: "user", content: prompt },
         ],
-        max_tokens: 4000,
+        max_tokens: 8000,
+        temperature: mode === "review" ? 0.3 : 0.7,
       });
 
       for await (const chunk of stream) {
