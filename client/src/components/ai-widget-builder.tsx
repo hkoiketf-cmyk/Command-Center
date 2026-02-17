@@ -1,11 +1,23 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Wand2, Send, Eye, Code, Loader2, RotateCcw, Check, Key, CheckCircle2, X, MessageSquare, History, ChevronLeft, ChevronRight, Zap, Shield, CircleCheck, AlertTriangle } from "lucide-react";
+import { Wand2, Send, Eye, Code, Loader2, RotateCcw, Check, Key, CheckCircle2, X, MessageSquare, History, Zap, Shield, CircleCheck, AlertTriangle, Square, SplitSquareHorizontal, StopCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Highlight, themes } from "prism-react-renderer";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface AiWidgetBuilderProps {
   onAddWidget: (code: string, title: string) => void;
@@ -42,6 +54,8 @@ interface IterationCheckpoint {
   label: string;
 }
 
+type ViewMode = "split" | "preview" | "code";
+
 const PROMPT_SUGGESTIONS = [
   "A motivational quote rotator with smooth fade animations",
   "A Pomodoro timer with a visual progress ring",
@@ -51,12 +65,14 @@ const PROMPT_SUGGESTIONS = [
   "A mini habit streak counter with fire animations",
 ];
 
+const MAX_ITERATIONS = 3;
+
 export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitle }: AiWidgetBuilderProps) {
   const [prompt, setPrompt] = useState("");
   const [generatedCode, setGeneratedCode] = useState(initialCode || "");
   const [widgetTitle, setWidgetTitle] = useState(initialTitle || "");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [showPreview, setShowPreview] = useState(!!initialCode);
+  const [viewMode, setViewMode] = useState<ViewMode>(initialCode ? "preview" : "preview");
   const [error, setError] = useState("");
   const [generationPhase, setGenerationPhase] = useState("");
   const [apiKeyInput, setApiKeyInput] = useState("");
@@ -71,10 +87,11 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
   const [checkpoints, setCheckpoints] = useState<IterationCheckpoint[]>([]);
   const [activeCheckpoint, setActiveCheckpoint] = useState(-1);
   const [currentIteration, setCurrentIteration] = useState(0);
-  const [maxIterations] = useState(3);
   const [lastCritique, setLastCritique] = useState<CritiqueResult | null>(null);
+  const [iframeErrors, setIframeErrors] = useState<string[]>([]);
   const abortRef = useRef<AbortController | null>(null);
   const chatLogRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const { toast } = useToast();
 
   const { data: userSettings } = useQuery<{ hasOpenaiKey: boolean; openaiApiKey: string | null }>({
@@ -116,6 +133,20 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
     }
   }, [conversation]);
 
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === "iframe-error" && event.data?.source === "ai-widget-preview") {
+        setIframeErrors(prev => {
+          const msg = event.data.message;
+          if (prev.includes(msg)) return prev;
+          return [...prev.slice(-4), msg];
+        });
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
+
   const streamFromEndpoint = async (body: Record<string, unknown>, signal: AbortSignal, onChunk?: (text: string) => void): Promise<string> => {
     const response = await fetch("/api/ai/generate-widget", {
       method: "POST",
@@ -125,12 +156,12 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
     });
 
     if (!response.ok) {
-      const err = await response.json();
+      const err = await response.json().catch(() => ({ error: "Failed to generate widget" }));
       throw new Error(err.error || "Failed to generate widget");
     }
 
     const reader = response.body?.getReader();
-    if (!reader) throw new Error("Failed to read response");
+    if (!reader) throw new Error("Failed to read response stream");
 
     let fullText = "";
     const decoder = new TextDecoder();
@@ -146,21 +177,20 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
 
       for (const line of lines) {
         const trimmed = line.trim();
-        if (trimmed.startsWith("data: ")) {
-          const data = trimmed.slice(6);
-          if (data === "[DONE]") continue;
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.content) {
-              fullText += parsed.content;
-              if (onChunk) onChunk(fullText);
-            }
-            if (parsed.error) {
-              throw new Error(parsed.error);
-            }
-          } catch (e: any) {
-            if (e.message && !e.message.includes("JSON")) throw e;
+        if (!trimmed.startsWith("data: ")) continue;
+        const data = trimmed.slice(6);
+        if (data === "[DONE]") continue;
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.content) {
+            fullText += parsed.content;
+            onChunk?.(fullText);
           }
+          if (parsed.error) {
+            throw new Error(parsed.error);
+          }
+        } catch (e: any) {
+          if (e.message && !e.message.includes("JSON")) throw e;
         }
       }
     }
@@ -190,6 +220,8 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
     for (const msg of conversation) {
       if (msg.role === "user") {
         messages.push({ role: "user", content: msg.content });
+      } else if (msg.role === "assistant" && msg.summary) {
+        messages.push({ role: "assistant", content: `[${msg.summary}]` });
       }
     }
     return messages;
@@ -230,12 +262,22 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
     setActiveCheckpoint(-1);
   };
 
+  const handleAbort = () => {
+    abortRef.current?.abort();
+    setIsGenerating(false);
+    setGenerationPhase("Generation cancelled");
+    setCurrentIteration(0);
+    toast({ title: "Generation stopped" });
+    setTimeout(() => setGenerationPhase(""), 2000);
+  };
+
   const generateWidget = useCallback(async (userPrompt: string) => {
     if (!userPrompt.trim() || isGenerating) return;
 
     setIsGenerating(true);
     setError("");
     setLastCritique(null);
+    setIframeErrors([]);
 
     const isFirstGeneration = conversation.length === 0;
     const hasExistingCode = !!generatedCode;
@@ -253,9 +295,9 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
 
       if (isFirstGeneration && !hasExistingCode) {
         setCurrentIteration(1);
-        setGenerationPhase("Iteration 1/" + maxIterations + ": Building your widget...");
+        setGenerationPhase("Iteration 1/" + MAX_ITERATIONS + ": Building your widget...");
         setGeneratedCode("");
-        setShowPreview(false);
+        setViewMode("preview");
 
         const rawCode = await streamFromEndpoint({
           prompt: userPrompt,
@@ -265,16 +307,15 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
 
         let currentCode = cleanCode(rawCode);
         setGeneratedCode(currentCode);
-        setShowPreview(true);
 
         let finalIterationCount = 1;
 
-        for (let i = 1; i <= maxIterations; i++) {
+        for (let i = 1; i <= MAX_ITERATIONS; i++) {
           if (signal.aborted) break;
           finalIterationCount = i;
           setCurrentIteration(i);
 
-          setGenerationPhase(`Iteration ${i}/${maxIterations}: Quality check...`);
+          setGenerationPhase(`Iteration ${i}/${MAX_ITERATIONS}: Quality check...`);
           const critique = await critiqueCode(currentCode, userPrompt);
           setLastCritique(critique);
 
@@ -284,7 +325,7 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
             (iss: CritiqueIssue) => iss.severity === "critical" || iss.severity === "major"
           );
 
-          if (critique.passed || i === maxIterations || actionableIssues.length === 0) {
+          if (critique.passed || i === MAX_ITERATIONS || actionableIssues.length === 0) {
             if (critique.score === 0) {
               setGenerationPhase("QA check unavailable - widget built without verification");
             } else if (critique.passed) {
@@ -301,7 +342,7 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
             .map((iss: CritiqueIssue) => `- [${iss.severity.toUpperCase()}] ${iss.description}: ${iss.fix}`)
             .join("\n");
 
-          setGenerationPhase(`Iteration ${i + 1}/${maxIterations}: Fixing ${critique.issues.filter((iss: CritiqueIssue) => iss.severity !== "minor").length} issues...`);
+          setGenerationPhase(`Iteration ${i + 1}/${MAX_ITERATIONS}: Fixing ${actionableIssues.length} issues...`);
           setGeneratedCode("");
 
           const fixPrompt = `Fix ONLY these specific issues. Do NOT rewrite or restructure anything else. Preserve all existing features, styling, and functionality.\n\nISSUES TO FIX:\n${issueList}\n\nReturn the complete HTML with ONLY the listed issues fixed.`;
@@ -321,7 +362,10 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
         const finalCode = currentCode;
         setGeneratedCode(finalCode);
 
-        setConversation(prev => [...prev, { role: "assistant", content: finalCode, summary: `Built with ${finalIterationCount} iteration${finalIterationCount > 1 ? "s" : ""}` }]);
+        const iterLabel = finalIterationCount === 1
+          ? "Built in 1 pass"
+          : `Built with ${finalIterationCount} iterations`;
+        setConversation(prev => [...prev, { role: "assistant", content: finalCode, summary: iterLabel }]);
 
         if (!widgetTitle) {
           const titleMatch = finalCode.match(/<title>(.*?)<\/title>/i);
@@ -385,7 +429,7 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
         setConversation(prev => [...prev, { role: "assistant", content: currentCode, summary: "Applied changes" }]);
       }
 
-      setShowPreview(true);
+      setViewMode("preview");
       setPrompt("");
       setTimeout(() => setGenerationPhase(""), 3000);
     } catch (err: any) {
@@ -398,7 +442,7 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
       setIsGenerating(false);
       setCurrentIteration(0);
     }
-  }, [isGenerating, generatedCode, widgetTitle, conversation, originalPrompt, maxIterations]);
+  }, [isGenerating, generatedCode, widgetTitle, conversation, originalPrompt]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -423,7 +467,7 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
   const handleStartOver = () => {
     setGeneratedCode("");
     setWidgetTitle("");
-    setShowPreview(false);
+    setViewMode("preview");
     setPrompt("");
     setError("");
     setGenerationPhase("");
@@ -433,6 +477,7 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
     setActiveCheckpoint(-1);
     setLastCritique(null);
     setCurrentIteration(0);
+    setIframeErrors([]);
   };
 
   const handleRestoreCheckpoint = (index: number) => {
@@ -441,6 +486,7 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
     setGeneratedCode(cp.code);
     setActiveCheckpoint(index);
     setLastCritique({ passed: cp.passed, score: cp.score, issues: cp.issues });
+    setIframeErrors([]);
     toast({ title: `Restored "${cp.label}" (score: ${cp.score}/10)` });
   };
 
@@ -453,14 +499,21 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
 
   const wrapCode = (rawCode: string): string => {
     const trimmed = rawCode.trim();
+    const errorBridge = `<script>
+window.onerror = function(msg, src, line) {
+  try { parent.postMessage({ type: "iframe-error", source: "ai-widget-preview", message: msg + (line ? " (line " + line + ")" : "") }, "*"); } catch(e) {}
+  return true;
+};
+</script>`;
     if (trimmed.toLowerCase().startsWith("<!doctype") || trimmed.toLowerCase().startsWith("<html")) {
-      return rawCode;
+      return rawCode.replace(/<head([^>]*)>/i, `<head$1>${errorBridge}`);
     }
     return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  ${errorBridge}
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; padding: 16px; font-family: system-ui, -apple-system, sans-serif; background: transparent; }
@@ -475,13 +528,14 @@ ${rawCode}
   const isEditMode = !!initialCode;
   const hasConversation = conversation.length > 0;
   const userMessages = conversation.filter(m => m.role === "user");
+  const showBuilder = generatedCode || isGenerating || hasConversation;
 
   return (
     <div className="flex flex-col h-full gap-4" data-testid="ai-widget-builder">
       <div className="rounded-lg border p-3" data-testid="api-key-section">
         {hasKey ? (
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2 text-sm flex-wrap">
               <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
               <span className="text-muted-foreground">
                 OpenAI key connected
@@ -490,12 +544,11 @@ ${rawCode}
                 )}
               </span>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-wrap">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowApiKeyForm(!showApiKeyForm)}
-                className="text-xs h-7"
                 data-testid="button-change-api-key"
               >
                 Change
@@ -504,7 +557,7 @@ ${rawCode}
                 variant="ghost"
                 size="sm"
                 onClick={() => removeApiKey.mutate()}
-                className="text-xs h-7 text-destructive"
+                className="text-destructive"
                 disabled={removeApiKey.isPending}
                 data-testid="button-remove-api-key"
               >
@@ -513,7 +566,7 @@ ${rawCode}
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-2 text-sm flex-wrap">
             <Key className="h-4 w-4 text-muted-foreground shrink-0" />
             <span className="text-muted-foreground">
               Connect your OpenAI API key to start building
@@ -522,7 +575,7 @@ ${rawCode}
         )}
 
         {(!hasKey || showApiKeyForm) && (
-          <form onSubmit={handleSaveApiKey} className="flex items-center gap-2 mt-2" data-testid="form-api-key">
+          <form onSubmit={handleSaveApiKey} className="flex items-center gap-2 mt-2 flex-wrap" data-testid="form-api-key">
             <Input
               type="password"
               value={apiKeyInput}
@@ -554,10 +607,10 @@ ${rawCode}
         )}
       </div>
 
-      {!generatedCode && !isGenerating && !hasConversation ? (
+      {!showBuilder ? (
         <div className="flex flex-col items-center gap-4 py-2">
           <p className="text-sm text-muted-foreground text-center max-w-md">
-            {isEditMode 
+            {isEditMode
               ? "Describe the changes you want to make to your widget."
               : "Describe what you want and AI will build it autonomously. It generates, self-critiques, and iterates up to 3 times until the code passes quality checks."
             }
@@ -573,15 +626,18 @@ ${rawCode}
             <p className="text-xs font-medium text-muted-foreground">Try a suggestion:</p>
             <div className="grid grid-cols-1 gap-1.5">
               {PROMPT_SUGGESTIONS.map((s) => (
-                <button
+                <Button
                   key={s}
+                  variant="outline"
+                  size="sm"
                   onClick={() => handleSuggestionClick(s)}
                   disabled={isGenerating || !hasKey}
-                  className="text-left text-xs px-3 py-2 rounded-md border border-border hover-elevate transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="justify-start text-left text-xs font-normal"
                   data-testid={`button-suggestion-${s.slice(0, 20).replace(/\s/g, "-").toLowerCase()}`}
                 >
+                  <Zap className="h-3 w-3 mr-1.5 shrink-0 text-primary" />
                   {s}
-                </button>
+                </Button>
               ))}
             </div>
           </div>
@@ -595,49 +651,87 @@ ${rawCode}
               disabled={isGenerating || !hasKey}
               data-testid="textarea-widget-prompt"
             />
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={!prompt.trim() || isGenerating || !hasKey}
-              data-testid="button-generate-widget"
-            >
-              <Wand2 className="h-4 w-4 mr-2" />
-              Build Widget
-            </Button>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <span className="text-xs text-muted-foreground">{prompt.length > 0 ? `${prompt.length} chars` : ""}</span>
+              <Button
+                type="submit"
+                className="flex-1"
+                disabled={!prompt.trim() || isGenerating || !hasKey}
+                data-testid="button-generate-widget"
+              >
+                <Wand2 className="h-4 w-4 mr-2" />
+                Build Widget
+              </Button>
+            </div>
           </form>
         </div>
       ) : (
         <div className="flex flex-col gap-3 flex-1 min-h-0">
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-2">
-              <Wand2 className="h-4 w-4 text-primary" />
-              <input
+            <div className="flex items-center gap-2 flex-wrap">
+              <Wand2 className="h-4 w-4 text-primary shrink-0" />
+              <Input
                 value={widgetTitle}
                 onChange={(e) => setWidgetTitle(e.target.value)}
-                className="text-sm font-medium bg-transparent border-b border-dashed border-muted-foreground/30 focus:border-primary outline-none px-1 py-0.5 min-w-[120px]"
                 placeholder="Widget title..."
+                className="text-sm font-medium border-dashed min-w-[120px] max-w-[200px]"
                 data-testid="input-ai-widget-title"
               />
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-wrap">
               <Button
-                variant={showPreview ? "default" : "outline"}
+                variant={viewMode === "split" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setShowPreview(!showPreview)}
-                data-testid="button-toggle-ai-preview"
+                onClick={() => setViewMode("split")}
+                data-testid="button-ai-view-split"
               >
-                {showPreview ? <Code className="h-3.5 w-3.5 mr-1" /> : <Eye className="h-3.5 w-3.5 mr-1" />}
-                {showPreview ? "Code" : "Preview"}
+                <SplitSquareHorizontal className="h-3.5 w-3.5 mr-1" />
+                Split
               </Button>
               <Button
-                variant="ghost"
+                variant={viewMode === "preview" ? "default" : "outline"}
                 size="sm"
-                onClick={handleStartOver}
-                data-testid="button-start-over"
+                onClick={() => setViewMode("preview")}
+                data-testid="button-ai-view-preview"
               >
-                <RotateCcw className="h-3.5 w-3.5 mr-1" />
-                Start Over
+                <Eye className="h-3.5 w-3.5 mr-1" />
+                Preview
               </Button>
+              <Button
+                variant={viewMode === "code" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setViewMode("code")}
+                data-testid="button-ai-view-code"
+              >
+                <Code className="h-3.5 w-3.5 mr-1" />
+                Code
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    data-testid="button-start-over"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                    Start Over
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Start over?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will discard your current widget and all iteration history. This cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel data-testid="button-cancel-start-over">Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleStartOver} data-testid="button-confirm-start-over">
+                      Start Over
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
 
@@ -648,52 +742,76 @@ ${rawCode}
           )}
 
           {(isGenerating || generationPhase) && (
-            <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-primary/5 border border-primary/10">
+            <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-primary/5 border border-primary/10 flex-wrap">
               {isGenerating ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
               ) : generationPhase.includes("Passed") ? (
                 <CircleCheck className="h-3.5 w-3.5 text-green-500 shrink-0" />
+              ) : generationPhase.includes("cancelled") ? (
+                <StopCircle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               ) : (
                 <Zap className="h-3.5 w-3.5 text-primary shrink-0" />
               )}
               <span className="text-xs text-primary font-medium flex-1">{generationPhase || "Working..."}</span>
               {currentIteration > 0 && isGenerating && (
-                <div className="flex gap-0.5">
-                  {Array.from({ length: maxIterations }).map((_, i) => (
-                    <div
-                      key={i}
-                      className={`w-2 h-2 rounded-full transition-colors ${
-                        i < currentIteration
-                          ? "bg-primary"
-                          : "bg-muted-foreground/20"
-                      }`}
-                    />
-                  ))}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <div className="flex gap-0.5">
+                    {Array.from({ length: MAX_ITERATIONS }).map((_, i) => (
+                      <div
+                        key={i}
+                        className={`w-2 h-2 rounded-full transition-colors ${
+                          i < currentIteration
+                            ? "bg-primary"
+                            : "bg-muted-foreground/20"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleAbort}
+                    className="text-destructive"
+                    data-testid="button-stop-generation"
+                  >
+                    <Square className="h-3 w-3 mr-1 fill-current" />
+                    Stop
+                  </Button>
                 </div>
+              )}
+              {isGenerating && currentIteration === 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleAbort}
+                  className="text-destructive"
+                  data-testid="button-stop-generation-simple"
+                >
+                  <Square className="h-3 w-3 mr-1 fill-current" />
+                  Stop
+                </Button>
               )}
             </div>
           )}
 
           {checkpoints.length > 1 && !isGenerating && (
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-muted/30">
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-muted/30 flex-wrap">
               <History className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               <span className="text-xs text-muted-foreground">Iterations:</span>
-              <div className="flex items-center gap-1 flex-1 overflow-x-auto">
+              <div className="flex items-center gap-1 flex-1 overflow-x-auto flex-wrap">
                 {checkpoints.map((cp, i) => (
-                  <button
+                  <Button
                     key={i}
+                    variant={activeCheckpoint === i ? "default" : "outline"}
+                    size="sm"
+                    className="text-xs whitespace-nowrap"
                     onClick={() => handleRestoreCheckpoint(i)}
-                    className={`text-xs px-2 py-0.5 rounded-md border transition-colors whitespace-nowrap ${
-                      activeCheckpoint === i
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border hover-elevate"
-                    }`}
                     data-testid={`button-checkpoint-${i}`}
                   >
-                    <span>{cp.label}</span>
+                    {cp.label}
                     <span className="ml-1 opacity-60">{cp.score}/10</span>
-                    {cp.passed && <CircleCheck className="h-3 w-3 ml-0.5 inline text-green-500" />}
-                  </button>
+                    {cp.passed && <CircleCheck className="h-3 w-3 ml-0.5 text-green-500" />}
+                  </Button>
                 ))}
               </div>
             </div>
@@ -701,14 +819,14 @@ ${rawCode}
 
           {lastCritique && !isGenerating && lastCritique.issues.length > 0 && (
             <div className="rounded-md border px-2 py-1.5 space-y-1 max-h-[60px] overflow-y-auto bg-muted/20">
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <Shield className="h-3 w-3 text-muted-foreground shrink-0" />
                 <span className="text-xs font-medium text-muted-foreground">
                   QA: {lastCritique.passed ? "Passed" : "Issues found"} ({lastCritique.score}/10)
                 </span>
               </div>
               {lastCritique.issues.filter(i => i.severity !== "minor").slice(0, 3).map((issue, idx) => (
-                <div key={idx} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                <div key={idx} className="flex items-start gap-1.5 text-xs text-muted-foreground flex-wrap">
                   {issue.severity === "critical" ? (
                     <AlertTriangle className="h-3 w-3 text-destructive shrink-0 mt-0.5" />
                   ) : (
@@ -720,31 +838,68 @@ ${rawCode}
             </div>
           )}
 
-          {showPreview ? (
-            <div className="flex-1 min-h-[250px] border rounded-lg overflow-hidden">
-              <iframe
-                srcDoc={wrapCode(generatedCode)}
-                sandbox="allow-scripts"
-                className="w-full h-full border-0"
-                title="AI Widget Preview"
-                data-testid="iframe-ai-widget-preview"
-              />
-            </div>
-          ) : (
-            <div className="flex-1 min-h-[250px]">
-              <Textarea
-                value={generatedCode}
-                onChange={(e) => setGeneratedCode(e.target.value)}
-                className="font-mono text-xs h-full resize-none"
-                data-testid="textarea-ai-widget-code"
-              />
+          {iframeErrors.length > 0 && (
+            <div className="flex items-start gap-2 p-2 rounded-md bg-destructive/10 border border-destructive/20 text-xs flex-wrap" data-testid="ai-error-banner">
+              <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+              <div className="flex-1 space-y-0.5 overflow-hidden">
+                {iframeErrors.map((err, i) => (
+                  <div key={i} className="text-destructive truncate">{err}</div>
+                ))}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="shrink-0"
+                onClick={() => setIframeErrors([])}
+                data-testid="button-dismiss-ai-errors"
+              >
+                <X className="h-3 w-3" />
+              </Button>
             </div>
           )}
+
+          <div className={`flex-1 min-h-[250px] ${viewMode === "split" ? "flex gap-2" : "flex flex-col"}`}>
+            {(viewMode === "split" || viewMode === "code") && (
+              <div className={`${viewMode === "split" ? "w-1/2" : "w-full"} min-h-0 flex flex-col`}>
+                <div className="flex-1 overflow-auto rounded-lg border bg-[#011627] p-3 font-mono text-xs">
+                  <Highlight theme={themes.nightOwl} code={generatedCode || ""} language="markup">
+                    {({ tokens, getLineProps, getTokenProps }) => (
+                      <pre className="m-0" style={{ background: "transparent" }}>
+                        {tokens.map((line, i) => (
+                          <div key={i} {...getLineProps({ line })} className="flex">
+                            <span className="select-none text-slate-500 w-8 text-right mr-3 shrink-0">{i + 1}</span>
+                            <span className="flex-1">
+                              {line.map((token, key) => (
+                                <span key={key} {...getTokenProps({ token })} />
+                              ))}
+                            </span>
+                          </div>
+                        ))}
+                      </pre>
+                    )}
+                  </Highlight>
+                </div>
+              </div>
+            )}
+
+            {(viewMode === "split" || viewMode === "preview") && (
+              <div className={`${viewMode === "split" ? "w-1/2" : "w-full"} min-h-0 border rounded-lg overflow-hidden`}>
+                <iframe
+                  ref={iframeRef}
+                  srcDoc={wrapCode(generatedCode)}
+                  sandbox="allow-scripts"
+                  className="w-full h-full border-0"
+                  title="AI Widget Preview"
+                  data-testid="iframe-ai-widget-preview"
+                />
+              </div>
+            )}
+          </div>
 
           {userMessages.length > 0 && (
             <div ref={chatLogRef} className="max-h-[80px] overflow-y-auto rounded-md border px-3 py-2 space-y-1">
               {userMessages.map((msg, i) => (
-                <div key={i} className="flex items-start gap-2 text-xs">
+                <div key={i} className="flex items-start gap-2 text-xs flex-wrap">
                   <MessageSquare className="h-3 w-3 shrink-0 mt-0.5 text-muted-foreground" />
                   <span className="text-muted-foreground">{msg.summary || msg.content}</span>
                 </div>
@@ -752,7 +907,7 @@ ${rawCode}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="flex items-end gap-2">
+          <form onSubmit={handleSubmit} className="flex items-end gap-2 flex-wrap">
             <Textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
