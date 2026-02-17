@@ -51,14 +51,16 @@ function getMediaTypeFromUrl(url: string): string {
   return "image";
 }
 
-function MediaPreview({ url, mediaType, alt, className }: { url: string; mediaType: string; alt: string; className?: string }) {
+function MediaPreview({ url, mediaType, alt, className, contain = false }: { url: string; mediaType: string; alt: string; className?: string; contain?: boolean }) {
   if (!url) return null;
+
+  const fitClass = contain ? "object-contain" : "object-contain";
 
   if (mediaType === "video") {
     return (
       <video
         src={url}
-        className={className || "w-full h-full object-cover"}
+        className={className || `w-full h-full ${fitClass}`}
         controls
         muted
         playsInline
@@ -83,7 +85,7 @@ function MediaPreview({ url, mediaType, alt, className }: { url: string; mediaTy
     <img
       src={url}
       alt={alt}
-      className={className || "w-full h-full object-cover"}
+      className={className || `w-full h-full ${fitClass}`}
       onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
       data-testid="media-image"
     />
@@ -297,9 +299,9 @@ function AdCard({ ad, compact = false }: { ad: Ad; compact?: boolean }) {
   return (
     <Card className="overflow-hidden flex flex-col" data-testid={`card-ad-${ad.id}`}>
       {ad.imageUrl && (
-        <div className={`relative w-full ${mediaType === "video" ? "" : ""}`} style={{ paddingBottom: mediaType === "pdf" ? "40%" : "56.25%" }}>
-          <div className="absolute inset-0">
-            <MediaPreview url={ad.imageUrl} mediaType={mediaType} alt={ad.headline} />
+        <div className="relative w-full bg-muted/30" style={{ paddingBottom: mediaType === "pdf" ? "40%" : "75%" }}>
+          <div className="absolute inset-0 flex items-center justify-center p-1">
+            <MediaPreview url={ad.imageUrl} mediaType={mediaType} alt={ad.headline} className="max-w-full max-h-full object-contain" />
           </div>
         </div>
       )}
@@ -356,9 +358,9 @@ function SpotlightView({
     <div className="flex flex-col h-full gap-3" data-testid="spotlight-view">
       <div className="flex-1 flex flex-col">
         {ad.imageUrl && (
-          <div className="relative w-full rounded-md overflow-hidden" style={{ paddingBottom: mediaType === "pdf" ? "40%" : "50%" }}>
-            <div className="absolute inset-0">
-              <MediaPreview url={ad.imageUrl} mediaType={mediaType} alt={ad.headline} />
+          <div className="relative w-full rounded-md overflow-hidden bg-muted/30" style={{ paddingBottom: mediaType === "pdf" ? "40%" : "65%" }}>
+            <div className="absolute inset-0 flex items-center justify-center p-1">
+              <MediaPreview url={ad.imageUrl} mediaType={mediaType} alt={ad.headline} className="max-w-full max-h-full object-contain" />
             </div>
           </div>
         )}
@@ -529,15 +531,15 @@ function AdForm({
         {uploadMode === "upload" ? (
           <div className="space-y-2">
             {imageUrl && imageUrl.startsWith("/objects/") ? (
-              <div className="rounded-md overflow-hidden border border-border relative">
-                <div className="h-24">
-                  <MediaPreview url={imageUrl} mediaType={mediaType} alt="Preview" className="w-full h-full object-cover" />
+              <div className="rounded-md overflow-hidden border border-border relative bg-muted/30">
+                <div className="flex items-center justify-center" style={{ minHeight: "10rem" }}>
+                  <MediaPreview url={imageUrl} mediaType={mediaType} alt="Preview" className="max-w-full max-h-48 object-contain" />
                 </div>
                 <Button
                   type="button"
                   size="icon"
                   variant="ghost"
-                  className="absolute top-1 right-1 h-6 w-6 bg-background/80"
+                  className="absolute top-1 right-1 bg-background/80"
                   onClick={handleRemoveMedia}
                   data-testid="button-remove-media"
                 >
@@ -585,8 +587,8 @@ function AdForm({
               data-testid="input-ad-image-url"
             />
             {imageUrl && !imageUrl.startsWith("/objects/") && (
-              <div className="rounded-md overflow-hidden border border-border h-24">
-                <MediaPreview url={imageUrl} mediaType={mediaType} alt="Preview" className="w-full h-full object-cover" />
+              <div className="rounded-md overflow-hidden border border-border bg-muted/30 flex items-center justify-center" style={{ minHeight: "10rem" }}>
+                <MediaPreview url={imageUrl} mediaType={mediaType} alt="Preview" className="max-w-full max-h-48 object-contain" />
               </div>
             )}
           </div>
