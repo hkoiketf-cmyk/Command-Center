@@ -9,7 +9,7 @@ export * from "./models/auth";
 export const userSettings = pgTable("user_settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().unique(),
-  appName: text("app_name").notNull().default("MalleniumDash"),
+  appName: text("app_name").notNull().default("MallenniumDash"),
   openaiApiKey: text("openai_api_key"),
 });
 

@@ -114,7 +114,7 @@ export default function Landing() {
             <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
               <Zap className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="text-lg font-bold tracking-tight" data-testid="text-logo">MalleniumDash</span>
+            <span className="text-lg font-bold tracking-tight" data-testid="text-logo">MallenniumDash</span>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <Button variant="ghost" asChild>
@@ -181,7 +181,7 @@ export default function Landing() {
               <div className="relative rounded-md overflow-hidden border border-border/50 bg-card">
                 <img
                   src={heroDashboard}
-                  alt="MalleniumDash Dashboard"
+                  alt="MallenniumDash Dashboard"
                   className="w-full h-auto"
                   data-testid="img-hero-dashboard"
                 />
@@ -484,7 +484,7 @@ export default function Landing() {
               Ready to take control of your day?
             </h2>
             <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-              Join solopreneurs who use MalleniumDash to stay organized, focused, and productive. Your command center awaits.
+              Join solopreneurs who use MallenniumDash to stay organized, focused, and productive. Your command center awaits.
             </p>
             <Button size="lg" asChild data-testid="button-cta-bottom" className="text-base px-8">
               <a href="/api/login">
@@ -505,7 +505,7 @@ export default function Landing() {
             <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center">
               <Zap className="h-4 w-4 text-primary-foreground" />
             </div>
-            <span className="text-sm font-semibold" data-testid="text-footer-logo">MalleniumDash</span>
+            <span className="text-sm font-semibold" data-testid="text-footer-logo">MallenniumDash</span>
           </div>
           <p className="text-sm text-muted-foreground" data-testid="text-footer-tagline">
             Built for solopreneurs who mean business.

@@ -120,7 +120,7 @@ export async function seedDatabase() {
     type: "notes",
     title: "Quick Notes",
     content: {
-      markdown: `# Welcome to MalleniumDash
+      markdown: `# Welcome to MallenniumDash
 
 Your personal dashboard for tracking what matters.
 

@@ -178,7 +178,7 @@ export default function Dashboard() {
     },
   });
 
-  const appName = userSettings?.appName || "MalleniumDash";
+  const appName = userSettings?.appName || "MallenniumDash";
 
   const { data: desktopList = [], isLoading: desktopsLoading } = useQuery<Desktop[]>({
     queryKey: ["/api/desktops"],

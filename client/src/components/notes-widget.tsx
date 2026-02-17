@@ -2,13 +2,32 @@ import { useRef, useEffect, useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Palette, Bold, Italic, Heading1, Heading2, List, ListOrdered, Minus, Link2 } from "lucide-react";
+import { Palette, Bold, Italic, Heading1, Heading2, List, ListOrdered, Minus, Link2, Type } from "lucide-react";
 import type { NotesContent } from "@shared/schema";
 
 interface NotesWidgetProps {
   content: NotesContent;
   onContentChange: (content: NotesContent) => void;
 }
+
+const TEXT_COLORS = [
+  { name: "Default", value: "" },
+  { name: "White", value: "#FFFFFF" },
+  { name: "Black", value: "#000000" },
+  { name: "Red", value: "#EF4444" },
+  { name: "Orange", value: "#F97316" },
+  { name: "Amber", value: "#F59E0B" },
+  { name: "Yellow", value: "#EAB308" },
+  { name: "Lime", value: "#84CC16" },
+  { name: "Green", value: "#22C55E" },
+  { name: "Teal", value: "#14B8A6" },
+  { name: "Cyan", value: "#06B6D4" },
+  { name: "Blue", value: "#3B82F6" },
+  { name: "Indigo", value: "#6366F1" },
+  { name: "Purple", value: "#A855F7" },
+  { name: "Pink", value: "#EC4899" },
+  { name: "Rose", value: "#F43F5E" },
+];
 
 const NOTE_COLORS = [
   { name: "Default", value: "", textColor: "" },
@@ -245,6 +264,84 @@ export function NotesWidget({ content, onContentChange }: NotesWidgetProps) {
             }
           }}
         />
+        <Popover modal={true}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              title="Text Color"
+              data-testid="button-text-color"
+            >
+              <Type className="h-3.5 w-3.5" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-48 p-2 touch-manipulation" align="end">
+            <p className="text-xs font-medium mb-2 text-muted-foreground">Text Color</p>
+            <div className="grid grid-cols-4 gap-1">
+              {TEXT_COLORS.map((tc) => (
+                <button
+                  key={tc.name}
+                  onClick={() => {
+                    if (tc.value) {
+                      execCommand("foreColor", tc.value);
+                    } else {
+                      const selection = window.getSelection();
+                      if (selection && selection.rangeCount > 0) {
+                        const range = selection.getRangeAt(0);
+                        const container = range.commonAncestorContainer;
+                        const root = editorRef.current;
+                        if (root && root.contains(container)) {
+                          const walker = document.createTreeWalker(
+                            range.cloneContents(),
+                            NodeFilter.SHOW_ELEMENT,
+                          );
+                          const removeColor = (el: Element) => {
+                            if (el instanceof HTMLElement) {
+                              el.style.removeProperty("color");
+                              if (!el.style.length && el.getAttribute("style") === "") {
+                                el.removeAttribute("style");
+                              }
+                            }
+                            if (el.tagName === "FONT" && el.hasAttribute("color")) {
+                              el.removeAttribute("color");
+                            }
+                          };
+                          let node = walker.nextNode();
+                          while (node) {
+                            removeColor(node as Element);
+                            node = walker.nextNode();
+                          }
+                          const selectedNodes: Element[] = [];
+                          const liveWalker = document.createTreeWalker(
+                            root,
+                            NodeFilter.SHOW_ELEMENT,
+                          );
+                          let liveNode = liveWalker.nextNode();
+                          while (liveNode) {
+                            if (selection.containsNode(liveNode, true)) {
+                              selectedNodes.push(liveNode as Element);
+                            }
+                            liveNode = liveWalker.nextNode();
+                          }
+                          selectedNodes.forEach(removeColor);
+                          handleInput();
+                        }
+                      }
+                    }
+                  }}
+                  className="h-7 rounded-md border border-border flex items-center justify-center hover-elevate"
+                  style={{ backgroundColor: tc.value || "var(--background)" }}
+                  title={tc.name}
+                  data-testid={`button-text-color-${tc.name.toLowerCase()}`}
+                >
+                  {tc.name === "Default" && (
+                    <span className="text-[10px] text-muted-foreground">A</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
         <div className="flex-1" />
         <Popover modal={true}>
           <PopoverTrigger asChild>

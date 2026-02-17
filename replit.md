@@ -1,7 +1,7 @@
-# MalleniumDash - Personal Dashboard
+# MallenniumDash - Personal Dashboard
 
 ## Overview
-MalleniumDash is a multi-user modular personal dashboard web application designed for solopreneurs. It provides each user with an isolated and customizable workspace to manage various aspects of their business. Key capabilities include notes, priority tracking, revenue visualization, and the integration of external tools via iframes. The project aims to empower solopreneurs with a comprehensive and personalized hub for their daily operations and strategic planning.
+MallenniumDash is a multi-user modular personal dashboard web application designed for solopreneurs. It provides each user with an isolated and customizable workspace to manage various aspects of their business. Key capabilities include notes, priority tracking, revenue visualization, and the integration of external tools via iframes. The project aims to empower solopreneurs with a comprehensive and personalized hub for their daily operations and strategic planning.
 
 ## User Preferences
 - I want iterative development where I am involved in the process.
@@ -10,7 +10,7 @@ MalleniumDash is a multi-user modular personal dashboard web application designe
 - I prefer detailed explanations for complex parts.
 
 ## System Architecture
-MalleniumDash is built with a modern web stack, featuring React with TypeScript for the frontend, an Express.js backend, and PostgreSQL with Drizzle ORM for persistent data storage. UI components are styled using shadcn/ui and Tailwind CSS, providing a consistent and responsive design.
+MallenniumDash is built with a modern web stack, featuring React with TypeScript for the frontend, an Express.js backend, and PostgreSQL with Drizzle ORM for persistent data storage. UI components are styled using shadcn/ui and Tailwind CSS, providing a consistent and responsive design.
 
 The application supports multiple customizable "desktops" (workspaces), each with its own background color and a drag-and-drop grid layout powered by `react-grid-layout`. Widgets are the core modular components of the dashboard, allowing users to add functionalities like:
 - **Notes Widget**: Rich text notes with markdown support and color-coded backgrounds.

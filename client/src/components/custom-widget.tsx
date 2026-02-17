@@ -1,12 +1,22 @@
 import { useMemo } from "react";
-import type { CustomWidgetContent } from "@shared/schema";
+import { useQuery } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
+import type { CustomWidgetContent, WidgetTemplate } from "@shared/schema";
 
 interface CustomWidgetProps {
   content: CustomWidgetContent;
 }
 
 export function CustomWidget({ content }: CustomWidgetProps) {
-  const code = content?.code || "";
+  const templateId = content?.templateId;
+
+  const { data: template, isLoading } = useQuery<WidgetTemplate>({
+    queryKey: [`/api/widget-templates/${templateId}`],
+    enabled: !!templateId,
+    refetchInterval: 30000,
+  });
+
+  const code = template?.code || content?.code || "";
 
   const wrappedCode = useMemo(() => {
     if (!code) return "";
@@ -35,6 +45,14 @@ ${code}
 </html>`;
   }, [code]);
 
+  if (isLoading) {
+    return (
+      <div className="h-full flex items-center justify-center text-muted-foreground" data-testid="text-custom-widget-loading">
+        <Loader2 className="h-5 w-5 animate-spin" />
+      </div>
+    );
+  }
+
   if (!code) {
     return (
       <div className="h-full flex items-center justify-center text-muted-foreground text-sm" data-testid="text-custom-widget-empty">
@@ -49,7 +67,7 @@ ${code}
         srcDoc={wrappedCode}
         sandbox="allow-scripts"
         className="w-full h-full border-0 rounded"
-        title={content?.templateName || "Custom Widget"}
+        title={template?.name || content?.templateName || "Custom Widget"}
         data-testid="iframe-custom-widget"
       />
     </div>
