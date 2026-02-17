@@ -132,6 +132,9 @@ export interface IStorage {
   deleteHabitEntry(userId: string, habitId: string, date: string): Promise<boolean>;
   getJournalEntries(userId: string): Promise<JournalEntry[]>;
   getJournalEntry(userId: string, date: string): Promise<JournalEntry | undefined>;
+  getJournalEntriesByDate(userId: string, date: string): Promise<JournalEntry[]>;
+  createJournalEntry(userId: string, data: InsertJournalEntry): Promise<JournalEntry>;
+  deleteJournalEntry(userId: string, id: string): Promise<boolean>;
   upsertJournalEntry(userId: string, data: InsertJournalEntry): Promise<JournalEntry>;
   getScorecardMetrics(userId: string): Promise<ScorecardMetric[]>;
   createScorecardMetric(userId: string, metric: InsertScorecardMetric): Promise<ScorecardMetric>;
@@ -389,6 +392,17 @@ export class DatabaseStorage implements IStorage {
   async getJournalEntry(userId: string, date: string): Promise<JournalEntry | undefined> {
     const result = await db.select().from(journalEntries).where(and(eq(journalEntries.date, date), eq(journalEntries.userId, userId)));
     return result[0];
+  }
+  async getJournalEntriesByDate(userId: string, date: string): Promise<JournalEntry[]> {
+    return await db.select().from(journalEntries).where(and(eq(journalEntries.date, date), eq(journalEntries.userId, userId))).orderBy(journalEntries.createdAt);
+  }
+  async createJournalEntry(userId: string, data: InsertJournalEntry): Promise<JournalEntry> {
+    const result = await db.insert(journalEntries).values({ ...data, userId }).returning();
+    return result[0];
+  }
+  async deleteJournalEntry(userId: string, id: string): Promise<boolean> {
+    const result = await db.delete(journalEntries).where(and(eq(journalEntries.id, id), eq(journalEntries.userId, userId))).returning();
+    return result.length > 0;
   }
   async upsertJournalEntry(userId: string, data: InsertJournalEntry): Promise<JournalEntry> {
     const existing = await this.getJournalEntry(userId, data.date);

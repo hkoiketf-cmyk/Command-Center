@@ -464,10 +464,21 @@ export async function registerRoutes(
 
   app.get("/api/journal/:date", isAuthenticated, async (req, res) => {
     try {
-      const entry = await storage.getJournalEntry(getUserId(req), req.params.date);
-      res.json(entry || null);
+      const entries = await storage.getJournalEntriesByDate(getUserId(req), req.params.date);
+      res.json(entries);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch journal entry" });
+      res.status(500).json({ error: "Failed to fetch journal entries" });
+    }
+  });
+
+  app.post("/api/journal", isAuthenticated, async (req, res) => {
+    try {
+      const parsed = insertJournalEntrySchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
+      const entry = await storage.createJournalEntry(getUserId(req), parsed.data);
+      res.status(201).json(entry);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create journal entry" });
     }
   });
 
@@ -479,6 +490,16 @@ export async function registerRoutes(
       res.json(entry);
     } catch (error) {
       res.status(500).json({ error: "Failed to save journal entry" });
+    }
+  });
+
+  app.delete("/api/journal/:id", isAuthenticated, async (req, res) => {
+    try {
+      const deleted = await storage.deleteJournalEntry(getUserId(req), req.params.id);
+      if (!deleted) return res.status(404).json({ error: "Journal entry not found" });
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete journal entry" });
     }
   });
 

@@ -62,11 +62,11 @@ interface TimerWidgetProps {
 }
 
 export function TimerWidget({ content, onContentChange }: TimerWidgetProps) {
-  const mode = content.mode || "countdown";
-  const initialH = content.hours || 0;
-  const initialM = content.minutes || 5;
-  const initialS = content.seconds || 0;
-  const selectedSound = content.sound || "beep";
+  const mode = content.mode ?? "countdown";
+  const initialH = content.hours ?? 0;
+  const initialM = content.minutes ?? 5;
+  const initialS = content.seconds ?? 0;
+  const selectedSound = content.sound ?? "beep";
 
   const [isRunning, setIsRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0);

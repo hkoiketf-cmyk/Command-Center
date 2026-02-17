@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Trash2, Circle } from "lucide-react";
+import { Plus, Trash2, Circle, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -10,6 +10,8 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import type { Venture, Priority, PrioritiesContent } from "@shared/schema";
 
+const VENTURE_COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#06B6D4", "#F97316"];
+
 interface PrioritiesWidgetProps {
   content: PrioritiesContent;
   onContentChange: (content: PrioritiesContent) => void;
@@ -17,6 +19,8 @@ interface PrioritiesWidgetProps {
 
 export function PrioritiesWidget({ content, onContentChange }: PrioritiesWidgetProps) {
   const [newPriority, setNewPriority] = useState("");
+  const [showAddVenture, setShowAddVenture] = useState(false);
+  const [newVentureName, setNewVentureName] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string; text: string }>({
     open: false,
     id: "",
@@ -26,6 +30,21 @@ export function PrioritiesWidget({ content, onContentChange }: PrioritiesWidgetP
 
   const { data: ventures = [] } = useQuery<Venture[]>({
     queryKey: ["/api/ventures"],
+  });
+
+  const addVenture = useMutation({
+    mutationFn: async (data: { name: string; color: string }) => {
+      const res = await apiRequest("POST", "/api/ventures", data);
+      return await res.json();
+    },
+    onSuccess: async (venture: Venture) => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/ventures"] });
+      if (venture?.id) {
+        onContentChange({ ventureId: venture.id });
+      }
+      setNewVentureName("");
+      setShowAddVenture(false);
+    },
   });
 
   const { data: priorities = [] } = useQuery<Priority[]>({
@@ -89,26 +108,74 @@ export function PrioritiesWidget({ content, onContentChange }: PrioritiesWidgetP
   return (
     <>
       <div className="h-full flex flex-col gap-4">
-        <Select value={selectedVentureId || undefined} onValueChange={handleVentureChange}>
-          <SelectTrigger data-testid="select-venture">
-            <SelectValue placeholder="Select a venture..." />
-          </SelectTrigger>
-          <SelectContent>
-            {ventures.map((venture) => (
-              <SelectItem key={venture.id} value={venture.id} textValue={venture.name}>
-                <div className="flex items-center gap-2">
-                  <Circle
-                    className="h-3 w-3"
-                    style={{ fill: venture.color, color: venture.color }}
-                  />
-                  {venture.name}
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {ventures.length === 0 && !showAddVenture ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-6 text-center">
+            <Briefcase className="h-8 w-8 text-muted-foreground opacity-40" />
+            <div className="text-sm text-muted-foreground">Create a venture to start tracking priorities</div>
+            <Button variant="outline" size="sm" onClick={() => setShowAddVenture(true)} data-testid="button-create-first-venture">
+              <Plus className="h-3.5 w-3.5 mr-1" /> Create Venture
+            </Button>
+          </div>
+        ) : showAddVenture ? (
+          <div className="space-y-2">
+            <Input
+              value={newVentureName}
+              onChange={(e) => setNewVentureName(e.target.value)}
+              placeholder="Venture name..."
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newVentureName.trim()) {
+                  addVenture.mutate({ name: newVentureName.trim(), color: VENTURE_COLORS[ventures.length % VENTURE_COLORS.length] });
+                }
+              }}
+              data-testid="input-inline-venture-name"
+            />
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                className="flex-1"
+                onClick={() => {
+                  if (newVentureName.trim()) {
+                    addVenture.mutate({ name: newVentureName.trim(), color: VENTURE_COLORS[ventures.length % VENTURE_COLORS.length] });
+                  }
+                }}
+                disabled={!newVentureName.trim() || addVenture.isPending}
+                data-testid="button-confirm-inline-venture"
+              >
+                Create
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => { setShowAddVenture(false); setNewVentureName(""); }}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex gap-2 items-center">
+            <Select value={selectedVentureId || undefined} onValueChange={handleVentureChange}>
+              <SelectTrigger className="flex-1" data-testid="select-venture">
+                <SelectValue placeholder="Select a venture..." />
+              </SelectTrigger>
+              <SelectContent>
+                {ventures.map((venture) => (
+                  <SelectItem key={venture.id} value={venture.id} textValue={venture.name}>
+                    <div className="flex items-center gap-2">
+                      <Circle
+                        className="h-3 w-3"
+                        style={{ fill: venture.color, color: venture.color }}
+                      />
+                      {venture.name}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button variant="ghost" size="icon" onClick={() => setShowAddVenture(true)} title="Add venture" data-testid="button-add-venture-inline">
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
 
-        {selectedVentureId && (
+        {selectedVentureId && !showAddVenture && (
           <>
             <div className="flex-1 space-y-2">
               {priorities.length === 0 ? (

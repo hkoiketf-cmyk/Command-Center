@@ -1,6 +1,6 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Send, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -15,40 +15,52 @@ function displayDate(dateStr: string): string {
   return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
 }
 
+function formatTime(createdAt: string): string {
+  try {
+    const d = new Date(createdAt);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  } catch {
+    return "";
+  }
+}
+
 export function DailyJournalWidget() {
   const today = formatDate(new Date());
   const [selectedDate, setSelectedDate] = useState(today);
   const [content, setContent] = useState("");
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const { data: entries = [] } = useQuery<JournalEntry[]>({
+  const { data: allEntries = [] } = useQuery<JournalEntry[]>({
     queryKey: ["/api/journal"],
   });
 
-  const { data: currentEntry } = useQuery<JournalEntry | null>({
+  const { data: dateEntries = [] } = useQuery<JournalEntry[]>({
     queryKey: ["/api/journal", selectedDate],
   });
 
-  useEffect(() => {
-    setContent(currentEntry?.content || "");
-  }, [currentEntry, selectedDate]);
-
-  const saveMutation = useMutation({
+  const createMutation = useMutation({
     mutationFn: (data: { date: string; content: string }) =>
-      apiRequest("PUT", "/api/journal", data),
+      apiRequest("POST", "/api/journal", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/journal"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/journal", selectedDate] });
+      setContent("");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/journal/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/journal"] });
       queryClient.invalidateQueries({ queryKey: ["/api/journal", selectedDate] });
     },
   });
 
-  const handleChange = useCallback((value: string) => {
-    setContent(value);
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = setTimeout(() => {
-      saveMutation.mutate({ date: selectedDate, content: value });
-    }, 800);
-  }, [selectedDate]);
+  const handleSubmit = () => {
+    if (content.trim()) {
+      createMutation.mutate({ date: selectedDate, content: content.trim() });
+    }
+  };
 
   const navigateDay = (dir: number) => {
     const d = new Date(selectedDate + "T12:00:00");
@@ -57,7 +69,7 @@ export function DailyJournalWidget() {
   };
 
   const isToday = selectedDate === today;
-  const hasEntries = entries.filter((e) => e.content.trim()).length;
+  const totalEntries = allEntries.filter((e) => e.content.trim()).length;
 
   return (
     <div className="flex flex-col h-full gap-2 p-3" data-testid="widget-daily-journal">
@@ -74,17 +86,62 @@ export function DailyJournalWidget() {
         </Button>
       </div>
 
-      <Textarea
-        value={content}
-        onChange={(e) => handleChange(e.target.value)}
-        placeholder="What happened today? What did you learn? What's on your mind?"
-        className="flex-1 resize-none text-sm min-h-[120px]"
-        data-testid="textarea-journal"
-      />
+      <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
+        {dateEntries.length === 0 && (
+          <div className="text-xs text-muted-foreground text-center py-3">
+            No entries for this day yet.
+          </div>
+        )}
+        {dateEntries.map((entry) => (
+          <div
+            key={entry.id}
+            className="group relative rounded-md border border-border p-2.5 text-sm"
+            data-testid={`journal-entry-${entry.id}`}
+          >
+            <div className="whitespace-pre-wrap break-words">{entry.content}</div>
+            <div className="flex items-center justify-between gap-2 mt-1.5">
+              <span className="text-[10px] text-muted-foreground">{formatTime(entry.createdAt)}</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="invisible group-hover:visible"
+                onClick={() => deleteMutation.mutate(entry.id)}
+                data-testid={`button-delete-journal-${entry.id}`}
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-2 items-end">
+        <Textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="What happened today? What did you learn?"
+          className="flex-1 resize-none text-sm min-h-[60px] max-h-[120px]"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault();
+              handleSubmit();
+            }
+          }}
+          data-testid="textarea-journal"
+        />
+        <Button
+          size="icon"
+          onClick={handleSubmit}
+          disabled={!content.trim() || createMutation.isPending}
+          data-testid="button-submit-journal"
+        >
+          <Send className="h-4 w-4" />
+        </Button>
+      </div>
 
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{hasEntries} entr{hasEntries !== 1 ? "ies" : "y"} total</span>
-        {saveMutation.isPending && <span>Saving...</span>}
+        <span>{dateEntries.length} entr{dateEntries.length !== 1 ? "ies" : "y"} today</span>
+        <span>{totalEntries} total</span>
       </div>
     </div>
   );

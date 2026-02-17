@@ -13,7 +13,7 @@ export const userSettings = pgTable("user_settings", {
   openaiApiKey: text("openai_api_key"),
 });
 
-export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({ id: true });
+export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({ id: true, userId: true });
 export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
 export type UserSettings = typeof userSettings.$inferSelect;
 
@@ -85,6 +85,7 @@ export const ventures = pgTable("ventures", {
 
 export const insertVentureSchema = createInsertSchema(ventures).omit({
   id: true,
+  userId: true,
 });
 
 export type InsertVenture = z.infer<typeof insertVentureSchema>;
@@ -102,6 +103,7 @@ export const priorities = pgTable("priorities", {
 
 export const insertPrioritySchema = createInsertSchema(priorities).omit({
   id: true,
+  userId: true,
 });
 
 export type InsertPriority = z.infer<typeof insertPrioritySchema>;
@@ -121,6 +123,7 @@ export const revenueData = pgTable("revenue_data", {
 
 export const insertRevenueDataSchema = createInsertSchema(revenueData).omit({
   id: true,
+  userId: true,
 });
 
 export type InsertRevenueData = z.infer<typeof insertRevenueDataSchema>;
@@ -135,6 +138,7 @@ export const dashboardLayouts = pgTable("dashboard_layouts", {
 
 export const insertDashboardLayoutSchema = createInsertSchema(dashboardLayouts).omit({
   id: true,
+  userId: true,
 });
 
 export type InsertDashboardLayout = z.infer<typeof insertDashboardLayoutSchema>;
@@ -190,6 +194,7 @@ export const focusContracts = pgTable("focus_contracts", {
 
 export const insertFocusContractSchema = createInsertSchema(focusContracts).omit({
   id: true,
+  userId: true,
 });
 
 export type InsertFocusContract = z.infer<typeof insertFocusContractSchema>;
@@ -207,6 +212,7 @@ export const appSettings = pgTable("app_settings", {
 
 export const insertAppSettingsSchema = createInsertSchema(appSettings).omit({
   id: true,
+  userId: true,
 });
 
 export type InsertAppSettings = z.infer<typeof insertAppSettingsSchema>;
@@ -223,7 +229,7 @@ export const captureItems = pgTable("capture_items", {
   createdAt: text("created_at").notNull().default(sql`now()::text`),
 });
 
-export const insertCaptureItemSchema = createInsertSchema(captureItems).omit({ id: true });
+export const insertCaptureItemSchema = createInsertSchema(captureItems).omit({ id: true, userId: true });
 export type InsertCaptureItem = z.infer<typeof insertCaptureItemSchema>;
 export type CaptureItem = typeof captureItems.$inferSelect;
 
@@ -236,7 +242,7 @@ export const habits = pgTable("habits", {
   order: integer("order").notNull().default(0),
 });
 
-export const insertHabitSchema = createInsertSchema(habits).omit({ id: true });
+export const insertHabitSchema = createInsertSchema(habits).omit({ id: true, userId: true });
 export type InsertHabit = z.infer<typeof insertHabitSchema>;
 export type Habit = typeof habits.$inferSelect;
 
@@ -248,7 +254,7 @@ export const habitEntries = pgTable("habit_entries", {
   completed: boolean("completed").default(true),
 });
 
-export const insertHabitEntrySchema = createInsertSchema(habitEntries).omit({ id: true });
+export const insertHabitEntrySchema = createInsertSchema(habitEntries).omit({ id: true, userId: true });
 export type InsertHabitEntry = z.infer<typeof insertHabitEntrySchema>;
 export type HabitEntry = typeof habitEntries.$inferSelect;
 
@@ -258,9 +264,10 @@ export const journalEntries = pgTable("journal_entries", {
   userId: varchar("user_id").notNull(),
   date: text("date").notNull(),
   content: text("content").notNull().default(""),
+  createdAt: text("created_at").notNull().default(sql`now()::text`),
 });
 
-export const insertJournalEntrySchema = createInsertSchema(journalEntries).omit({ id: true });
+export const insertJournalEntrySchema = createInsertSchema(journalEntries).omit({ id: true, userId: true, createdAt: true });
 export type InsertJournalEntry = z.infer<typeof insertJournalEntrySchema>;
 export type JournalEntry = typeof journalEntries.$inferSelect;
 
@@ -274,7 +281,7 @@ export const scorecardMetrics = pgTable("scorecard_metrics", {
   order: integer("order").notNull().default(0),
 });
 
-export const insertScorecardMetricSchema = createInsertSchema(scorecardMetrics).omit({ id: true });
+export const insertScorecardMetricSchema = createInsertSchema(scorecardMetrics).omit({ id: true, userId: true });
 export type InsertScorecardMetric = z.infer<typeof insertScorecardMetricSchema>;
 export type ScorecardMetric = typeof scorecardMetrics.$inferSelect;
 
@@ -286,7 +293,7 @@ export const scorecardEntries = pgTable("scorecard_entries", {
   value: real("value").notNull().default(0),
 });
 
-export const insertScorecardEntrySchema = createInsertSchema(scorecardEntries).omit({ id: true });
+export const insertScorecardEntrySchema = createInsertSchema(scorecardEntries).omit({ id: true, userId: true });
 export type InsertScorecardEntry = z.infer<typeof insertScorecardEntrySchema>;
 export type ScorecardEntry = typeof scorecardEntries.$inferSelect;
 
@@ -302,7 +309,7 @@ export const kpis = pgTable("kpis", {
   order: integer("order").notNull().default(0),
 });
 
-export const insertKpiSchema = createInsertSchema(kpis).omit({ id: true });
+export const insertKpiSchema = createInsertSchema(kpis).omit({ id: true, userId: true });
 export type InsertKpi = z.infer<typeof insertKpiSchema>;
 export type Kpi = typeof kpis.$inferSelect;
 
@@ -317,7 +324,7 @@ export const waitingItems = pgTable("waiting_items", {
   completed: boolean("completed").default(false),
 });
 
-export const insertWaitingItemSchema = createInsertSchema(waitingItems).omit({ id: true });
+export const insertWaitingItemSchema = createInsertSchema(waitingItems).omit({ id: true, userId: true });
 export type InsertWaitingItem = z.infer<typeof insertWaitingItemSchema>;
 export type WaitingItem = typeof waitingItems.$inferSelect;
 
@@ -333,7 +340,7 @@ export const deals = pgTable("deals", {
   createdAt: text("created_at").notNull().default(sql`now()::text`),
 });
 
-export const insertDealSchema = createInsertSchema(deals).omit({ id: true });
+export const insertDealSchema = createInsertSchema(deals).omit({ id: true, userId: true });
 export type InsertDeal = z.infer<typeof insertDealSchema>;
 export type Deal = typeof deals.$inferSelect;
 
@@ -348,7 +355,7 @@ export const timeBlocks = pgTable("time_blocks", {
   color: text("color").notNull().default("#3B82F6"),
 });
 
-export const insertTimeBlockSchema = createInsertSchema(timeBlocks).omit({ id: true });
+export const insertTimeBlockSchema = createInsertSchema(timeBlocks).omit({ id: true, userId: true });
 export type InsertTimeBlock = z.infer<typeof insertTimeBlockSchema>;
 export type TimeBlock = typeof timeBlocks.$inferSelect;
 
@@ -361,7 +368,7 @@ export const recurringExpenses = pgTable("recurring_expenses", {
   category: text("category").default(""),
 });
 
-export const insertRecurringExpenseSchema = createInsertSchema(recurringExpenses).omit({ id: true });
+export const insertRecurringExpenseSchema = createInsertSchema(recurringExpenses).omit({ id: true, userId: true });
 export type InsertRecurringExpense = z.infer<typeof insertRecurringExpenseSchema>;
 export type RecurringExpense = typeof recurringExpenses.$inferSelect;
 
@@ -374,7 +381,7 @@ export const variableExpenses = pgTable("variable_expenses", {
   category: text("category").default(""),
 });
 
-export const insertVariableExpenseSchema = createInsertSchema(variableExpenses).omit({ id: true });
+export const insertVariableExpenseSchema = createInsertSchema(variableExpenses).omit({ id: true, userId: true });
 export type InsertVariableExpense = z.infer<typeof insertVariableExpenseSchema>;
 export type VariableExpense = typeof variableExpenses.$inferSelect;
 
@@ -394,7 +401,7 @@ export const meetings = pgTable("meetings", {
   completed: boolean("completed").default(false),
 });
 
-export const insertMeetingSchema = createInsertSchema(meetings).omit({ id: true });
+export const insertMeetingSchema = createInsertSchema(meetings).omit({ id: true, userId: true });
 export type InsertMeeting = z.infer<typeof insertMeetingSchema>;
 export type Meeting = typeof meetings.$inferSelect;
 
@@ -421,7 +428,7 @@ export const aiConversations = pgTable("ai_conversations", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const insertAiConversationSchema = createInsertSchema(aiConversations).omit({ id: true, createdAt: true });
+export const insertAiConversationSchema = createInsertSchema(aiConversations).omit({ id: true, userId: true, createdAt: true });
 export type InsertAiConversation = z.infer<typeof insertAiConversationSchema>;
 export type AiConversation = typeof aiConversations.$inferSelect;
 
@@ -434,7 +441,7 @@ export const aiMessages = pgTable("ai_messages", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const insertAiMessageSchema = createInsertSchema(aiMessages).omit({ id: true, createdAt: true });
+export const insertAiMessageSchema = createInsertSchema(aiMessages).omit({ id: true, userId: true, createdAt: true });
 export type InsertAiMessage = z.infer<typeof insertAiMessageSchema>;
 export type AiMessage = typeof aiMessages.$inferSelect;
 
@@ -461,7 +468,7 @@ export const dashboardPresets = pgTable("dashboard_presets", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const insertDashboardPresetSchema = createInsertSchema(dashboardPresets).omit({ id: true, createdAt: true });
+export const insertDashboardPresetSchema = createInsertSchema(dashboardPresets).omit({ id: true, userId: true, createdAt: true });
 export type InsertDashboardPreset = z.infer<typeof insertDashboardPresetSchema>;
 export type DashboardPreset = typeof dashboardPresets.$inferSelect;
 
