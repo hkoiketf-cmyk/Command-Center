@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Wand2, Send, Eye, Code, Loader2, RotateCcw, Check, Key, CheckCircle2, X } from "lucide-react";
+import { Wand2, Send, Eye, Code, Loader2, RotateCcw, Check, Key, CheckCircle2, X, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,6 +12,12 @@ interface AiWidgetBuilderProps {
   onClose: () => void;
   initialCode?: string;
   initialTitle?: string;
+}
+
+interface ConversationMessage {
+  role: "user" | "assistant";
+  content: string;
+  summary?: string;
 }
 
 const PROMPT_SUGGESTIONS = [
@@ -33,7 +39,15 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
   const [generationPhase, setGenerationPhase] = useState("");
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [showApiKeyForm, setShowApiKeyForm] = useState(false);
+  const [conversation, setConversation] = useState<ConversationMessage[]>(() => {
+    if (initialCode) {
+      return [{ role: "assistant", content: initialCode, summary: "Existing widget code loaded" }];
+    }
+    return [];
+  });
+  const [originalPrompt, setOriginalPrompt] = useState("");
   const abortRef = useRef<AbortController | null>(null);
+  const chatLogRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const { data: userSettings } = useQuery<{ hasOpenaiKey: boolean; openaiApiKey: string | null }>({
@@ -69,7 +83,13 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
     };
   }, []);
 
-  const streamFromEndpoint = async (body: Record<string, unknown>, signal: AbortSignal): Promise<string> => {
+  useEffect(() => {
+    if (chatLogRef.current) {
+      chatLogRef.current.scrollTop = chatLogRef.current.scrollHeight;
+    }
+  }, [conversation]);
+
+  const streamFromEndpoint = async (body: Record<string, unknown>, signal: AbortSignal, onChunk?: (text: string) => void): Promise<string> => {
     const response = await fetch("/api/ai/generate-widget", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -106,7 +126,7 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
             const parsed = JSON.parse(data);
             if (parsed.content) {
               fullText += parsed.content;
-              setGeneratedCode(fullText);
+              if (onChunk) onChunk(fullText);
             }
             if (parsed.error) {
               throw new Error(parsed.error);
@@ -127,7 +147,25 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
     if (fenceMatch) {
       code = fenceMatch[1].trim();
     }
+    if (code.includes("<!DOCTYPE") || code.includes("<html") || code.includes("<div") || code.includes("<style")) {
+      const htmlStart = code.indexOf("<!DOCTYPE");
+      const htmlStart2 = code.indexOf("<html");
+      const start = htmlStart >= 0 ? htmlStart : htmlStart2;
+      if (start > 0) {
+        code = code.substring(start);
+      }
+    }
     return code;
+  };
+
+  const buildConversationHistory = (): { role: string; content: string }[] => {
+    const messages: { role: string; content: string }[] = [];
+    for (const msg of conversation) {
+      if (msg.role === "user") {
+        messages.push({ role: "user", content: msg.content });
+      }
+    }
+    return messages;
   };
 
   const generateWidget = useCallback(async (userPrompt: string) => {
@@ -135,40 +173,74 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
 
     setIsGenerating(true);
     setError("");
-    setShowPreview(false);
+
+    const isFirstGeneration = conversation.length === 0;
+    const hasExistingCode = !!generatedCode;
+
+    if (isFirstGeneration) {
+      setOriginalPrompt(userPrompt);
+    }
+
+    setConversation(prev => [...prev, { role: "user", content: userPrompt, summary: userPrompt }]);
 
     try {
       abortRef.current = new AbortController();
       const signal = abortRef.current.signal;
 
-      setGenerationPhase("Building your widget...");
-      const rawCode = await streamFromEndpoint({
-        prompt: userPrompt,
-        currentCode: generatedCode || undefined,
-        mode: "generate",
-      }, signal);
+      if (isFirstGeneration && !hasExistingCode) {
+        setGenerationPhase("Building your widget...");
+        setGeneratedCode("");
+        setShowPreview(false);
 
-      let finalCode = cleanCode(rawCode);
+        const rawCode = await streamFromEndpoint({
+          prompt: userPrompt,
+          mode: "generate",
+          conversationHistory: [],
+        }, signal, (text) => setGeneratedCode(text));
 
-      setGenerationPhase("Reviewing and improving...");
-      setGeneratedCode("");
-      const reviewedCode = await streamFromEndpoint({
-        prompt: `Review and improve this widget code. Fix any bugs, improve the visual design, ensure it's responsive and works well in a small container (300-600px wide). Make sure colors, typography, and spacing look polished and professional. Return the complete improved HTML code.`,
-        currentCode: finalCode,
-        mode: "review",
-      }, signal);
+        let firstPassCode = cleanCode(rawCode);
 
-      finalCode = cleanCode(reviewedCode);
-      setGeneratedCode(finalCode);
+        setGenerationPhase("AI is reviewing and polishing...");
+        setGeneratedCode("");
 
-      if (!widgetTitle && finalCode) {
-        const titleMatch = finalCode.match(/<title>(.*?)<\/title>/i);
-        if (titleMatch) {
-          setWidgetTitle(titleMatch[1]);
-        } else {
-          const words = userPrompt.split(" ").slice(0, 5).join(" ");
-          setWidgetTitle(words.charAt(0).toUpperCase() + words.slice(1));
+        const reviewedCode = await streamFromEndpoint({
+          prompt: `You are reviewing your own output. The user asked for: "${userPrompt}". Here is the code you generated. Review it thoroughly. Fix ALL bugs. Improve the visual design. Ensure all interactive elements work. Ensure it's responsive for 300-600px containers. Return the complete improved HTML code - output ONLY the code, no explanations.`,
+          currentCode: firstPassCode,
+          mode: "review",
+          conversationHistory: [],
+        }, signal, (text) => setGeneratedCode(text));
+
+        const finalCode = cleanCode(reviewedCode);
+        setGeneratedCode(finalCode);
+
+        setConversation(prev => [...prev, { role: "assistant", content: finalCode, summary: "Generated and reviewed widget" }]);
+
+        if (!widgetTitle) {
+          const titleMatch = finalCode.match(/<title>(.*?)<\/title>/i);
+          if (titleMatch && titleMatch[1] && titleMatch[1].length < 50) {
+            setWidgetTitle(titleMatch[1]);
+          } else {
+            const words = userPrompt.split(" ").slice(0, 5).join(" ");
+            setWidgetTitle(words.charAt(0).toUpperCase() + words.slice(1));
+          }
         }
+      } else {
+        setGenerationPhase("Applying your changes...");
+
+        const history = buildConversationHistory();
+
+        const refinedCode = await streamFromEndpoint({
+          prompt: userPrompt,
+          currentCode: generatedCode,
+          mode: "refine",
+          conversationHistory: history,
+          originalPrompt: originalPrompt || undefined,
+        }, signal, (text) => setGeneratedCode(text));
+
+        const finalCode = cleanCode(refinedCode);
+        setGeneratedCode(finalCode);
+
+        setConversation(prev => [...prev, { role: "assistant", content: finalCode, summary: "Applied changes" }]);
       }
 
       setShowPreview(true);
@@ -177,12 +249,13 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
     } catch (err: any) {
       if (err.name !== "AbortError") {
         setError(err.message || "Generation failed");
+        setConversation(prev => prev.slice(0, -1));
       }
       setGenerationPhase("");
     } finally {
       setIsGenerating(false);
     }
-  }, [isGenerating, generatedCode, widgetTitle]);
+  }, [isGenerating, generatedCode, widgetTitle, conversation, originalPrompt]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -211,6 +284,8 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
     setPrompt("");
     setError("");
     setGenerationPhase("");
+    setConversation([]);
+    setOriginalPrompt("");
   };
 
   const handleSaveApiKey = (e: React.FormEvent) => {
@@ -242,6 +317,8 @@ ${rawCode}
   };
 
   const isEditMode = !!initialCode;
+  const hasConversation = conversation.length > 0;
+  const userMessages = conversation.filter(m => m.role === "user");
 
   return (
     <div className="flex flex-col h-full gap-4" data-testid="ai-widget-builder">
@@ -321,12 +398,12 @@ ${rawCode}
         )}
       </div>
 
-      {!generatedCode && !isGenerating ? (
+      {!generatedCode && !isGenerating && !hasConversation ? (
         <div className="flex flex-col items-center gap-4 py-2">
           <p className="text-sm text-muted-foreground text-center max-w-md">
             {isEditMode 
-              ? "Your widget code was cleared. Use AI to rebuild or type in the prompt below."
-              : "Describe the widget you want and AI will build it for you. It generates the code, reviews it, and polishes it automatically."
+              ? "Describe the changes you want to make to your widget."
+              : "Describe the widget you want and AI will build it. It generates, then self-reviews and polishes the code automatically."
             }
           </p>
 
@@ -357,7 +434,7 @@ ${rawCode}
             <Textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder={hasKey ? "Describe your widget... e.g. 'A beautiful countdown timer to New Year's Eve with fireworks animation'" : "Add your OpenAI API key above to get started..."}
+              placeholder={hasKey ? "Describe your widget in detail... e.g. 'A Pomodoro timer with 25min work / 5min break cycles, a visual ring that fills up, start/pause/reset buttons, and a session counter'" : "Add your OpenAI API key above to get started..."}
               className="resize-none text-sm min-h-[80px]"
               disabled={isGenerating || !hasKey}
               data-testid="textarea-widget-prompt"
@@ -369,27 +446,9 @@ ${rawCode}
               data-testid="button-generate-widget"
             >
               <Wand2 className="h-4 w-4 mr-2" />
-              Generate Widget
+              Build Widget
             </Button>
           </form>
-        </div>
-      ) : isGenerating ? (
-        <div className="flex flex-col items-center justify-center gap-4 py-8 flex-1">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <div className="text-center space-y-1">
-            <p className="text-sm font-medium">{generationPhase || "Generating..."}</p>
-            <p className="text-xs text-muted-foreground">AI is building and reviewing your widget</p>
-          </div>
-          {generatedCode && (
-            <div className="w-full max-w-md border rounded-lg overflow-hidden" style={{ height: "150px" }}>
-              <iframe
-                srcDoc={wrapCode(generatedCode)}
-                sandbox="allow-scripts"
-                className="w-full h-full border-0"
-                title="Widget Preview"
-              />
-            </div>
-          )}
         </div>
       ) : (
         <div className="flex flex-col gap-3 flex-1 min-h-0">
@@ -432,6 +491,13 @@ ${rawCode}
             </div>
           )}
 
+          {isGenerating && (
+            <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-primary/5 border border-primary/10">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
+              <span className="text-xs text-primary font-medium">{generationPhase || "Working..."}</span>
+            </div>
+          )}
+
           {showPreview ? (
             <div className="flex-1 min-h-[250px] border rounded-lg overflow-hidden">
               <iframe
@@ -453,11 +519,22 @@ ${rawCode}
             </div>
           )}
 
+          {userMessages.length > 0 && (
+            <div ref={chatLogRef} className="max-h-[80px] overflow-y-auto rounded-md border px-3 py-2 space-y-1">
+              {userMessages.map((msg, i) => (
+                <div key={i} className="flex items-start gap-2 text-xs">
+                  <MessageSquare className="h-3 w-3 shrink-0 mt-0.5 text-muted-foreground" />
+                  <span className="text-muted-foreground">{msg.summary || msg.content}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="flex items-end gap-2">
             <Textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Ask for changes... e.g. 'Make it blue' or 'Add a reset button'"
+              placeholder="Ask for changes... e.g. 'Make the colors more vibrant' or 'Add a reset button at the bottom'"
               className="resize-none text-sm min-h-[44px] max-h-[80px] flex-1"
               disabled={isGenerating}
               data-testid="textarea-widget-refine"
@@ -476,6 +553,7 @@ ${rawCode}
           <Button
             className="w-full"
             onClick={handleAddToBoard}
+            disabled={isGenerating || !generatedCode.trim()}
             data-testid="button-add-ai-widget"
           >
             <Check className="h-4 w-4 mr-2" />

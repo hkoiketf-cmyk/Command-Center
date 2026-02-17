@@ -1616,7 +1616,7 @@ Today's date is ${today}.`,
   app.post("/api/ai/generate-widget", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
-      const { prompt, currentCode, mode } = req.body;
+      const { prompt, currentCode, mode, conversationHistory, originalPrompt } = req.body;
       if (!prompt || typeof prompt !== "string") {
         return res.status(400).json({ error: "A description of your widget is required." });
       }
@@ -1633,64 +1633,119 @@ Today's date is ${today}.`,
       res.setHeader("Connection", "keep-alive");
       res.flushHeaders();
 
-      let systemPrompt: string;
+      const baseConstraints = `TECHNICAL CONSTRAINTS:
+- This widget runs in a sandboxed iframe with allow-scripts only. NO localStorage, NO sessionStorage, NO fetch, NO XMLHttpRequest, NO parent window access.
+- Allowed CDNs: Chart.js, D3.js, Font Awesome, Google Fonts, animate.css via https://cdn.jsdelivr.net or https://cdnjs.cloudflare.com.
+- Target container: 250-800px wide, 200-500px tall. MUST be fully responsive.
+
+QUALITY REQUIREMENTS:
+1. Start with <!DOCTYPE html>. Include complete <html>, <head> (with <title>), and <body>.
+2. Use CSS custom properties at :root (--primary, --bg, --text, --accent, --surface, --border) for theming.
+3. Dark-friendly color scheme: dark backgrounds (e.g. #1a1a2e, #16213e) with light text (#e0e0e0). Subtle borders (rgba(255,255,255,0.1)). Professional box-shadows.
+4. Typography: use system-ui,-apple-system,sans-serif or import Inter/Poppins from Google Fonts. Proper font-size hierarchy (headings 1.25-1.5rem, body 0.9-1rem, labels 0.75rem). line-height 1.5.
+5. Spacing: consistent padding (16-24px), proper margins between sections. No cramped elements.
+6. Interactivity: cursor:pointer on clickable elements. Hover effects with transition:all 0.2s ease. Focus outlines on inputs. All buttons/inputs MUST be functional with JavaScript.
+7. Animations: subtle CSS @keyframes for load-in (fadeIn, slideUp). Smooth transitions on state changes.
+8. Realistic data: use meaningful sample data, real-world names/numbers. Never "Lorem ipsum" or "Item 1".
+9. Polish: border-radius 8-12px, subtle box-shadow (0 4px 16px rgba(0,0,0,0.2)), clean visual hierarchy.
+10. NO horizontal scrollbar. Content must not overflow. Use overflow:hidden or overflow:auto where needed.`;
+
+      let messages: { role: "system" | "user" | "assistant"; content: string }[] = [];
 
       if (mode === "review") {
-        systemPrompt = `You are a senior front-end engineer doing a thorough code review and improvement pass on an HTML widget. Your job is to take existing widget code and make it SIGNIFICANTLY better.
+        messages = [
+          {
+            role: "system",
+            content: `You are a senior front-end engineer doing a thorough quality review of HTML widget code. Your job is to take the code and make it PRODUCTION-QUALITY.
 
-OUTPUT RULES:
-- Output ONLY the complete, improved HTML code. No explanations, no markdown, no code fences. Just raw HTML starting with <!DOCTYPE html>.
+OUTPUT: Only the complete, improved HTML code. No explanations, no markdown fences. Raw HTML starting with <!DOCTYPE html>.
 
-REVIEW CHECKLIST - Fix ALL of these:
-1. VISUAL DESIGN: Ensure professional look with proper spacing (min 16px padding), consistent border-radius, good color contrast, modern typography (use system-ui or import a clean Google Font like Inter/Poppins). No default browser styling should be visible.
-2. RESPONSIVE LAYOUT: Must work in 250px-800px width containers. Use flexbox/grid, not fixed widths. Use relative units (%, vw, rem) over fixed px where possible.
-3. COLOR SCHEME: Use a cohesive palette with a dark-friendly theme. Use CSS custom properties for colors. Backgrounds should use rgba() or semi-transparent values so the widget looks good on any parent background. Avoid pure white (#fff) backgrounds.
-4. INTERACTIVITY: Add hover states, transitions (0.2-0.3s ease), focus states for inputs, smooth animations. Make clickable elements obviously clickable with cursor:pointer.
-5. TYPOGRAPHY: Use a clear font hierarchy - headings larger/bolder, body text readable (min 14px), labels/captions smaller. Use line-height of 1.4-1.6 for body text.
-6. SHADOWS & BORDERS: Use subtle box-shadows (0 2px 8px rgba(0,0,0,0.1)) instead of harsh borders. If borders are used, they should be subtle (1px solid rgba()).
-7. EMPTY STATES: If the widget shows data, include realistic sample data, not placeholder text like "Lorem ipsum".
-8. ANIMATION: Add subtle CSS animations where appropriate (fade-in on load, smooth transitions). Don't overdo it.
-9. BUGS: Fix any JavaScript errors, missing closing tags, incorrect CSS properties.
-10. POLISH: Add a <title> tag that describes the widget. Ensure there's no horizontal scrollbar. Content should not overflow its container.
+REVIEW AND FIX ALL OF THESE:
+- Fix any JavaScript bugs, missing event listeners, broken logic
+- Ensure ALL interactive elements actually work (buttons do things, inputs process data, timers count)
+- Improve visual design: consistent spacing, proper colors, clean typography
+- Make responsive for 250-800px containers
+- Add proper hover/active states on interactive elements
+- Add subtle load-in animation
+- Ensure dark-friendly colors (no white backgrounds)
+- Add a descriptive <title> tag
+- Ensure no content overflow or scrollbar issues
 
-The current code to review and improve:
-${currentCode}`;
+${baseConstraints}
+
+THE CODE TO REVIEW AND IMPROVE:
+${currentCode}`
+          },
+          { role: "user", content: prompt }
+        ];
+      } else if (mode === "refine") {
+        const userRequestHistory: string[] = [];
+        if (Array.isArray(conversationHistory)) {
+          for (const msg of conversationHistory) {
+            if (msg.role === "user" && typeof msg.content === "string") {
+              userRequestHistory.push(msg.content);
+            }
+          }
+        }
+
+        const historySection = userRequestHistory.length > 0
+          ? `\nPREVIOUS USER REQUESTS (in order):\n${userRequestHistory.map((r, i) => `${i + 1}. "${r}"`).join("\n")}\n\nAll of these requests have already been applied to the current code. The user is now asking for additional changes.`
+          : "";
+
+        messages = [
+          {
+            role: "system",
+            content: `You are a world-class front-end developer maintaining an HTML widget through iterative improvements. The user has been working with you to build this widget and now wants changes.
+
+CRITICAL RULES:
+- Output ONLY the complete, updated HTML code. No explanations, no markdown, no code fences. Just raw HTML starting with <!DOCTYPE html>.
+- You MUST preserve ALL existing functionality that the user hasn't asked to change.
+- Apply ONLY the specific changes the user requests. Do NOT rewrite unrelated sections.
+- Keep the same overall design language, color scheme, layout, and features unless asked to change them.
+- If the user reports a bug, fix it while keeping everything else intact.
+- Never simplify, remove, or replace features that were already working.
+- The current code below is the GROUND TRUTH of what the widget looks like. Your job is to make targeted edits to it.
+
+${baseConstraints}
+
+${originalPrompt ? `ORIGINAL USER REQUEST (what they initially asked for): "${originalPrompt}"` : ""}
+${historySection}
+
+CURRENT WIDGET CODE (this is what the user sees right now - modify it based on the new request):
+${currentCode}`
+          },
+          { role: "user", content: prompt }
+        ];
       } else {
-        systemPrompt = `You are a world-class front-end developer who builds stunning, production-quality HTML widgets. You take pride in creating widgets that look like they belong in a premium SaaS product.
+        messages = [
+          {
+            role: "system",
+            content: `You are a world-class front-end developer who builds stunning, production-quality HTML widgets. You create widgets that look like they belong in a premium SaaS product. Every widget you build is fully functional, beautifully designed, and works perfectly on first try.
 
-OUTPUT RULES:
-- Output ONLY the HTML code. No explanations, no markdown, no code fences. Just raw HTML starting with <!DOCTYPE html>.
-- The widget must be fully self-contained in a single HTML file with inline <style> and <script> tags.
+OUTPUT: Only the HTML code. No explanations, no markdown, no code fences. Raw HTML starting with <!DOCTYPE html>. The widget must be fully self-contained with inline <style> and <script> tags.
 
-TECHNICAL CONSTRAINTS:
-- Runs in a sandboxed iframe (allow-scripts only). NO localStorage, NO sessionStorage, NO fetch/XMLHttpRequest, NO parent window access.
-- Allowed CDNs: Chart.js, D3.js, Font Awesome, Google Fonts, animate.css, or other popular CDNs via https://cdn.jsdelivr.net or https://cdnjs.cloudflare.com.
-- Target container: 250-800px wide, 200-500px tall. MUST be responsive.
+${baseConstraints}
 
-QUALITY STANDARDS (follow these precisely):
-1. Start with <!DOCTYPE html> and include complete <html>, <head> (with <title>), and <body> tags.
-2. Use CSS custom properties (--primary, --bg, --text, --accent, etc.) at :root for easy theming.
-3. Use a dark-friendly color scheme: dark cards (rgba(20,20,30,0.95)) with light text, subtle borders, professional shadows.
-4. Typography: Import a modern Google Font (Inter, Poppins, or similar) or use system-ui. Set proper font sizes, weights, and line-heights.
-5. Spacing: Use consistent padding (16-24px) and margins. No cramped layouts.
-6. Interactivity: cursor:pointer on clickable elements, hover effects with transitions (0.2s ease), focus outlines on inputs.
-7. Animations: Add subtle load-in animations (fadeIn, slideUp) using CSS @keyframes. Transitions on state changes.
-8. Data: Use realistic, meaningful sample data. If it's a tracker, use real-world metrics. If it's a timer, make it functional.
-9. Make ALL interactive elements actually work with JavaScript - buttons should do something, inputs should be functional.
-10. Polish: rounded corners (8-12px), subtle shadows (0 4px 12px rgba(0,0,0,0.15)), clean hierarchy.
+BEFORE YOU WRITE CODE, think through:
+- What data/state does this widget need?
+- What are all the interactive elements and what should they do?
+- What's the visual layout (header, content areas, controls)?
+- What edge cases need handling?
 
-${currentCode ? `EXISTING CODE (user wants modifications):\n${currentCode}\n\nModify this code based on the user's request while keeping existing functionality intact.` : ""}`;
+Then write the COMPLETE, WORKING code.`
+          },
+          { role: "user", content: prompt }
+        ];
       }
 
+      const modelToUse = "gpt-4o";
+
       const stream = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: modelToUse,
         stream: true,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: prompt },
-        ],
-        max_tokens: 8000,
-        temperature: mode === "review" ? 0.3 : 0.7,
+        messages,
+        max_tokens: 16000,
+        temperature: mode === "review" ? 0.2 : mode === "refine" ? 0.3 : 0.6,
       });
 
       for await (const chunk of stream) {
@@ -1706,6 +1761,9 @@ ${currentCode ? `EXISTING CODE (user wants modifications):\n${currentCode}\n\nMo
       if (!res.headersSent) {
         if (error.message?.includes("Incorrect API key") || error.status === 401) {
           return res.status(401).json({ error: "Invalid OpenAI API key. Please check your key in Settings." });
+        }
+        if (error.message?.includes("model") || error.code === "model_not_found") {
+          return res.status(400).json({ error: "Your API key doesn't have access to GPT-4o. Please ensure your OpenAI account has GPT-4o access, or upgrade your plan at platform.openai.com." });
         }
         return res.status(500).json({ error: "AI generation failed. Please try again." });
       }
