@@ -3,9 +3,10 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import GridLayout from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
-import { Zap, Plus, Monitor, Trash2, Pencil, Check, X as XIcon, Settings, Menu, Palette, Moon, Sun, LogOut, User, CreditCard, KeyRound, Library, Crosshair } from "lucide-react";
+import { Zap, Plus, Monitor, Trash2, Pencil, Check, X as XIcon, Settings, Menu, Palette, Moon, Sun, LogOut, User, CreditCard, KeyRound, Library, Crosshair, ChevronLeft, ChevronRight, ArrowUp, ArrowDown } from "lucide-react";
 import { AdminCodesDialog } from "@/components/admin-codes-dialog";
 import { AdminAnnouncementsDialog } from "@/components/admin-announcements";
+import { AdminWidgetTemplates } from "@/components/admin-widget-templates";
 import { NotificationsBell } from "@/components/notifications-bell";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -28,6 +29,7 @@ import { ExpenseTrackerWidget } from "@/components/expense-tracker-widget";
 import { MeetingPrepWidget } from "@/components/meeting-prep-widget";
 import { AiChatWidget } from "@/components/ai-chat-widget";
 import { TimerWidget } from "@/components/timer-widget";
+import { CustomWidget } from "@/components/custom-widget";
 import { HunterAI } from "@/components/hunter-ai";
 import { AddWidgetDialog } from "@/components/add-widget-dialog";
 import { PresetLibrary } from "@/components/preset-library";
@@ -74,7 +76,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Widget, WidgetType, LayoutItem, NotesContent, PrioritiesContent, RevenueContent, IframeContent, CodeContent, AiChatContent, TimerContent, Desktop, FocusContract, AppSettings, ExitGuardMode } from "@shared/schema";
+import type { Widget, WidgetType, LayoutItem, NotesContent, PrioritiesContent, RevenueContent, IframeContent, CodeContent, AiChatContent, TimerContent, CustomWidgetContent, Desktop, FocusContract, AppSettings, ExitGuardMode } from "@shared/schema";
 
 type GridLayoutItem = {
   i: string;
@@ -109,6 +111,7 @@ const defaultWidgetSizes: Record<WidgetType, { w: number; h: number; minW: numbe
   google_calendar: { w: 6, h: 8, minW: 3, minH: 5 },
   ai_chat: { w: 4, h: 8, minW: 2, minH: 5 },
   timer: { w: 3, h: 6, minW: 2, minH: 4 },
+  custom: { w: 4, h: 6, minW: 2, minH: 3 },
 };
 
 const BG_COLORS = [
@@ -374,9 +377,28 @@ export default function Dashboard() {
     },
   });
 
+  const reorderDesktops = useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      return apiRequest("PUT", "/api/desktops/reorder", { orderedIds });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/desktops"] });
+    },
+  });
+
+  const moveDesktop = (desktopId: string, direction: -1 | 1) => {
+    const idx = desktopList.findIndex(d => d.id === desktopId);
+    if (idx < 0) return;
+    const newIdx = idx + direction;
+    if (newIdx < 0 || newIdx >= desktopList.length) return;
+    const newOrder = desktopList.map(d => d.id);
+    [newOrder[idx], newOrder[newIdx]] = [newOrder[newIdx], newOrder[idx]];
+    reorderDesktops.mutate(newOrder);
+  };
+
   // Widget mutations
   const addWidget = useMutation({
-    mutationFn: async (data: { type: WidgetType; title: string }) => {
+    mutationFn: async (data: { type: WidgetType; title: string; content?: Record<string, unknown> }) => {
       if (!activeDesktopId) throw new Error("No active desktop");
       const nextY = widgets.length > 0 
         ? Math.max(...widgets.map(w => ((w.layout as LayoutItem)?.y || 0) + ((w.layout as LayoutItem)?.h || 4)))
@@ -393,7 +415,7 @@ export default function Dashboard() {
       return apiRequest("POST", "/api/widgets", {
         type: data.type,
         title: data.title,
-        content: {},
+        content: data.content || {},
         collapsed: false,
         layout,
         desktopId: activeDesktopId,
@@ -682,6 +704,12 @@ export default function Dashboard() {
             onContentChange={(content) => handleContentChange(widget, content)}
           />
         );
+      case "custom":
+        return (
+          <CustomWidget
+            content={(widget.content as CustomWidgetContent) || {}}
+          />
+        );
       default:
         return <div>Unknown widget type</div>;
     }
@@ -734,20 +762,43 @@ export default function Dashboard() {
                   <div className="space-y-2">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Desktops</p>
                     <div className="flex flex-col gap-1">
-                      {desktopList.map((desktop) => (
-                        <Button
-                          key={desktop.id}
-                          variant={activeDesktopId === desktop.id ? "default" : "ghost"}
-                          className="justify-start gap-2"
-                          onClick={() => {
-                            handleDesktopSwitch(desktop.id);
-                            setShowMobileMenu(false);
-                          }}
-                          data-testid={`button-mobile-desktop-${desktop.id}`}
-                        >
-                          <Monitor className="h-4 w-4" />
-                          {desktop.name}
-                        </Button>
+                      {desktopList.map((desktop, idx) => (
+                        <div key={desktop.id} className="flex items-center gap-1">
+                          <Button
+                            variant={activeDesktopId === desktop.id ? "default" : "ghost"}
+                            className="justify-start gap-2 flex-1"
+                            onClick={() => {
+                              handleDesktopSwitch(desktop.id);
+                              setShowMobileMenu(false);
+                            }}
+                            data-testid={`button-mobile-desktop-${desktop.id}`}
+                          >
+                            <Monitor className="h-4 w-4" />
+                            {desktop.name}
+                          </Button>
+                          {desktopList.length > 1 && (
+                            <div className="flex flex-col">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => moveDesktop(desktop.id, -1)}
+                                disabled={idx === 0}
+                                data-testid={`button-mobile-move-up-${desktop.id}`}
+                              >
+                                <ArrowUp className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => moveDesktop(desktop.id, 1)}
+                                disabled={idx === desktopList.length - 1}
+                                data-testid={`button-mobile-move-down-${desktop.id}`}
+                              >
+                                <ArrowDown className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       ))}
                       <Button
                         variant="outline"
@@ -943,20 +994,42 @@ export default function Dashboard() {
                       />
                     </div>
                   ) : (
-                    <Button
-                      variant={activeDesktopId === desktop.id ? "default" : "ghost"}
-                      size="sm"
-                      className="text-xs gap-1.5 px-3 shrink-0"
-                      onClick={() => handleDesktopSwitch(desktop.id)}
-                      onDoubleClick={() => {
-                        setEditingDesktopId(desktop.id);
-                        setEditingDesktopName(desktop.name);
-                      }}
-                      data-testid={`button-desktop-${desktop.id}`}
-                    >
-                      <Monitor className="h-3.5 w-3.5" />
-                      {desktop.name}
-                    </Button>
+                    <div className="flex items-center gap-0 shrink-0">
+                      {activeDesktopId === desktop.id && desktopList.indexOf(desktop) > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => { e.stopPropagation(); moveDesktop(desktop.id, -1); }}
+                          data-testid={`button-move-desktop-left-${desktop.id}`}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button
+                        variant={activeDesktopId === desktop.id ? "default" : "ghost"}
+                        size="sm"
+                        className="text-xs gap-1.5 px-3 shrink-0"
+                        onClick={() => handleDesktopSwitch(desktop.id)}
+                        onDoubleClick={() => {
+                          setEditingDesktopId(desktop.id);
+                          setEditingDesktopName(desktop.name);
+                        }}
+                        data-testid={`button-desktop-${desktop.id}`}
+                      >
+                        <Monitor className="h-3.5 w-3.5" />
+                        {desktop.name}
+                      </Button>
+                      {activeDesktopId === desktop.id && desktopList.indexOf(desktop) < desktopList.length - 1 && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => { e.stopPropagation(); moveDesktop(desktop.id, 1); }}
+                          data-testid={`button-move-desktop-right-${desktop.id}`}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </div>
               ))}
@@ -1061,7 +1134,7 @@ export default function Dashboard() {
                 </Button>
               )}
               <VentureManager />
-              <AddWidgetDialog onAddWidget={(type, title) => addWidget.mutate({ type, title })} />
+              <AddWidgetDialog onAddWidget={(type, title, content) => addWidget.mutate({ type, title, content })} />
               <Button
                 variant="ghost"
                 size="icon"
@@ -1093,6 +1166,7 @@ export default function Dashboard() {
                   <>
                     <AdminCodesDialog />
                     <AdminAnnouncementsDialog />
+                    <AdminWidgetTemplates />
                   </>
                 )}
                 <Button
@@ -1145,7 +1219,7 @@ export default function Dashboard() {
               Add widgets to "{activeDesktop?.name}" to track notes, priorities, revenue, and more — or start from a template.
             </p>
             <div className="flex items-center gap-2 flex-wrap justify-center">
-              <AddWidgetDialog onAddWidget={(type, title) => addWidget.mutate({ type, title })} />
+              <AddWidgetDialog onAddWidget={(type, title, content) => addWidget.mutate({ type, title, content })} />
               <Button variant="outline" onClick={() => setShowPresetLibrary(true)} data-testid="button-empty-browse-templates">
                 <Library className="h-4 w-4 mr-2" />
                 Browse Templates

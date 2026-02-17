@@ -81,6 +81,9 @@ import {
   announcementReads,
   type PlatformAnnouncement,
   type InsertAnnouncement,
+  widgetTemplates,
+  type WidgetTemplate,
+  type InsertWidgetTemplate,
   users,
   type User,
 } from "@shared/schema";
@@ -93,6 +96,7 @@ export interface IStorage {
   createDesktop(userId: string, desktop: InsertDesktop): Promise<Desktop>;
   updateDesktop(userId: string, id: string, updates: Partial<Desktop>): Promise<Desktop | undefined>;
   deleteDesktop(userId: string, id: string): Promise<boolean>;
+  reorderDesktops(userId: string, orderedIds: string[]): Promise<void>;
   getWidgets(userId: string): Promise<Widget[]>;
   getWidgetsByDesktop(userId: string, desktopId: string): Promise<Widget[]>;
   getWidget(userId: string, id: string): Promise<Widget | undefined>;
@@ -193,6 +197,12 @@ export interface IStorage {
   deleteAnnouncement(id: string): Promise<boolean>;
   markAnnouncementRead(userId: string, announcementId: string): Promise<void>;
   getAllUsers(): Promise<{ id: string; email: string | null; firstName: string | null; lastName: string | null }[]>;
+  getWidgetTemplates(): Promise<WidgetTemplate[]>;
+  getPublicWidgetTemplates(): Promise<WidgetTemplate[]>;
+  getWidgetTemplate(id: string): Promise<WidgetTemplate | undefined>;
+  createWidgetTemplate(data: InsertWidgetTemplate): Promise<WidgetTemplate>;
+  updateWidgetTemplate(id: string, updates: Partial<WidgetTemplate>): Promise<WidgetTemplate | undefined>;
+  deleteWidgetTemplate(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -225,6 +235,11 @@ export class DatabaseStorage implements IStorage {
     await db.delete(widgets).where(and(eq(widgets.desktopId, id), eq(widgets.userId, userId)));
     const result = await db.delete(desktops).where(and(eq(desktops.id, id), eq(desktops.userId, userId))).returning();
     return result.length > 0;
+  }
+  async reorderDesktops(userId: string, orderedIds: string[]): Promise<void> {
+    for (let i = 0; i < orderedIds.length; i++) {
+      await db.update(desktops).set({ order: i }).where(and(eq(desktops.id, orderedIds[i]), eq(desktops.userId, userId)));
+    }
   }
   async getWidgets(userId: string): Promise<Widget[]> {
     return await db.select().from(widgets).where(eq(widgets.userId, userId));
@@ -690,6 +705,39 @@ export class DatabaseStorage implements IStorage {
       lastName: users.lastName,
     }).from(users);
     return result;
+  }
+
+  async getWidgetTemplates(): Promise<WidgetTemplate[]> {
+    return await db.select().from(widgetTemplates).orderBy(desc(widgetTemplates.createdAt));
+  }
+
+  async getPublicWidgetTemplates(): Promise<WidgetTemplate[]> {
+    return await db.select().from(widgetTemplates)
+      .where(eq(widgetTemplates.isPublic, true))
+      .orderBy(desc(widgetTemplates.createdAt));
+  }
+
+  async getWidgetTemplate(id: string): Promise<WidgetTemplate | undefined> {
+    const result = await db.select().from(widgetTemplates).where(eq(widgetTemplates.id, id));
+    return result[0];
+  }
+
+  async createWidgetTemplate(data: InsertWidgetTemplate): Promise<WidgetTemplate> {
+    const result = await db.insert(widgetTemplates).values(data).returning();
+    return result[0];
+  }
+
+  async updateWidgetTemplate(id: string, updates: Partial<WidgetTemplate>): Promise<WidgetTemplate | undefined> {
+    const result = await db.update(widgetTemplates)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(widgetTemplates.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteWidgetTemplate(id: string): Promise<boolean> {
+    const result = await db.delete(widgetTemplates).where(eq(widgetTemplates.id, id)).returning();
+    return result.length > 0;
   }
 }
 

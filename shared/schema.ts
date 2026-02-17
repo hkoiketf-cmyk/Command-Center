@@ -35,7 +35,7 @@ export type InsertDesktop = z.infer<typeof insertDesktopSchema>;
 export type Desktop = typeof desktops.$inferSelect;
 
 // Widget types enum
-export const widgetTypes = ["notes", "priorities", "revenue", "iframe", "code", "context_mode", "quick_capture", "habit_tracker", "daily_journal", "weekly_scorecard", "kpi_dashboard", "waiting_for", "crm_pipeline", "time_blocks", "expense_tracker", "meeting_prep", "google_calendar", "ai_chat", "timer"] as const;
+export const widgetTypes = ["notes", "priorities", "revenue", "iframe", "code", "context_mode", "quick_capture", "habit_tracker", "daily_journal", "weekly_scorecard", "kpi_dashboard", "waiting_for", "crm_pipeline", "time_blocks", "expense_tracker", "meeting_prep", "google_calendar", "ai_chat", "timer", "custom"] as const;
 export type WidgetType = typeof widgetTypes[number];
 
 // Layout item for react-grid-layout
@@ -419,6 +419,7 @@ export type MeetingPrepContent = {};
 export type GoogleCalendarContent = { calendarUrl?: string };
 export type AiChatContent = { embedUrl?: string };
 export type TimerContent = { mode?: "countdown" | "countup"; hours?: number; minutes?: number; seconds?: number; sound?: string };
+export type CustomWidgetContent = { templateId?: string; code?: string; templateName?: string };
 
 // AI Chat tables
 export const aiConversations = pgTable("ai_conversations", {
@@ -509,3 +510,19 @@ export const announcementReads = pgTable("announcement_reads", {
   userId: varchar("user_id").notNull(),
   readAt: timestamp("read_at").notNull().defaultNow(),
 });
+
+export const widgetTemplates = pgTable("widget_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description").notNull().default(""),
+  code: text("code").notNull(),
+  icon: text("icon").notNull().default("Blocks"),
+  isPublic: boolean("is_public").notNull().default(false),
+  createdBy: varchar("created_by").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertWidgetTemplateSchema = createInsertSchema(widgetTemplates).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertWidgetTemplate = z.infer<typeof insertWidgetTemplateSchema>;
+export type WidgetTemplate = typeof widgetTemplates.$inferSelect;

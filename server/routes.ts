@@ -51,6 +51,19 @@ export async function registerRoutes(
     }
   });
 
+  app.put("/api/desktops/reorder", isAuthenticated, async (req, res) => {
+    try {
+      const { orderedIds } = req.body;
+      if (!Array.isArray(orderedIds)) {
+        return res.status(400).json({ error: "orderedIds must be an array" });
+      }
+      await storage.reorderDesktops(getUserId(req), orderedIds);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to reorder desktops" });
+    }
+  });
+
   app.delete("/api/desktops/:id", isAuthenticated, async (req, res) => {
     try {
       const deleted = await storage.deleteDesktop(getUserId(req), req.params.id);
@@ -1715,6 +1728,101 @@ Today's date is ${today}.`,
     } catch (error) {
       console.error("Get all users error:", error);
       res.status(500).json({ error: "Failed to get users" });
+    }
+  });
+
+  // ============ WIDGET TEMPLATES ============
+
+  app.get("/api/widget-templates", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (await isAdmin(userId)) {
+        const templates = await storage.getWidgetTemplates();
+        res.json(templates);
+      } else {
+        const templates = await storage.getPublicWidgetTemplates();
+        res.json(templates);
+      }
+    } catch (error) {
+      console.error("Get widget templates error:", error);
+      res.status(500).json({ error: "Failed to fetch widget templates" });
+    }
+  });
+
+  app.get("/api/widget-templates/:id", isAuthenticated, async (req, res) => {
+    try {
+      const template = await storage.getWidgetTemplate(req.params.id);
+      if (!template) return res.status(404).json({ error: "Template not found" });
+      const userId = getUserId(req);
+      if (!template.isPublic && !(await isAdmin(userId))) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      res.json(template);
+    } catch (error) {
+      console.error("Get widget template error:", error);
+      res.status(500).json({ error: "Failed to fetch widget template" });
+    }
+  });
+
+  app.post("/api/widget-templates", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!(await isAdmin(userId))) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      const { name, description, code, icon, isPublic } = req.body;
+      if (!name || !code) {
+        return res.status(400).json({ error: "Name and code are required" });
+      }
+      const template = await storage.createWidgetTemplate({
+        name,
+        description: description || "",
+        code,
+        icon: icon || "Blocks",
+        isPublic: isPublic ?? false,
+        createdBy: userId,
+      });
+      res.json(template);
+    } catch (error) {
+      console.error("Create widget template error:", error);
+      res.status(500).json({ error: "Failed to create widget template" });
+    }
+  });
+
+  app.patch("/api/widget-templates/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!(await isAdmin(userId))) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      const { name, description, code, icon, isPublic } = req.body;
+      const updates: any = {};
+      if (name !== undefined) updates.name = name;
+      if (description !== undefined) updates.description = description;
+      if (code !== undefined) updates.code = code;
+      if (icon !== undefined) updates.icon = icon;
+      if (isPublic !== undefined) updates.isPublic = isPublic;
+      const template = await storage.updateWidgetTemplate(req.params.id, updates);
+      if (!template) return res.status(404).json({ error: "Template not found" });
+      res.json(template);
+    } catch (error) {
+      console.error("Update widget template error:", error);
+      res.status(500).json({ error: "Failed to update widget template" });
+    }
+  });
+
+  app.delete("/api/widget-templates/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!(await isAdmin(userId))) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      const deleted = await storage.deleteWidgetTemplate(req.params.id);
+      if (!deleted) return res.status(404).json({ error: "Template not found" });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete widget template error:", error);
+      res.status(500).json({ error: "Failed to delete widget template" });
     }
   });
 
