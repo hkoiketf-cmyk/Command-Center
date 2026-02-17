@@ -578,7 +578,7 @@ export const bookmarks = pgTable("bookmarks", {
   url: text("url").notNull(),
   description: text("description").default(""),
   category: text("category").default("General"),
-  tags: jsonb("tags").$type<string[]>().default([]),
+  tags: jsonb("tags").$type<string[]>().default(sql`'[]'`),
   starred: boolean("starred").default(false),
   order: integer("order").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),

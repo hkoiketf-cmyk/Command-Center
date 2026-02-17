@@ -269,7 +269,10 @@ function GoalCard({
   onToggleComplete: (data: { id: string; completed: boolean }) => void;
   onUpdateProgress: (id: string, progress: number) => void;
 }) {
-  const isOverdue = goal.targetDate && new Date(goal.targetDate) < new Date() && !goal.completed;
+  // Normalize dates to midnight for accurate day-level comparison
+  const isOverdue = goal.targetDate && 
+    new Date(goal.targetDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0) && 
+    !goal.completed;
   
   return (
     <div 

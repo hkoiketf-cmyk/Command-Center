@@ -26,6 +26,8 @@ interface WeatherData {
   icon: string;
 }
 
+const WEATHER_REFRESH_INTERVAL_MS = 1000 * 60 * 30; // 30 minutes
+
 export function WeatherWidget({ widgetId, content, onContentChange }: WeatherWidgetProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [location, setLocation] = useState(content.location || "New York");
@@ -53,7 +55,7 @@ export function WeatherWidget({ widgetId, content, onContentChange }: WeatherWid
         icon: "partly-cloudy",
       };
     },
-    refetchInterval: 1000 * 60 * 30, // Refetch every 30 minutes
+    refetchInterval: WEATHER_REFRESH_INTERVAL_MS,
   });
 
   const handleSaveSettings = () => {
