@@ -1612,6 +1612,76 @@ Today's date is ${today}.`,
     }
   });
 
+  // AI Widget Builder - Generate widget code from natural language
+  app.post("/api/ai/generate-widget", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const { prompt, currentCode } = req.body;
+      if (!prompt || typeof prompt !== "string") {
+        return res.status(400).json({ error: "A description of your widget is required." });
+      }
+
+      const settings = await storage.getUserSettings(userId);
+      if (!settings.openaiApiKey) {
+        return res.status(400).json({ error: "Please add your OpenAI API key in Settings (gear icon) to use the AI Widget Builder." });
+      }
+
+      const openai = new OpenAI({ apiKey: settings.openaiApiKey });
+
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+      res.flushHeaders();
+
+      const systemPrompt = `You are an expert web developer that creates self-contained HTML/CSS/JS widgets. The user will describe what they want, and you generate a single HTML document that works inside an iframe.
+
+CRITICAL RULES:
+- Output ONLY the HTML code. No explanations, no markdown, no code fences. Just raw HTML.
+- The widget must be fully self-contained in a single HTML file.
+- Use inline <style> and <script> tags - no external dependencies unless from CDNs.
+- Allowed CDNs: Chart.js, D3.js, Font Awesome, Google Fonts, animate.css, or other popular CDNs.
+- The widget runs in a sandboxed iframe (allow-scripts only). No access to parent page, no localStorage, no fetch to external APIs.
+- Design for a small widget container (roughly 300-600px wide, 200-400px tall). Make it responsive.
+- Use modern CSS (flexbox, grid, custom properties). Make it visually polished.
+- Use a clean, modern design with good spacing, subtle shadows, and readable typography.
+- Default to a dark-friendly color scheme that works on any background (use semi-transparent backgrounds or dark cards).
+- Include interactive elements where appropriate (hover effects, animations, clickable items).
+- Always start with <!DOCTYPE html> and include complete <html>, <head>, and <body> tags.
+- If the user asks for data-driven widgets (charts, trackers, etc.), use realistic sample data.
+
+${currentCode ? `The user's current widget code is:\n${currentCode}\n\nThey want you to modify or improve it based on their request.` : ""}`;
+
+      const stream = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        stream: true,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: prompt },
+        ],
+        max_tokens: 4000,
+      });
+
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content;
+        if (content) {
+          res.write(`data: ${JSON.stringify({ content })}\n\n`);
+        }
+      }
+      res.write(`data: [DONE]\n\n`);
+      res.end();
+    } catch (error: any) {
+      console.error("AI Widget Builder error:", error.message);
+      if (!res.headersSent) {
+        if (error.message?.includes("Incorrect API key") || error.status === 401) {
+          return res.status(401).json({ error: "Invalid OpenAI API key. Please check your key in Settings." });
+        }
+        return res.status(500).json({ error: "AI generation failed. Please try again." });
+      }
+      res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+      res.end();
+    }
+  });
+
   // Platform Announcements - Admin CRUD
   app.get("/api/announcements/admin", isAuthenticated, async (req, res) => {
     try {

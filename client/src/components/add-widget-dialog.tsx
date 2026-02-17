@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { FileText, Target, TrendingUp, Globe, Plus, Code, Crosshair, Inbox, Flame, BookOpen, BarChart3, Gauge, Clock, Kanban, CalendarClock, DollarSign, Users, Calendar, Timer, Blocks } from "lucide-react";
+import { FileText, Target, TrendingUp, Globe, Plus, Code, Crosshair, Inbox, Flame, BookOpen, BarChart3, Gauge, Clock, Kanban, CalendarClock, DollarSign, Users, Calendar, Timer, Blocks, Wand2, ArrowLeft } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { AiWidgetBuilder } from "@/components/ai-widget-builder";
 import type { WidgetType, WidgetTemplate } from "@shared/schema";
 
 interface AddWidgetDialogProps {
@@ -129,6 +130,7 @@ export function AddWidgetDialog({ onAddWidget }: AddWidgetDialogProps) {
   const [selectedType, setSelectedType] = useState<WidgetType | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<WidgetTemplate | null>(null);
   const [title, setTitle] = useState("");
+  const [showAiBuilder, setShowAiBuilder] = useState(false);
 
   const { data: templates } = useQuery<WidgetTemplate[]>({
     queryKey: ["/api/widget-templates"],
@@ -159,11 +161,16 @@ export function AddWidgetDialog({ onAddWidget }: AddWidgetDialogProps) {
       } else {
         onAddWidget(selectedType, title.trim());
       }
-      setOpen(false);
-      setSelectedType(null);
-      setSelectedTemplate(null);
-      setTitle("");
+      resetAndClose();
     }
+  };
+
+  const resetAndClose = () => {
+    setOpen(false);
+    setSelectedType(null);
+    setSelectedTemplate(null);
+    setTitle("");
+    setShowAiBuilder(false);
   };
 
   const handleOpenChange = (isOpen: boolean) => {
@@ -172,7 +179,16 @@ export function AddWidgetDialog({ onAddWidget }: AddWidgetDialogProps) {
       setSelectedType(null);
       setSelectedTemplate(null);
       setTitle("");
+      setShowAiBuilder(false);
     }
+  };
+
+  const handleAiWidgetAdd = (code: string, widgetTitle: string) => {
+    onAddWidget("custom" as WidgetType, widgetTitle, {
+      code,
+      templateName: widgetTitle,
+    });
+    resetAndClose();
   };
 
   const publicTemplates = templates?.filter(t => t.isPublic) || [];
@@ -185,91 +201,143 @@ export function AddWidgetDialog({ onAddWidget }: AddWidgetDialogProps) {
           Add Widget
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Add Widget</DialogTitle>
-          <DialogDescription>
-            Choose a widget type to add to your dashboard
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 py-4">
-          {widgetOptions.map((option) => {
-            const Icon = option.icon;
-            return (
-              <button
-                key={option.type}
-                onClick={() => handleSelectType(option.type)}
-                className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-colors text-center hover-elevate ${
-                  selectedType === option.type && !selectedTemplate
-                    ? "border-primary bg-primary/10"
-                    : "border-border"
-                }`}
-                data-testid={`button-widget-type-${option.type}`}
-              >
-                <Icon className="h-6 w-6" />
-                <span className="font-medium text-sm">{option.label}</span>
-                <span className="text-xs text-muted-foreground">
-                  {option.description}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {publicTemplates.length > 0 && (
-          <div className="border-t pt-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Blocks className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-semibold">Custom Widgets</span>
-              <Badge variant="secondary" className="text-xs">Templates</Badge>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {publicTemplates.map((template) => (
-                <button
-                  key={template.id}
-                  onClick={() => handleSelectTemplate(template)}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-colors text-center hover-elevate ${
-                    selectedTemplate?.id === template.id
-                      ? "border-primary bg-primary/10"
-                      : "border-border"
-                  }`}
-                  data-testid={`button-template-${template.id}`}
+      <DialogContent className={`max-h-[85vh] overflow-y-auto ${showAiBuilder ? "sm:max-w-2xl" : "sm:max-w-lg"}`}>
+        {showAiBuilder ? (
+          <>
+            <DialogHeader>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowAiBuilder(false)}
+                  data-testid="button-back-from-ai-builder"
                 >
-                  <Blocks className="h-6 w-6" />
-                  <span className="font-medium text-sm">{template.name}</span>
-                  {template.description && (
-                    <span className="text-xs text-muted-foreground line-clamp-2">
-                      {template.description}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <div>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Wand2 className="h-5 w-5 text-primary" />
+                    Build Your Own Widget with AI
+                  </DialogTitle>
+                  <DialogDescription>
+                    Describe what you want and AI will generate the code for you
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+            <AiWidgetBuilder
+              onAddWidget={handleAiWidgetAdd}
+              onClose={() => setShowAiBuilder(false)}
+            />
+          </>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle>Add Widget</DialogTitle>
+              <DialogDescription>
+                Choose a widget type to add to your dashboard
+              </DialogDescription>
+            </DialogHeader>
 
-        {selectedType && (
-          <div className="space-y-3 border-t pt-4">
-            <div className="space-y-2">
-              <Label htmlFor="widget-title">Widget Title</Label>
-              <Input
-                id="widget-title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Enter widget title..."
-                data-testid="input-widget-title"
-              />
-            </div>
-            <Button
-              className="w-full"
-              onClick={handleAdd}
-              disabled={!title.trim()}
-              data-testid="button-confirm-add-widget"
+            <div className="border rounded-lg p-4 bg-primary/5 border-primary/20 hover-elevate cursor-pointer"
+              onClick={() => setShowAiBuilder(true)}
+              data-testid="button-open-ai-builder"
             >
-              Add Widget
-            </Button>
-          </div>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-primary/10">
+                  <Wand2 className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-sm">Build Your Own Widget with AI</span>
+                    <Badge variant="secondary" className="text-xs">AI</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Describe what you want and AI generates the code instantly
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 py-2">
+              {widgetOptions.map((option) => {
+                const Icon = option.icon;
+                return (
+                  <button
+                    key={option.type}
+                    onClick={() => handleSelectType(option.type)}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-colors text-center hover-elevate ${
+                      selectedType === option.type && !selectedTemplate
+                        ? "border-primary bg-primary/10"
+                        : "border-border"
+                    }`}
+                    data-testid={`button-widget-type-${option.type}`}
+                  >
+                    <Icon className="h-6 w-6" />
+                    <span className="font-medium text-sm">{option.label}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {option.description}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {publicTemplates.length > 0 && (
+              <div className="border-t pt-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Blocks className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-semibold">Custom Widgets</span>
+                  <Badge variant="secondary" className="text-xs">Templates</Badge>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {publicTemplates.map((template) => (
+                    <button
+                      key={template.id}
+                      onClick={() => handleSelectTemplate(template)}
+                      className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-colors text-center hover-elevate ${
+                        selectedTemplate?.id === template.id
+                          ? "border-primary bg-primary/10"
+                          : "border-border"
+                      }`}
+                      data-testid={`button-template-${template.id}`}
+                    >
+                      <Blocks className="h-6 w-6" />
+                      <span className="font-medium text-sm">{template.name}</span>
+                      {template.description && (
+                        <span className="text-xs text-muted-foreground line-clamp-2">
+                          {template.description}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {selectedType && (
+              <div className="space-y-3 border-t pt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="widget-title">Widget Title</Label>
+                  <Input
+                    id="widget-title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Enter widget title..."
+                    data-testid="input-widget-title"
+                  />
+                </div>
+                <Button
+                  className="w-full"
+                  onClick={handleAdd}
+                  disabled={!title.trim()}
+                  data-testid="button-confirm-add-widget"
+                >
+                  Add Widget
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </DialogContent>
     </Dialog>
