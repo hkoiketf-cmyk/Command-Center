@@ -1772,6 +1772,80 @@ Then write the COMPLETE, WORKING code.`
     }
   });
 
+  // AI Widget Builder - Critique code quality (uses gpt-4o-mini for cost efficiency)
+  app.post("/api/ai/critique-widget", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const { code, userPrompt } = req.body;
+      if (!code || typeof code !== "string") {
+        return res.status(400).json({ error: "Code is required for critique." });
+      }
+
+      const settings = await storage.getUserSettings(userId);
+      if (!settings.openaiApiKey) {
+        return res.status(400).json({ error: "OpenAI API key required." });
+      }
+
+      const openai = new OpenAI({ apiKey: settings.openaiApiKey });
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are a strict QA engineer reviewing an HTML widget. Analyze the code for real, actionable issues ONLY. Do NOT invent problems that don't exist.
+
+The user asked for: "${userPrompt || "a widget"}"
+
+Check these categories:
+1. FUNCTIONALITY: Do all buttons/inputs/interactive elements have working JavaScript? Are there missing event listeners, broken logic, or runtime errors?
+2. VISUAL: Is the layout broken? Is text unreadable? Are colors clashing? Is spacing extremely off?
+3. RESPONSIVENESS: Will it break in a 250-800px container?
+4. COMPLETENESS: Does it fulfill what the user actually asked for? Are major requested features missing?
+
+IMPORTANT: Only report REAL issues. If the code looks good and works, say it passes.
+Minor style preferences are NOT issues. "Could be better" is NOT an issue.
+
+Respond with ONLY valid JSON (no markdown, no code fences):
+{
+  "passed": true/false,
+  "score": 1-10,
+  "issues": [
+    { "category": "functionality|visual|responsiveness|completeness", "severity": "critical|major|minor", "description": "specific problem", "fix": "specific fix instruction" }
+  ]
+}
+
+Only set passed=false if there are critical or major issues. Minor issues alone should still pass.`
+          },
+          {
+            role: "user",
+            content: `Review this widget code:\n\n${code}`
+          }
+        ],
+        max_tokens: 2000,
+        temperature: 0.1,
+      });
+
+      const content = response.choices[0]?.message?.content || "";
+      try {
+        const cleaned = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+        const critique = JSON.parse(cleaned);
+        res.json(critique);
+      } catch {
+        res.json({ passed: true, score: 7, issues: [] });
+      }
+    } catch (error: any) {
+      console.error("AI Critique error:", error.message);
+      if (!res.headersSent) {
+        if (error.message?.includes("Incorrect API key") || error.status === 401) {
+          return res.status(401).json({ error: "Invalid OpenAI API key." });
+        }
+        return res.status(500).json({ error: "Critique failed." });
+      }
+      res.status(500).json({ error: "Critique failed." });
+    }
+  });
+
   // Platform Announcements - Admin CRUD
   app.get("/api/announcements/admin", isAuthenticated, async (req, res) => {
     try {

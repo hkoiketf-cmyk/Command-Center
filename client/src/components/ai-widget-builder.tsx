@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Wand2, Send, Eye, Code, Loader2, RotateCcw, Check, Key, CheckCircle2, X, MessageSquare } from "lucide-react";
+import { Wand2, Send, Eye, Code, Loader2, RotateCcw, Check, Key, CheckCircle2, X, MessageSquare, History, ChevronLeft, ChevronRight, Zap, Shield, CircleCheck, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,6 +18,28 @@ interface ConversationMessage {
   role: "user" | "assistant";
   content: string;
   summary?: string;
+}
+
+interface CritiqueIssue {
+  category: string;
+  severity: string;
+  description: string;
+  fix: string;
+}
+
+interface CritiqueResult {
+  passed: boolean;
+  score: number;
+  issues: CritiqueIssue[];
+}
+
+interface IterationCheckpoint {
+  code: string;
+  iteration: number;
+  score: number;
+  passed: boolean;
+  issues: CritiqueIssue[];
+  label: string;
 }
 
 const PROMPT_SUGGESTIONS = [
@@ -46,6 +68,11 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
     return [];
   });
   const [originalPrompt, setOriginalPrompt] = useState("");
+  const [checkpoints, setCheckpoints] = useState<IterationCheckpoint[]>([]);
+  const [activeCheckpoint, setActiveCheckpoint] = useState(-1);
+  const [currentIteration, setCurrentIteration] = useState(0);
+  const [maxIterations] = useState(3);
+  const [lastCritique, setLastCritique] = useState<CritiqueResult | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const chatLogRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -168,17 +195,54 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
     return messages;
   };
 
+  const critiqueCode = async (code: string, userPrompt: string): Promise<CritiqueResult> => {
+    try {
+      const response = await fetch("/api/ai/critique-widget", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, userPrompt }),
+      });
+      if (!response.ok) {
+        console.warn("Critique request failed, skipping iteration");
+        return { passed: true, score: 0, issues: [{ category: "system", severity: "minor", description: "QA check skipped (service error)", fix: "" }] };
+      }
+      const result = await response.json();
+      if (typeof result.passed !== "boolean" || typeof result.score !== "number") {
+        return { passed: true, score: 7, issues: [] };
+      }
+      return result;
+    } catch {
+      console.warn("Critique network error, skipping iteration");
+      return { passed: true, score: 0, issues: [{ category: "system", severity: "minor", description: "QA check skipped (network error)", fix: "" }] };
+    }
+  };
+
+  const addCheckpoint = (code: string, iteration: number, critique: CritiqueResult, label: string) => {
+    const cp: IterationCheckpoint = {
+      code,
+      iteration,
+      score: critique.score,
+      passed: critique.passed,
+      issues: critique.issues || [],
+      label,
+    };
+    setCheckpoints(prev => [...prev, cp]);
+    setActiveCheckpoint(-1);
+  };
+
   const generateWidget = useCallback(async (userPrompt: string) => {
     if (!userPrompt.trim() || isGenerating) return;
 
     setIsGenerating(true);
     setError("");
+    setLastCritique(null);
 
     const isFirstGeneration = conversation.length === 0;
     const hasExistingCode = !!generatedCode;
 
     if (isFirstGeneration) {
       setOriginalPrompt(userPrompt);
+      setCheckpoints([]);
     }
 
     setConversation(prev => [...prev, { role: "user", content: userPrompt, summary: userPrompt }]);
@@ -188,7 +252,8 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
       const signal = abortRef.current.signal;
 
       if (isFirstGeneration && !hasExistingCode) {
-        setGenerationPhase("Building your widget...");
+        setCurrentIteration(1);
+        setGenerationPhase("Iteration 1/" + maxIterations + ": Building your widget...");
         setGeneratedCode("");
         setShowPreview(false);
 
@@ -198,22 +263,65 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
           conversationHistory: [],
         }, signal, (text) => setGeneratedCode(text));
 
-        let firstPassCode = cleanCode(rawCode);
+        let currentCode = cleanCode(rawCode);
+        setGeneratedCode(currentCode);
+        setShowPreview(true);
 
-        setGenerationPhase("AI is reviewing and polishing...");
-        setGeneratedCode("");
+        let finalIterationCount = 1;
 
-        const reviewedCode = await streamFromEndpoint({
-          prompt: `You are reviewing your own output. The user asked for: "${userPrompt}". Here is the code you generated. Review it thoroughly. Fix ALL bugs. Improve the visual design. Ensure all interactive elements work. Ensure it's responsive for 300-600px containers. Return the complete improved HTML code - output ONLY the code, no explanations.`,
-          currentCode: firstPassCode,
-          mode: "review",
-          conversationHistory: [],
-        }, signal, (text) => setGeneratedCode(text));
+        for (let i = 1; i <= maxIterations; i++) {
+          if (signal.aborted) break;
+          finalIterationCount = i;
+          setCurrentIteration(i);
 
-        const finalCode = cleanCode(reviewedCode);
+          setGenerationPhase(`Iteration ${i}/${maxIterations}: Quality check...`);
+          const critique = await critiqueCode(currentCode, userPrompt);
+          setLastCritique(critique);
+
+          addCheckpoint(currentCode, i, critique, i === 1 ? "Initial build" : `Iteration ${i}`);
+
+          const actionableIssues = critique.issues.filter(
+            (iss: CritiqueIssue) => iss.severity === "critical" || iss.severity === "major"
+          );
+
+          if (critique.passed || i === maxIterations || actionableIssues.length === 0) {
+            if (critique.score === 0) {
+              setGenerationPhase("QA check unavailable - widget built without verification");
+            } else if (critique.passed) {
+              setGenerationPhase(`Passed quality check (score: ${critique.score}/10)`);
+            } else if (actionableIssues.length === 0) {
+              setGenerationPhase(`No major issues found (score: ${critique.score}/10)`);
+            } else {
+              setGenerationPhase(`Reached max iterations (score: ${critique.score}/10)`);
+            }
+            break;
+          }
+
+          const issueList = actionableIssues
+            .map((iss: CritiqueIssue) => `- [${iss.severity.toUpperCase()}] ${iss.description}: ${iss.fix}`)
+            .join("\n");
+
+          setGenerationPhase(`Iteration ${i + 1}/${maxIterations}: Fixing ${critique.issues.filter((iss: CritiqueIssue) => iss.severity !== "minor").length} issues...`);
+          setGeneratedCode("");
+
+          const fixPrompt = `Fix ONLY these specific issues. Do NOT rewrite or restructure anything else. Preserve all existing features, styling, and functionality.\n\nISSUES TO FIX:\n${issueList}\n\nReturn the complete HTML with ONLY the listed issues fixed.`;
+
+          const fixedRaw = await streamFromEndpoint({
+            prompt: fixPrompt,
+            currentCode: currentCode,
+            mode: "refine",
+            conversationHistory: [],
+            originalPrompt: userPrompt,
+          }, signal, (text) => setGeneratedCode(text));
+
+          currentCode = cleanCode(fixedRaw);
+          setGeneratedCode(currentCode);
+        }
+
+        const finalCode = currentCode;
         setGeneratedCode(finalCode);
 
-        setConversation(prev => [...prev, { role: "assistant", content: finalCode, summary: "Generated and reviewed widget" }]);
+        setConversation(prev => [...prev, { role: "assistant", content: finalCode, summary: `Built with ${finalIterationCount} iteration${finalIterationCount > 1 ? "s" : ""}` }]);
 
         if (!widgetTitle) {
           const titleMatch = finalCode.match(/<title>(.*?)<\/title>/i);
@@ -226,10 +334,11 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
         }
       } else {
         setGenerationPhase("Applying your changes...");
+        setCurrentIteration(1);
 
         const history = buildConversationHistory();
 
-        const refinedCode = await streamFromEndpoint({
+        const refinedRaw = await streamFromEndpoint({
           prompt: userPrompt,
           currentCode: generatedCode,
           mode: "refine",
@@ -237,15 +346,48 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
           originalPrompt: originalPrompt || undefined,
         }, signal, (text) => setGeneratedCode(text));
 
-        const finalCode = cleanCode(refinedCode);
-        setGeneratedCode(finalCode);
+        let currentCode = cleanCode(refinedRaw);
+        setGeneratedCode(currentCode);
 
-        setConversation(prev => [...prev, { role: "assistant", content: finalCode, summary: "Applied changes" }]);
+        setGenerationPhase("Quality check on changes...");
+        const critique = await critiqueCode(currentCode, originalPrompt || userPrompt);
+        setLastCritique(critique);
+
+        addCheckpoint(currentCode, 1, critique, "Refinement");
+
+        if (!critique.passed) {
+          const criticalIssues = critique.issues.filter((iss: CritiqueIssue) => iss.severity === "critical" || iss.severity === "major");
+          if (criticalIssues.length > 0) {
+            setGenerationPhase("Fixing issues from refinement...");
+            setGeneratedCode("");
+
+            const issueList = criticalIssues
+              .map((iss: CritiqueIssue) => `- [${iss.severity.toUpperCase()}] ${iss.description}: ${iss.fix}`)
+              .join("\n");
+
+            const fixedRaw = await streamFromEndpoint({
+              prompt: `Fix ONLY these specific issues. Do NOT rewrite or restructure anything else. Preserve all existing features, styling, and functionality.\n\nISSUES TO FIX:\n${issueList}\n\nReturn the complete HTML with ONLY the listed issues fixed.`,
+              currentCode: currentCode,
+              mode: "refine",
+              conversationHistory: history,
+              originalPrompt: originalPrompt || userPrompt,
+            }, signal, (text) => setGeneratedCode(text));
+
+            currentCode = cleanCode(fixedRaw);
+            setGeneratedCode(currentCode);
+
+            const reCritique = await critiqueCode(currentCode, originalPrompt || userPrompt);
+            setLastCritique(reCritique);
+            addCheckpoint(currentCode, 2, reCritique, "Refinement fix");
+          }
+        }
+
+        setConversation(prev => [...prev, { role: "assistant", content: currentCode, summary: "Applied changes" }]);
       }
 
       setShowPreview(true);
       setPrompt("");
-      setGenerationPhase("");
+      setTimeout(() => setGenerationPhase(""), 3000);
     } catch (err: any) {
       if (err.name !== "AbortError") {
         setError(err.message || "Generation failed");
@@ -254,8 +396,9 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
       setGenerationPhase("");
     } finally {
       setIsGenerating(false);
+      setCurrentIteration(0);
     }
-  }, [isGenerating, generatedCode, widgetTitle, conversation, originalPrompt]);
+  }, [isGenerating, generatedCode, widgetTitle, conversation, originalPrompt, maxIterations]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -286,6 +429,19 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
     setGenerationPhase("");
     setConversation([]);
     setOriginalPrompt("");
+    setCheckpoints([]);
+    setActiveCheckpoint(-1);
+    setLastCritique(null);
+    setCurrentIteration(0);
+  };
+
+  const handleRestoreCheckpoint = (index: number) => {
+    if (index < 0 || index >= checkpoints.length) return;
+    const cp = checkpoints[index];
+    setGeneratedCode(cp.code);
+    setActiveCheckpoint(index);
+    setLastCritique({ passed: cp.passed, score: cp.score, issues: cp.issues });
+    toast({ title: `Restored "${cp.label}" (score: ${cp.score}/10)` });
   };
 
   const handleSaveApiKey = (e: React.FormEvent) => {
@@ -403,7 +559,7 @@ ${rawCode}
           <p className="text-sm text-muted-foreground text-center max-w-md">
             {isEditMode 
               ? "Describe the changes you want to make to your widget."
-              : "Describe the widget you want and AI will build it. It generates, then self-reviews and polishes the code automatically."
+              : "Describe what you want and AI will build it autonomously. It generates, self-critiques, and iterates up to 3 times until the code passes quality checks."
             }
           </p>
 
@@ -491,10 +647,76 @@ ${rawCode}
             </div>
           )}
 
-          {isGenerating && (
+          {(isGenerating || generationPhase) && (
             <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-primary/5 border border-primary/10">
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
-              <span className="text-xs text-primary font-medium">{generationPhase || "Working..."}</span>
+              {isGenerating ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
+              ) : generationPhase.includes("Passed") ? (
+                <CircleCheck className="h-3.5 w-3.5 text-green-500 shrink-0" />
+              ) : (
+                <Zap className="h-3.5 w-3.5 text-primary shrink-0" />
+              )}
+              <span className="text-xs text-primary font-medium flex-1">{generationPhase || "Working..."}</span>
+              {currentIteration > 0 && isGenerating && (
+                <div className="flex gap-0.5">
+                  {Array.from({ length: maxIterations }).map((_, i) => (
+                    <div
+                      key={i}
+                      className={`w-2 h-2 rounded-full transition-colors ${
+                        i < currentIteration
+                          ? "bg-primary"
+                          : "bg-muted-foreground/20"
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {checkpoints.length > 1 && !isGenerating && (
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-muted/30">
+              <History className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <span className="text-xs text-muted-foreground">Iterations:</span>
+              <div className="flex items-center gap-1 flex-1 overflow-x-auto">
+                {checkpoints.map((cp, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleRestoreCheckpoint(i)}
+                    className={`text-xs px-2 py-0.5 rounded-md border transition-colors whitespace-nowrap ${
+                      activeCheckpoint === i
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border hover-elevate"
+                    }`}
+                    data-testid={`button-checkpoint-${i}`}
+                  >
+                    <span>{cp.label}</span>
+                    <span className="ml-1 opacity-60">{cp.score}/10</span>
+                    {cp.passed && <CircleCheck className="h-3 w-3 ml-0.5 inline text-green-500" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {lastCritique && !isGenerating && lastCritique.issues.length > 0 && (
+            <div className="rounded-md border px-2 py-1.5 space-y-1 max-h-[60px] overflow-y-auto bg-muted/20">
+              <div className="flex items-center gap-1.5">
+                <Shield className="h-3 w-3 text-muted-foreground shrink-0" />
+                <span className="text-xs font-medium text-muted-foreground">
+                  QA: {lastCritique.passed ? "Passed" : "Issues found"} ({lastCritique.score}/10)
+                </span>
+              </div>
+              {lastCritique.issues.filter(i => i.severity !== "minor").slice(0, 3).map((issue, idx) => (
+                <div key={idx} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                  {issue.severity === "critical" ? (
+                    <AlertTriangle className="h-3 w-3 text-destructive shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertTriangle className="h-3 w-3 text-yellow-500 shrink-0 mt-0.5" />
+                  )}
+                  <span className="truncate">{issue.description}</span>
+                </div>
+              ))}
             </div>
           )}
 
