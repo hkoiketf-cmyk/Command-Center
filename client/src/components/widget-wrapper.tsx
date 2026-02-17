@@ -339,6 +339,7 @@ export function WidgetWrapper({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(title);
+  const [isNarrow, setIsNarrow] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const resizeRef = useRef<{ startY: number; startHeight: number } | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -410,6 +411,17 @@ export function WidgetWrapper({
     }
   }, [isEditingTitle]);
 
+  useEffect(() => {
+    if (!cardRef.current || isMobile) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setIsNarrow(entry.contentRect.width < 280);
+      }
+    });
+    observer.observe(cardRef.current);
+    return () => observer.disconnect();
+  }, [isMobile]);
+
   const handleTitleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (onTitleChange) {
@@ -436,6 +448,8 @@ export function WidgetWrapper({
   };
 
   const [showPinnedDeletePrompt, setShowPinnedDeletePrompt] = useState(false);
+  const [showCompactColorPicker, setShowCompactColorPicker] = useState(false);
+  const [showCompactInfo, setShowCompactInfo] = useState(false);
 
   const handleRemove = () => {
     if (pinnedAllDesktops && onTogglePin) {
@@ -505,7 +519,7 @@ export function WidgetWrapper({
             )}
           </div>
           <div className={cn("flex items-center", isMobile ? "gap-1" : "gap-1")}>
-            {widgetType && WIDGET_INFO[widgetType] && (
+            {!isNarrow && widgetType && WIDGET_INFO[widgetType] && (
               <Popover modal={true}>
                 <PopoverTrigger asChild>
                   <Button
@@ -561,7 +575,7 @@ export function WidgetWrapper({
                 <ArrowDown className={cn("h-4 w-4", customIconClass)} />
               </Button>
             )}
-            {(showPinOption || onDuplicate) && (
+            {!isNarrow && (showPinOption || onDuplicate) && (
               <DropdownMenu modal={true}>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -599,7 +613,7 @@ export function WidgetWrapper({
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            {onCardColorChange && (
+            {!isNarrow && onCardColorChange && (
               <Popover modal={true}>
                 <PopoverTrigger asChild>
                   <Button
@@ -639,6 +653,60 @@ export function WidgetWrapper({
                   </div>
                 </PopoverContent>
               </Popover>
+            )}
+            {isNarrow && (
+              <DropdownMenu modal={true}>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    data-testid="button-widget-compact-menu"
+                  >
+                    <MoreVertical className={cn("h-4 w-4", customIconClass)} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {widgetType && WIDGET_INFO[widgetType] && (
+                    <DropdownMenuItem
+                      onClick={() => setShowCompactInfo(true)}
+                      data-testid="button-widget-info-compact"
+                    >
+                      <Info className="h-4 w-4 mr-2" />
+                      Widget info
+                    </DropdownMenuItem>
+                  )}
+                  {onCardColorChange && (
+                    <DropdownMenuItem
+                      onClick={() => setShowCompactColorPicker(true)}
+                      data-testid="button-widget-color-compact"
+                    >
+                      <Palette className="h-4 w-4 mr-2" />
+                      Change color
+                    </DropdownMenuItem>
+                  )}
+                  {onDuplicate && (
+                    <DropdownMenuItem
+                      onClick={onDuplicate}
+                      data-testid="button-duplicate-widget-compact"
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      Duplicate
+                    </DropdownMenuItem>
+                  )}
+                  {showPinOption && onTogglePin && (
+                    <DropdownMenuItem
+                      onClick={() => onTogglePin(!pinnedAllDesktops)}
+                      data-testid="button-toggle-pin-compact"
+                    >
+                      <Pin className={cn("h-4 w-4 mr-2", pinnedAllDesktops && "text-primary")} />
+                      {pinnedAllDesktops ? "Unpin" : "Pin to all"}
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
             <Button
               variant="ghost"
@@ -692,6 +760,69 @@ export function WidgetWrapper({
         onConfirm={confirmRemove}
         confirmText="Delete"
       />
+
+      {showCompactInfo && widgetType && WIDGET_INFO[widgetType] && (
+        <AlertDialog open={showCompactInfo} onOpenChange={setShowCompactInfo}>
+          <AlertDialogContent className="max-w-sm">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-sm">{title}</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-3">
+                  <p className="text-sm leading-relaxed">{WIDGET_INFO[widgetType].description}</p>
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-muted-foreground">Tips</p>
+                    <ul className="space-y-1">
+                      {WIDGET_INFO[widgetType].tips.map((tip, i) => (
+                        <li key={i} className="text-xs text-muted-foreground flex gap-2">
+                          <span className="shrink-0 mt-0.5">&#8226;</span>
+                          <span>{tip}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-close-compact-info">Close</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
+      {showCompactColorPicker && onCardColorChange && (
+        <AlertDialog open={showCompactColorPicker} onOpenChange={setShowCompactColorPicker}>
+          <AlertDialogContent className="max-w-xs">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-sm">Change Color</AlertDialogTitle>
+            </AlertDialogHeader>
+            <div className="grid grid-cols-5 gap-1.5 py-2">
+              {CARD_COLORS.map((c) => (
+                <button
+                  key={c.value || "default"}
+                  className={cn(
+                    "w-8 h-8 rounded-md border-2 transition-all",
+                    (cardColor || "") === c.value
+                      ? "border-primary ring-1 ring-primary"
+                      : "border-transparent hover:border-muted-foreground/30"
+                  )}
+                  style={{ backgroundColor: c.value || "hsl(var(--card))" }}
+                  title={c.label}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCardColorChange(c.value);
+                    setShowCompactColorPicker(false);
+                  }}
+                  data-testid={`button-card-color-compact-${c.label.toLowerCase()}`}
+                />
+              ))}
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-close-compact-color">Cancel</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
 
       {showPinnedDeletePrompt && (
         <AlertDialog open={showPinnedDeletePrompt} onOpenChange={setShowPinnedDeletePrompt}>

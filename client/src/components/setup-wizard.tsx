@@ -54,10 +54,16 @@ const PRIORITIES: PriorityOption[] = [
 ];
 
 const TOOLS: ToolOption[] = [
-  { id: "google_cal", label: "Google Calendar" },
-  { id: "ai_assistant", label: "AI Assistant" },
-  { id: "external_apps", label: "External web apps (via embed)" },
   { id: "timer", label: "Timer / Pomodoro" },
+  { id: "external_apps", label: "Embed external web apps" },
+  { id: "context_mode", label: "Focus / Deep Work Mode" },
+  { id: "expense_tracker", label: "Expense Tracking" },
+  { id: "daily_journal", label: "Daily Journal" },
+  { id: "quick_capture", label: "Quick Capture Inbox" },
+  { id: "meeting_prep", label: "Meeting Prep & Agendas" },
+  { id: "crm", label: "CRM / Deal Pipeline" },
+  { id: "code_snippets", label: "Code Snippets / Sandbox" },
+  { id: "waiting_for", label: "Delegated Task Tracker" },
 ];
 
 type Step = "role" | "priorities" | "tools" | "generating" | "result";
@@ -164,10 +170,16 @@ function generateRecommendation(role: string, priorities: string[], tools: strin
 
   for (const tool of tools) {
     const toolWidgets: Record<string, { type: WidgetType; title: string }> = {
-      google_cal: { type: "google_calendar", title: "Google Calendar" },
-      ai_assistant: { type: "ai_chat", title: "AI Assistant" },
-      external_apps: { type: "iframe", title: "Web App" },
       timer: { type: "timer", title: "Focus Timer" },
+      external_apps: { type: "iframe", title: "Web App" },
+      context_mode: { type: "context_mode", title: "Focus Mode" },
+      expense_tracker: { type: "expense_tracker", title: "Expense Tracker" },
+      daily_journal: { type: "daily_journal", title: "Daily Journal" },
+      quick_capture: { type: "quick_capture", title: "Quick Capture" },
+      meeting_prep: { type: "meeting_prep", title: "Meeting Prep" },
+      crm: { type: "crm_pipeline", title: "CRM Pipeline" },
+      code_snippets: { type: "code", title: "Code Snippets" },
+      waiting_for: { type: "waiting_for", title: "Delegated Tasks" },
     };
 
     const w = toolWidgets[tool];
@@ -237,7 +249,7 @@ export function SetupWizard({ onComplete, onCancel }: SetupWizardProps) {
 
   const togglePriority = (id: string) => {
     setSelectedPriorities(prev =>
-      prev.includes(id) ? prev.filter(p => p !== id) : prev.length < 4 ? [...prev, id] : prev
+      prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
     );
   };
 
@@ -339,7 +351,7 @@ export function SetupWizard({ onComplete, onCancel }: SetupWizardProps) {
           <div>
             <h3 className="text-sm font-medium">What matters most to you?</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Pick up to 4. We'll add the right widgets to support these.
+              Select all that apply. We'll add the right widgets to support these.
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -353,8 +365,7 @@ export function SetupWizard({ onComplete, onCancel }: SetupWizardProps) {
                     selected
                       ? "border-primary bg-primary/10"
                       : "border-border hover-elevate"
-                  } ${!selected && selectedPriorities.length >= 4 ? "opacity-40 cursor-not-allowed" : ""}`}
-                  disabled={!selected && selectedPriorities.length >= 4}
+                  }`}
                   data-testid={`button-priority-${p.id}`}
                 >
                   <div className={`w-4 h-4 rounded border shrink-0 mt-0.5 flex items-center justify-center ${

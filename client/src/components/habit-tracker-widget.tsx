@@ -504,6 +504,10 @@ export function HabitTrackerWidget() {
                 </div>
                 {!isEditing && (
                   <div className="flex items-center gap-1 shrink-0">
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-0.5" data-testid={`badge-total-${habit.id}`}>
+                      <Check className="h-3 w-3" style={{ color: habit.color }} />
+                      {entries.filter(e => e.habitId === habit.id).length}d
+                    </Badge>
                     {streak > 0 && (
                       <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-0.5" data-testid={`badge-streak-${habit.id}`}>
                         <Flame className="h-3 w-3" style={{ color: habit.color }} />
@@ -549,13 +553,10 @@ export function HabitTrackerWidget() {
               {viewMode === "month" && renderMonthView(habit)}
               {viewMode === "year" && renderYearView(habit)}
 
-              {(activeHabit || habits.length === 1) && (
-                <div className="flex items-center gap-3 text-[10px] text-muted-foreground pt-0.5">
-                  <span>Best: {longestStreak}d</span>
-                  <span>30d: {completionRate}%</span>
-                  <span>Total: {entries.filter(e => e.habitId === habit.id).length}</span>
-                </div>
-              )}
+              <div className="flex items-center gap-3 text-[10px] text-muted-foreground pt-0.5 flex-wrap">
+                <span data-testid={`stat-best-${habit.id}`}>Best: {longestStreak}d</span>
+                <span data-testid={`stat-rate-${habit.id}`}>30d: {completionRate}%</span>
+              </div>
             </div>
           );
         })}
