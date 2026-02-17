@@ -498,6 +498,8 @@ export default function Dashboard() {
       const updates = newLayout.map((l) => {
         const widget = widgets.find(w => w.id === l.i);
         const size = widget ? defaultWidgetSizes[widget.type as WidgetType] : defaultWidgetSizes.notes;
+        const isCollapsed = widget?.collapsed ?? false;
+        const clampedH = isCollapsed ? l.h : Math.max(l.h, size.minH);
         return {
           id: l.i,
           layout: {
@@ -505,7 +507,7 @@ export default function Dashboard() {
             x: l.x,
             y: l.y,
             w: l.w,
-            h: l.h,
+            h: clampedH,
             minW: size.minW,
             minH: size.minH,
           },
@@ -627,27 +629,32 @@ export default function Dashboard() {
 
   const currentLayout: GridLayoutItem[] = widgets.map((widget, index) => {
     const layout = widget.layout as LayoutItem | undefined;
-    const size = defaultWidgetSizes[widget.type as WidgetType];
+    const size = defaultWidgetSizes[widget.type as WidgetType] || defaultWidgetSizes.notes;
+    const effectiveMinH = Math.max(size.minH, 3);
     
     if (isMobile) {
+      const savedH = layout?.h ?? size.h;
+      const clampedH = Math.max(savedH, effectiveMinH);
       return {
         i: widget.id,
         x: 0,
-        y: index * (widget.collapsed ? 1 : (layout?.h ?? size.h)),
+        y: index * (widget.collapsed ? 1 : clampedH),
         w: 1,
-        h: widget.collapsed ? 1 : (layout?.h ?? size.h),
+        h: widget.collapsed ? 1 : clampedH,
         minW: 1,
-        minH: widget.collapsed ? 1 : 3,
+        minH: widget.collapsed ? 1 : effectiveMinH,
         isResizable: !widget.collapsed,
       };
     }
     
+    const savedH = layout?.h ?? size.h;
+    const clampedH = Math.max(savedH, size.minH);
     return {
       i: widget.id,
       x: layout?.x ?? 0,
       y: layout?.y ?? 0,
       w: layout?.w ?? size.w,
-      h: widget.collapsed ? 1 : (layout?.h ?? size.h),
+      h: widget.collapsed ? 1 : clampedH,
       minW: size.minW,
       minH: widget.collapsed ? 1 : size.minH,
       isResizable: !widget.collapsed,
