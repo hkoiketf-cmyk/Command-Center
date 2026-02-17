@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Kpi } from "@shared/schema";
 
-export function KpiDashboardWidget() {
+export function KpiDashboardWidget({ widgetId }: { widgetId: string }) {
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -15,13 +15,20 @@ export function KpiDashboardWidget() {
   const [newPrefix, setNewPrefix] = useState("");
   const [newUnit, setNewUnit] = useState("");
 
-  const { data: kpis = [], isLoading } = useQuery<Kpi[]>({ queryKey: ["/api/kpis"] });
+  const { data: kpis = [], isLoading } = useQuery<Kpi[]>({
+    queryKey: ["/api/kpis", widgetId],
+    queryFn: async () => {
+      const res = await fetch(`/api/kpis?widgetId=${widgetId}`, { credentials: "include" });
+      if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+      return res.json();
+    },
+  });
 
   const createKpi = useMutation({
     mutationFn: (data: { name: string; targetValue: number; prefix: string; unit: string }) =>
-      apiRequest("POST", "/api/kpis", { ...data, currentValue: 0, order: kpis.length }),
+      apiRequest("POST", "/api/kpis", { ...data, currentValue: 0, order: kpis.length, widgetId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/kpis"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/kpis", widgetId] });
       setNewName("");
       setNewTarget("");
       setNewPrefix("");
@@ -32,13 +39,13 @@ export function KpiDashboardWidget() {
 
   const updateKpi = useMutation({
     mutationFn: ({ id, ...data }: { id: string; currentValue?: number }) =>
-      apiRequest("PATCH", `/api/kpis/${id}`, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/kpis"] }),
+      apiRequest("PATCH", `/api/kpis/${id}`, { ...data, widgetId }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/kpis", widgetId] }),
   });
 
   const deleteKpi = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/kpis/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/kpis"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/kpis", widgetId] }),
   });
 
   const getStatusColor = (pct: number): string => {

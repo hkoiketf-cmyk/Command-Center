@@ -6,27 +6,28 @@ import { Input } from "@/components/ui/input";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { CaptureItem } from "@shared/schema";
 
-export function QuickCaptureWidget() {
+export function QuickCaptureWidget({ widgetId }: { widgetId: string }) {
   const [input, setInput] = useState("");
 
   const { data: items = [], isLoading } = useQuery<CaptureItem[]>({
-    queryKey: ["/api/capture-items"],
+    queryKey: ["/api/capture-items", widgetId],
+    queryFn: () => fetch(`/api/capture-items?widgetId=${widgetId}`).then(r => r.json()),
   });
 
   const createMutation = useMutation({
-    mutationFn: (text: string) => apiRequest("POST", "/api/capture-items", { text }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/capture-items"] }),
+    mutationFn: (text: string) => apiRequest("POST", "/api/capture-items", { text, widgetId }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/capture-items", widgetId] }),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, processed }: { id: string; processed: boolean }) =>
-      apiRequest("PATCH", `/api/capture-items/${id}`, { processed }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/capture-items"] }),
+      apiRequest("PATCH", `/api/capture-items/${id}`, { processed, widgetId }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/capture-items", widgetId] }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/capture-items/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/capture-items"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/capture-items", widgetId] }),
   });
 
   const handleSubmit = (e: React.FormEvent) => {

@@ -26,19 +26,26 @@ function formatDate(dateStr: string): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export function WaitingForWidget() {
+export function WaitingForWidget({ widgetId }: { widgetId: string }) {
   const [showAdd, setShowAdd] = useState(false);
   const [newPerson, setNewPerson] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newExpected, setNewExpected] = useState("");
 
-  const { data: items = [], isLoading } = useQuery<WaitingItem[]>({ queryKey: ["/api/waiting-items"] });
+  const { data: items = [], isLoading } = useQuery<WaitingItem[]>({
+    queryKey: ["/api/waiting-items", widgetId],
+    queryFn: async () => {
+      const res = await fetch(`/api/waiting-items?widgetId=${widgetId}`, { credentials: "include" });
+      if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+      return res.json();
+    },
+  });
 
   const createItem = useMutation({
     mutationFn: (data: { person: string; description: string; dateSent: string; expectedDate?: string }) =>
-      apiRequest("POST", "/api/waiting-items", data),
+      apiRequest("POST", "/api/waiting-items", { ...data, widgetId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/waiting-items"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/waiting-items", widgetId] });
       setNewPerson("");
       setNewDesc("");
       setNewExpected("");
@@ -48,13 +55,13 @@ export function WaitingForWidget() {
 
   const updateItem = useMutation({
     mutationFn: ({ id, ...data }: { id: string; completed?: boolean }) =>
-      apiRequest("PATCH", `/api/waiting-items/${id}`, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/waiting-items"] }),
+      apiRequest("PATCH", `/api/waiting-items/${id}`, { ...data, widgetId }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/waiting-items", widgetId] }),
   });
 
   const deleteItem = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/waiting-items/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/waiting-items"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/waiting-items", widgetId] }),
   });
 
   const active = items.filter((i) => !i.completed);

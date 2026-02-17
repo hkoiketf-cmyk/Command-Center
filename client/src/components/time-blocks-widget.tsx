@@ -29,7 +29,7 @@ function formatTime(time: string): string {
   return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
 }
 
-export function TimeBlocksWidget() {
+export function TimeBlocksWidget({ widgetId }: { widgetId: string }) {
   const today = formatDate(new Date());
   const [selectedDate, setSelectedDate] = useState(today);
   const [showAdd, setShowAdd] = useState(false);
@@ -44,14 +44,19 @@ export function TimeBlocksWidget() {
   const [editColor, setEditColor] = useState("");
 
   const { data: blocks = [] } = useQuery<TimeBlock[]>({
-    queryKey: ["/api/time-blocks", selectedDate],
+    queryKey: ["/api/time-blocks", selectedDate, widgetId],
+    queryFn: async () => {
+      const res = await fetch(`/api/time-blocks/${selectedDate}?widgetId=${widgetId}`, { credentials: "include" });
+      if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+      return res.json();
+    },
   });
 
   const createBlock = useMutation({
     mutationFn: (data: { date: string; startTime: string; endTime: string; label: string; color: string }) =>
-      apiRequest("POST", "/api/time-blocks", data),
+      apiRequest("POST", "/api/time-blocks", { ...data, widgetId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/time-blocks", selectedDate] });
+      queryClient.invalidateQueries({ queryKey: ["/api/time-blocks", selectedDate, widgetId] });
       setNewLabel("");
       setShowAdd(false);
     },
@@ -59,16 +64,16 @@ export function TimeBlocksWidget() {
 
   const updateBlock = useMutation({
     mutationFn: ({ id, ...data }: { id: string; startTime: string; endTime: string; label: string; color: string }) =>
-      apiRequest("PATCH", `/api/time-blocks/${id}`, data),
+      apiRequest("PATCH", `/api/time-blocks/${id}`, { ...data, widgetId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/time-blocks", selectedDate] });
+      queryClient.invalidateQueries({ queryKey: ["/api/time-blocks", selectedDate, widgetId] });
       setEditingId(null);
     },
   });
 
   const deleteBlock = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/time-blocks/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/time-blocks", selectedDate] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/time-blocks", selectedDate, widgetId] }),
   });
 
   const navigateDay = (dir: number) => {

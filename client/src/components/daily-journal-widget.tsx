@@ -25,25 +25,27 @@ function formatTime(createdAt: string): string {
   }
 }
 
-export function DailyJournalWidget() {
+export function DailyJournalWidget({ widgetId }: { widgetId: string }) {
   const today = formatDate(new Date());
   const [selectedDate, setSelectedDate] = useState(today);
   const [content, setContent] = useState("");
 
   const { data: allEntries = [] } = useQuery<JournalEntry[]>({
-    queryKey: ["/api/journal"],
+    queryKey: ["/api/journal", widgetId],
+    queryFn: () => fetch(`/api/journal?widgetId=${widgetId}`).then(r => r.json()),
   });
 
   const { data: dateEntries = [] } = useQuery<JournalEntry[]>({
-    queryKey: ["/api/journal", selectedDate],
+    queryKey: ["/api/journal", selectedDate, widgetId],
+    queryFn: () => fetch(`/api/journal?date=${selectedDate}&widgetId=${widgetId}`).then(r => r.json()),
   });
 
   const createMutation = useMutation({
     mutationFn: (data: { date: string; content: string }) =>
-      apiRequest("POST", "/api/journal", data),
+      apiRequest("POST", "/api/journal", { ...data, widgetId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/journal"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/journal", selectedDate] });
+      queryClient.invalidateQueries({ queryKey: ["/api/journal", widgetId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/journal", selectedDate, widgetId] });
       setContent("");
     },
   });
@@ -51,8 +53,8 @@ export function DailyJournalWidget() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/journal/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/journal"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/journal", selectedDate] });
+      queryClient.invalidateQueries({ queryKey: ["/api/journal", widgetId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/journal", selectedDate, widgetId] });
     },
   });
 

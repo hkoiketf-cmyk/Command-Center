@@ -96,9 +96,10 @@ interface AdBoardWidgetProps {
   content: AdBoardContent;
   onContentChange: (content: AdBoardContent) => void;
   isAdmin?: boolean;
+  widgetId: string;
 }
 
-export function AdBoardWidget({ content, onContentChange, isAdmin = false }: AdBoardWidgetProps) {
+export function AdBoardWidget({ content, onContentChange, isAdmin = false, widgetId }: AdBoardWidgetProps) {
   const { toast } = useToast();
   const [viewMode, setViewMode] = useState<"grid" | "spotlight">(content.viewMode || "grid");
   const [spotlightIndex, setSpotlightIndex] = useState(0);
@@ -112,11 +113,13 @@ export function AdBoardWidget({ content, onContentChange, isAdmin = false }: AdB
   const showGlobalAds = content.showGlobalAds !== false;
 
   const { data: userAds = [] } = useQuery<Ad[]>({
-    queryKey: ["/api/ads"],
+    queryKey: ["/api/ads", widgetId],
+    queryFn: () => fetch(`/api/ads?widgetId=${widgetId}`).then(r => r.json()),
   });
 
   const { data: globalAds = [] } = useQuery<Ad[]>({
-    queryKey: ["/api/ads/global"],
+    queryKey: ["/api/ads/global", widgetId],
+    queryFn: () => fetch(`/api/ads/global?widgetId=${widgetId}`).then(r => r.json()),
   });
 
   const allAds = [
@@ -126,12 +129,12 @@ export function AdBoardWidget({ content, onContentChange, isAdmin = false }: AdB
 
   const createAd = useMutation({
     mutationFn: async (data: Partial<Ad>) => {
-      const res = await apiRequest("POST", "/api/ads", data);
+      const res = await apiRequest("POST", "/api/ads", { ...data, widgetId });
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/ads"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/ads/global"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/ads", widgetId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/ads/global", widgetId] });
       setShowCreateDialog(false);
       toast({ title: "Ad created" });
     },
@@ -142,12 +145,12 @@ export function AdBoardWidget({ content, onContentChange, isAdmin = false }: AdB
 
   const updateAd = useMutation({
     mutationFn: async ({ id, ...data }: Partial<Ad> & { id: string }) => {
-      const res = await apiRequest("PATCH", `/api/ads/${id}`, data);
+      const res = await apiRequest("PATCH", `/api/ads/${id}`, { ...data, widgetId });
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/ads"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/ads/global"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/ads", widgetId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/ads/global", widgetId] });
       setEditingAd(null);
       toast({ title: "Ad updated" });
     },
@@ -161,8 +164,8 @@ export function AdBoardWidget({ content, onContentChange, isAdmin = false }: AdB
       await apiRequest("DELETE", `/api/ads/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/ads"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/ads/global"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/ads", widgetId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/ads/global", widgetId] });
       setDeleteAdId(null);
       toast({ title: "Ad deleted" });
     },

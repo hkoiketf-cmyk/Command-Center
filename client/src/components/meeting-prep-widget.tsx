@@ -12,7 +12,7 @@ function formatDate(dateStr: string): string {
   return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
 
-export function MeetingPrepWidget() {
+export function MeetingPrepWidget({ widgetId }: { widgetId: string }) {
   const [showAdd, setShowAdd] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState("");
@@ -20,13 +20,13 @@ export function MeetingPrepWidget() {
   const [newDate, setNewDate] = useState(new Date().toISOString().split("T")[0]);
   const [newTime, setNewTime] = useState("");
 
-  const { data: meetings = [], isLoading } = useQuery<Meeting[]>({ queryKey: ["/api/meetings"] });
+  const { data: meetings = [], isLoading } = useQuery<Meeting[]>({ queryKey: ["/api/meetings", widgetId], queryFn: () => fetch(`/api/meetings?widgetId=${widgetId}`).then(r => r.json()) });
 
   const createMeeting = useMutation({
     mutationFn: (data: { title: string; person: string; date: string; time: string }) =>
-      apiRequest("POST", "/api/meetings", data),
+      apiRequest("POST", "/api/meetings", { ...data, widgetId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/meetings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/meetings", widgetId] });
       setNewTitle("");
       setNewPerson("");
       setNewTime("");
@@ -36,13 +36,13 @@ export function MeetingPrepWidget() {
 
   const updateMeeting = useMutation({
     mutationFn: ({ id, ...data }: { id: string; [key: string]: any }) =>
-      apiRequest("PATCH", `/api/meetings/${id}`, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/meetings"] }),
+      apiRequest("PATCH", `/api/meetings/${id}`, { ...data, widgetId }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/meetings", widgetId] }),
   });
 
   const deleteMeeting = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/meetings/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/meetings"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/meetings", widgetId] }),
   });
 
   const upcoming = meetings.filter((m) => !m.completed).sort((a, b) => a.date.localeCompare(b.date));

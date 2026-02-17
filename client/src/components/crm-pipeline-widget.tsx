@@ -27,14 +27,21 @@ function getStaleColor(days: number, stage: string): string {
   return "";
 }
 
-export function CrmPipelineWidget() {
+export function CrmPipelineWidget({ widgetId }: { widgetId: string }) {
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState("");
   const [newValue, setNewValue] = useState("");
   const [newAction, setNewAction] = useState("");
   const [dragDealId, setDragDealId] = useState<string | null>(null);
 
-  const { data: deals = [], isLoading } = useQuery<Deal[]>({ queryKey: ["/api/deals"] });
+  const { data: deals = [], isLoading } = useQuery<Deal[]>({
+    queryKey: ["/api/deals", widgetId],
+    queryFn: async () => {
+      const res = await fetch(`/api/deals?widgetId=${widgetId}`, { credentials: "include" });
+      if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+      return res.json();
+    },
+  });
 
   const createDeal = useMutation({
     mutationFn: (data: { name: string; value: number; nextAction: string }) =>
@@ -42,9 +49,10 @@ export function CrmPipelineWidget() {
         ...data,
         stage: "lead",
         lastContactDate: new Date().toISOString(),
+        widgetId,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/deals"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/deals", widgetId] });
       setNewName("");
       setNewValue("");
       setNewAction("");
@@ -54,13 +62,13 @@ export function CrmPipelineWidget() {
 
   const updateDeal = useMutation({
     mutationFn: ({ id, ...data }: { id: string; stage?: string; lastContactDate?: string; nextAction?: string }) =>
-      apiRequest("PATCH", `/api/deals/${id}`, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/deals"] }),
+      apiRequest("PATCH", `/api/deals/${id}`, { ...data, widgetId }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/deals", widgetId] }),
   });
 
   const deleteDeal = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/deals/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/deals"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/deals", widgetId] }),
   });
 
   const handleDrop = (dealId: string, newStage: string) => {

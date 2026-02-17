@@ -706,25 +706,25 @@ export default function Dashboard() {
           />
         );
       case "quick_capture":
-        return <QuickCaptureWidget />;
+        return <QuickCaptureWidget widgetId={widget.id} />;
       case "habit_tracker":
-        return <HabitTrackerWidget />;
+        return <HabitTrackerWidget widgetId={widget.id} />;
       case "daily_journal":
-        return <DailyJournalWidget />;
+        return <DailyJournalWidget widgetId={widget.id} />;
       case "weekly_scorecard":
-        return <WeeklyScorecardWidget />;
+        return <WeeklyScorecardWidget widgetId={widget.id} />;
       case "kpi_dashboard":
-        return <KpiDashboardWidget />;
+        return <KpiDashboardWidget widgetId={widget.id} />;
       case "waiting_for":
-        return <WaitingForWidget />;
+        return <WaitingForWidget widgetId={widget.id} />;
       case "crm_pipeline":
-        return <CrmPipelineWidget />;
+        return <CrmPipelineWidget widgetId={widget.id} />;
       case "time_blocks":
-        return <TimeBlocksWidget />;
+        return <TimeBlocksWidget widgetId={widget.id} />;
       case "expense_tracker":
-        return <ExpenseTrackerWidget />;
+        return <ExpenseTrackerWidget widgetId={widget.id} />;
       case "meeting_prep":
-        return <MeetingPrepWidget />;
+        return <MeetingPrepWidget widgetId={widget.id} />;
       case "google_calendar":
         return (
           <div className="flex items-center justify-center h-full text-sm text-muted-foreground p-4 text-center">
@@ -755,6 +755,7 @@ export default function Dashboard() {
       case "ad_board":
         return (
           <AdBoardWidget
+            widgetId={widget.id}
             content={(widget.content as AdBoardContent) || {}}
             onContentChange={(content) => handleContentChange(widget, content)}
             isAdmin={userSettings?.isAdmin || false}

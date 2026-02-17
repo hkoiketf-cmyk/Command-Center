@@ -70,7 +70,7 @@ function getYearMonths(year: number): { month: number; year: number }[] {
   return Array.from({ length: 12 }, (_, i) => ({ month: i, year }));
 }
 
-export function HabitTrackerWidget() {
+export function HabitTrackerWidget({ widgetId }: { widgetId: string }) {
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("week");
@@ -80,14 +80,20 @@ export function HabitTrackerWidget() {
   const [editName, setEditName] = useState("");
   const [editColor, setEditColor] = useState("");
 
-  const { data: habits = [], isLoading } = useQuery<Habit[]>({ queryKey: ["/api/habits"] });
-  const { data: entries = [] } = useQuery<HabitEntry[]>({ queryKey: ["/api/habit-entries"] });
+  const { data: habits = [], isLoading } = useQuery<Habit[]>({
+    queryKey: ["/api/habits", widgetId],
+    queryFn: () => fetch(`/api/habits?widgetId=${widgetId}`).then(r => r.json()),
+  });
+  const { data: entries = [] } = useQuery<HabitEntry[]>({
+    queryKey: ["/api/habit-entries", widgetId],
+    queryFn: () => fetch(`/api/habit-entries?widgetId=${widgetId}`).then(r => r.json()),
+  });
 
   const createHabit = useMutation({
     mutationFn: (name: string) =>
-      apiRequest("POST", "/api/habits", { name, color: HABIT_COLORS[habits.length % HABIT_COLORS.length], order: habits.length }),
+      apiRequest("POST", "/api/habits", { name, color: HABIT_COLORS[habits.length % HABIT_COLORS.length], order: habits.length, widgetId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/habits"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/habits", widgetId] });
       setNewName("");
       setShowAdd(false);
     },
@@ -96,17 +102,17 @@ export function HabitTrackerWidget() {
   const deleteHabit = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/habits/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/habits"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/habit-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/habits", widgetId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/habit-entries", widgetId] });
       if (selectedHabitId === deleteHabit.variables) setSelectedHabitId(null);
     },
   });
 
   const updateHabit = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: { name?: string; color?: string } }) =>
-      apiRequest("PATCH", `/api/habits/${id}`, updates),
+      apiRequest("PATCH", `/api/habits/${id}`, { ...updates, widgetId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/habits"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/habits", widgetId] });
       setEditingHabitId(null);
     },
   });
@@ -116,10 +122,10 @@ export function HabitTrackerWidget() {
       if (exists) {
         return apiRequest("DELETE", `/api/habit-entries/${habitId}/${date}`);
       } else {
-        return apiRequest("POST", "/api/habit-entries", { habitId, date });
+        return apiRequest("POST", "/api/habit-entries", { habitId, date, widgetId });
       }
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/habit-entries"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/habit-entries", widgetId] }),
   });
 
   const entrySet = useMemo(() => new Set(entries.map((e) => `${e.habitId}:${e.date}`)), [entries]);

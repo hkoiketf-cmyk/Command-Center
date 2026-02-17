@@ -37,7 +37,7 @@ The application supports multiple customizable "desktops" (workspaces), each wit
 - **Dashboard Setup Wizard**: AI-powered questionnaire in the Template Library that asks users about their role (content creator, sales, freelancer, etc.), priorities, and tools, then auto-generates a complete personalized dashboard with the optimal widget selection. No API key needed - uses intelligent role-based mapping.
 - **Ad Board**: Display ads in grid layout or rotating spotlight mode. Users can create personal ads (image, headline, description, CTA button/link). Admins can create global ads visible on all users' boards. Two view modes: Grid (card layout) and Spotlight (single-ad rotation with configurable interval). Includes full CRUD management UI.
 
-The application ensures multi-user data isolation by associating all data with a `userId`. Authentication is handled via Replit Auth (OIDC). The UI is designed to be fully mobile-responsive, adapting to smaller viewports with a stacked layout and touch-optimized controls.
+The application ensures multi-user data isolation by associating all data with a `userId` and per-widget-instance isolation via a nullable `widgetId` column on all data tables (14 tables). This allows multiple instances of the same widget type to maintain independent data. Legacy data (null widgetId) is included alongside widget-specific data for backward compatibility. Authentication is handled via Replit Auth (OIDC). The UI is designed to be fully mobile-responsive, adapting to smaller viewports with a stacked layout and touch-optimized controls.
 
 ## External Dependencies
 - **Replit Auth**: For user authentication and authorization.

@@ -354,7 +354,8 @@ export async function registerRoutes(
 
   app.get("/api/capture-items", isAuthenticated, async (req, res) => {
     try {
-      const items = await storage.getCaptureItems(getUserId(req));
+      const widgetId = req.query.widgetId as string | undefined;
+      const items = await storage.getCaptureItems(getUserId(req), widgetId);
       res.json(items);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch capture items" });
@@ -365,7 +366,8 @@ export async function registerRoutes(
     try {
       const parsed = insertCaptureItemSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-      const item = await storage.createCaptureItem(getUserId(req), parsed.data);
+      const widgetId = req.body.widgetId as string | undefined;
+      const item = await storage.createCaptureItem(getUserId(req), parsed.data, widgetId);
       res.status(201).json(item);
     } catch (error) {
       res.status(500).json({ error: "Failed to create capture item" });
@@ -396,7 +398,8 @@ export async function registerRoutes(
 
   app.get("/api/habits", isAuthenticated, async (req, res) => {
     try {
-      const habitList = await storage.getHabits(getUserId(req));
+      const widgetId = req.query.widgetId as string | undefined;
+      const habitList = await storage.getHabits(getUserId(req), widgetId);
       res.json(habitList);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch habits" });
@@ -407,7 +410,8 @@ export async function registerRoutes(
     try {
       const parsed = insertHabitSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-      const habit = await storage.createHabit(getUserId(req), parsed.data);
+      const widgetId = req.body.widgetId as string | undefined;
+      const habit = await storage.createHabit(getUserId(req), parsed.data, widgetId);
       res.status(201).json(habit);
     } catch (error) {
       res.status(500).json({ error: "Failed to create habit" });
@@ -440,7 +444,8 @@ export async function registerRoutes(
 
   app.get("/api/habit-entries", isAuthenticated, async (req, res) => {
     try {
-      const entries = await storage.getAllHabitEntries(getUserId(req));
+      const widgetId = req.query.widgetId as string | undefined;
+      const entries = await storage.getAllHabitEntries(getUserId(req), widgetId);
       res.json(entries);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch habit entries" });
@@ -451,7 +456,8 @@ export async function registerRoutes(
     try {
       const parsed = insertHabitEntrySchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-      const entry = await storage.createHabitEntry(getUserId(req), parsed.data);
+      const widgetId = req.body.widgetId as string | undefined;
+      const entry = await storage.createHabitEntry(getUserId(req), parsed.data, widgetId);
       res.status(201).json(entry);
     } catch (error) {
       res.status(500).json({ error: "Failed to create habit entry" });
@@ -472,7 +478,8 @@ export async function registerRoutes(
 
   app.get("/api/journal", isAuthenticated, async (req, res) => {
     try {
-      const entries = await storage.getJournalEntries(getUserId(req));
+      const widgetId = req.query.widgetId as string | undefined;
+      const entries = await storage.getJournalEntries(getUserId(req), widgetId);
       res.json(entries);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch journal entries" });
@@ -481,7 +488,8 @@ export async function registerRoutes(
 
   app.get("/api/journal/:date", isAuthenticated, async (req, res) => {
     try {
-      const entries = await storage.getJournalEntriesByDate(getUserId(req), req.params.date);
+      const widgetId = req.query.widgetId as string | undefined;
+      const entries = await storage.getJournalEntriesByDate(getUserId(req), req.params.date, widgetId);
       res.json(entries);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch journal entries" });
@@ -492,7 +500,8 @@ export async function registerRoutes(
     try {
       const parsed = insertJournalEntrySchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-      const entry = await storage.createJournalEntry(getUserId(req), parsed.data);
+      const widgetId = req.body.widgetId as string | undefined;
+      const entry = await storage.createJournalEntry(getUserId(req), parsed.data, widgetId);
       res.status(201).json(entry);
     } catch (error) {
       res.status(500).json({ error: "Failed to create journal entry" });
@@ -503,7 +512,8 @@ export async function registerRoutes(
     try {
       const parsed = insertJournalEntrySchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-      const entry = await storage.upsertJournalEntry(getUserId(req), parsed.data);
+      const widgetId = req.body.widgetId as string | undefined;
+      const entry = await storage.upsertJournalEntry(getUserId(req), parsed.data, widgetId);
       res.json(entry);
     } catch (error) {
       res.status(500).json({ error: "Failed to save journal entry" });
@@ -524,7 +534,8 @@ export async function registerRoutes(
 
   app.get("/api/scorecard-metrics", isAuthenticated, async (req, res) => {
     try {
-      const metrics = await storage.getScorecardMetrics(getUserId(req));
+      const widgetId = req.query.widgetId as string | undefined;
+      const metrics = await storage.getScorecardMetrics(getUserId(req), widgetId);
       res.json(metrics);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch scorecard metrics" });
@@ -535,7 +546,8 @@ export async function registerRoutes(
     try {
       const parsed = insertScorecardMetricSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-      const metric = await storage.createScorecardMetric(getUserId(req), parsed.data);
+      const widgetId = req.body.widgetId as string | undefined;
+      const metric = await storage.createScorecardMetric(getUserId(req), parsed.data, widgetId);
       res.status(201).json(metric);
     } catch (error) {
       res.status(500).json({ error: "Failed to create scorecard metric" });
@@ -564,7 +576,8 @@ export async function registerRoutes(
 
   app.get("/api/scorecard-entries", isAuthenticated, async (req, res) => {
     try {
-      const entries = await storage.getAllScorecardEntries(getUserId(req));
+      const widgetId = req.query.widgetId as string | undefined;
+      const entries = await storage.getAllScorecardEntries(getUserId(req), widgetId);
       res.json(entries);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch scorecard entries" });
@@ -575,7 +588,8 @@ export async function registerRoutes(
     try {
       const parsed = insertScorecardEntrySchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-      const entry = await storage.upsertScorecardEntry(getUserId(req), parsed.data);
+      const widgetId = req.body.widgetId as string | undefined;
+      const entry = await storage.upsertScorecardEntry(getUserId(req), parsed.data, widgetId);
       res.json(entry);
     } catch (error) {
       res.status(500).json({ error: "Failed to save scorecard entry" });
@@ -586,7 +600,8 @@ export async function registerRoutes(
 
   app.get("/api/kpis", isAuthenticated, async (req, res) => {
     try {
-      const kpiList = await storage.getKpis(getUserId(req));
+      const widgetId = req.query.widgetId as string | undefined;
+      const kpiList = await storage.getKpis(getUserId(req), widgetId);
       res.json(kpiList);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch KPIs" });
@@ -597,7 +612,8 @@ export async function registerRoutes(
     try {
       const parsed = insertKpiSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-      const kpi = await storage.createKpi(getUserId(req), parsed.data);
+      const widgetId = req.body.widgetId as string | undefined;
+      const kpi = await storage.createKpi(getUserId(req), parsed.data, widgetId);
       res.status(201).json(kpi);
     } catch (error) {
       res.status(500).json({ error: "Failed to create KPI" });
@@ -628,7 +644,8 @@ export async function registerRoutes(
 
   app.get("/api/waiting-items", isAuthenticated, async (req, res) => {
     try {
-      const items = await storage.getWaitingItems(getUserId(req));
+      const widgetId = req.query.widgetId as string | undefined;
+      const items = await storage.getWaitingItems(getUserId(req), widgetId);
       res.json(items);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch waiting items" });
@@ -639,7 +656,8 @@ export async function registerRoutes(
     try {
       const parsed = insertWaitingItemSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-      const item = await storage.createWaitingItem(getUserId(req), parsed.data);
+      const widgetId = req.body.widgetId as string | undefined;
+      const item = await storage.createWaitingItem(getUserId(req), parsed.data, widgetId);
       res.status(201).json(item);
     } catch (error) {
       res.status(500).json({ error: "Failed to create waiting item" });
@@ -670,7 +688,8 @@ export async function registerRoutes(
 
   app.get("/api/deals", isAuthenticated, async (req, res) => {
     try {
-      const dealList = await storage.getDeals(getUserId(req));
+      const widgetId = req.query.widgetId as string | undefined;
+      const dealList = await storage.getDeals(getUserId(req), widgetId);
       res.json(dealList);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch deals" });
@@ -681,7 +700,8 @@ export async function registerRoutes(
     try {
       const parsed = insertDealSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-      const deal = await storage.createDeal(getUserId(req), parsed.data);
+      const widgetId = req.body.widgetId as string | undefined;
+      const deal = await storage.createDeal(getUserId(req), parsed.data, widgetId);
       res.status(201).json(deal);
     } catch (error) {
       res.status(500).json({ error: "Failed to create deal" });
@@ -712,7 +732,8 @@ export async function registerRoutes(
 
   app.get("/api/time-blocks/:date", isAuthenticated, async (req, res) => {
     try {
-      const blocks = await storage.getTimeBlocks(getUserId(req), req.params.date);
+      const widgetId = req.query.widgetId as string | undefined;
+      const blocks = await storage.getTimeBlocks(getUserId(req), req.params.date, widgetId);
       res.json(blocks);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch time blocks" });
@@ -723,7 +744,8 @@ export async function registerRoutes(
     try {
       const parsed = insertTimeBlockSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-      const block = await storage.createTimeBlock(getUserId(req), parsed.data);
+      const widgetId = req.body.widgetId as string | undefined;
+      const block = await storage.createTimeBlock(getUserId(req), parsed.data, widgetId);
       res.status(201).json(block);
     } catch (error) {
       res.status(500).json({ error: "Failed to create time block" });
@@ -754,7 +776,8 @@ export async function registerRoutes(
 
   app.get("/api/recurring-expenses", isAuthenticated, async (req, res) => {
     try {
-      const expenses = await storage.getRecurringExpenses(getUserId(req));
+      const widgetId = req.query.widgetId as string | undefined;
+      const expenses = await storage.getRecurringExpenses(getUserId(req), widgetId);
       res.json(expenses);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch recurring expenses" });
@@ -765,7 +788,8 @@ export async function registerRoutes(
     try {
       const parsed = insertRecurringExpenseSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-      const expense = await storage.createRecurringExpense(getUserId(req), parsed.data);
+      const widgetId = req.body.widgetId as string | undefined;
+      const expense = await storage.createRecurringExpense(getUserId(req), parsed.data, widgetId);
       res.status(201).json(expense);
     } catch (error) {
       res.status(500).json({ error: "Failed to create recurring expense" });
@@ -794,7 +818,8 @@ export async function registerRoutes(
 
   app.get("/api/variable-expenses", isAuthenticated, async (req, res) => {
     try {
-      const expenses = await storage.getVariableExpenses(getUserId(req));
+      const widgetId = req.query.widgetId as string | undefined;
+      const expenses = await storage.getVariableExpenses(getUserId(req), widgetId);
       res.json(expenses);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch variable expenses" });
@@ -805,7 +830,8 @@ export async function registerRoutes(
     try {
       const parsed = insertVariableExpenseSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-      const expense = await storage.createVariableExpense(getUserId(req), parsed.data);
+      const widgetId = req.body.widgetId as string | undefined;
+      const expense = await storage.createVariableExpense(getUserId(req), parsed.data, widgetId);
       res.status(201).json(expense);
     } catch (error) {
       res.status(500).json({ error: "Failed to create variable expense" });
@@ -826,7 +852,8 @@ export async function registerRoutes(
 
   app.get("/api/meetings", isAuthenticated, async (req, res) => {
     try {
-      const meetingList = await storage.getMeetings(getUserId(req));
+      const widgetId = req.query.widgetId as string | undefined;
+      const meetingList = await storage.getMeetings(getUserId(req), widgetId);
       res.json(meetingList);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch meetings" });
@@ -837,7 +864,8 @@ export async function registerRoutes(
     try {
       const parsed = insertMeetingSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-      const meeting = await storage.createMeeting(getUserId(req), parsed.data);
+      const widgetId = req.body.widgetId as string | undefined;
+      const meeting = await storage.createMeeting(getUserId(req), parsed.data, widgetId);
       res.status(201).json(meeting);
     } catch (error) {
       res.status(500).json({ error: "Failed to create meeting" });
@@ -2067,7 +2095,8 @@ Only set passed=false if there are critical or major issues. Minor issues alone 
   app.get("/api/ads", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
-      const userAds = await storage.getAds(userId);
+      const widgetId = req.query.widgetId as string | undefined;
+      const userAds = await storage.getAds(userId, widgetId);
       res.json(userAds);
     } catch (error) {
       console.error("Get ads error:", error);
@@ -2092,7 +2121,8 @@ Only set passed=false if there are critical or major issues. Minor issues alone 
       if (req.body.isGlobal && !isAdminFlag) {
         return res.status(403).json({ error: "Admin access required for global ads" });
       }
-      const ad = await storage.createAd(userId, req.body);
+      const widgetId = req.body.widgetId as string | undefined;
+      const ad = await storage.createAd(userId, req.body, widgetId);
       res.json(ad);
     } catch (error) {
       console.error("Create ad error:", error);

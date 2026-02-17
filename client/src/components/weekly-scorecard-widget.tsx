@@ -18,7 +18,7 @@ function getPreviousWeekStart(weekStart: string): string {
   return d.toISOString().split("T")[0];
 }
 
-export function WeeklyScorecardWidget() {
+export function WeeklyScorecardWidget({ widgetId }: { widgetId: string }) {
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState("");
   const [newTarget, setNewTarget] = useState("");
@@ -27,14 +27,20 @@ export function WeeklyScorecardWidget() {
   const thisWeek = getWeekStart(new Date());
   const lastWeek = getPreviousWeekStart(thisWeek);
 
-  const { data: metrics = [], isLoading } = useQuery<ScorecardMetric[]>({ queryKey: ["/api/scorecard-metrics"] });
-  const { data: entries = [] } = useQuery<ScorecardEntry[]>({ queryKey: ["/api/scorecard-entries"] });
+  const { data: metrics = [], isLoading } = useQuery<ScorecardMetric[]>({
+    queryKey: ["/api/scorecard-metrics", widgetId],
+    queryFn: () => fetch(`/api/scorecard-metrics?widgetId=${widgetId}`).then(r => r.json()),
+  });
+  const { data: entries = [] } = useQuery<ScorecardEntry[]>({
+    queryKey: ["/api/scorecard-entries", widgetId],
+    queryFn: () => fetch(`/api/scorecard-entries?widgetId=${widgetId}`).then(r => r.json()),
+  });
 
   const createMetric = useMutation({
     mutationFn: (data: { name: string; target: number; unit: string }) =>
-      apiRequest("POST", "/api/scorecard-metrics", { ...data, order: metrics.length }),
+      apiRequest("POST", "/api/scorecard-metrics", { ...data, order: metrics.length, widgetId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/scorecard-metrics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/scorecard-metrics", widgetId] });
       setNewName("");
       setNewTarget("");
       setNewUnit("");
@@ -45,15 +51,15 @@ export function WeeklyScorecardWidget() {
   const deleteMetric = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/scorecard-metrics/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/scorecard-metrics"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/scorecard-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/scorecard-metrics", widgetId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/scorecard-entries", widgetId] });
     },
   });
 
   const upsertEntry = useMutation({
     mutationFn: (data: { metricId: string; weekStart: string; value: number }) =>
-      apiRequest("PUT", "/api/scorecard-entries", data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/scorecard-entries"] }),
+      apiRequest("PUT", "/api/scorecard-entries", { ...data, widgetId }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/scorecard-entries", widgetId] }),
   });
 
   const getEntry = (metricId: string, weekStart: string): number => {

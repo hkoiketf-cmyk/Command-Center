@@ -224,6 +224,7 @@ export type AppSettings = typeof appSettings.$inferSelect;
 export const captureItems = pgTable("capture_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
+  widgetId: varchar("widget_id"),
   text: text("text").notNull(),
   processed: boolean("processed").default(false),
   createdAt: text("created_at").notNull().default(sql`now()::text`),
@@ -237,6 +238,7 @@ export type CaptureItem = typeof captureItems.$inferSelect;
 export const habits = pgTable("habits", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
+  widgetId: varchar("widget_id"),
   name: text("name").notNull(),
   color: text("color").notNull().default("#3B82F6"),
   order: integer("order").notNull().default(0),
@@ -249,6 +251,7 @@ export type Habit = typeof habits.$inferSelect;
 export const habitEntries = pgTable("habit_entries", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
+  widgetId: varchar("widget_id"),
   habitId: varchar("habit_id").notNull().references(() => habits.id, { onDelete: "cascade" }),
   date: text("date").notNull(),
   completed: boolean("completed").default(true),
@@ -262,6 +265,7 @@ export type HabitEntry = typeof habitEntries.$inferSelect;
 export const journalEntries = pgTable("journal_entries", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
+  widgetId: varchar("widget_id"),
   date: text("date").notNull(),
   content: text("content").notNull().default(""),
   createdAt: text("created_at").notNull().default(sql`now()::text`),
@@ -275,6 +279,7 @@ export type JournalEntry = typeof journalEntries.$inferSelect;
 export const scorecardMetrics = pgTable("scorecard_metrics", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
+  widgetId: varchar("widget_id"),
   name: text("name").notNull(),
   target: real("target").notNull().default(0),
   unit: text("unit").default(""),
@@ -288,6 +293,7 @@ export type ScorecardMetric = typeof scorecardMetrics.$inferSelect;
 export const scorecardEntries = pgTable("scorecard_entries", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
+  widgetId: varchar("widget_id"),
   metricId: varchar("metric_id").notNull().references(() => scorecardMetrics.id, { onDelete: "cascade" }),
   weekStart: text("week_start").notNull(),
   value: real("value").notNull().default(0),
@@ -301,6 +307,7 @@ export type ScorecardEntry = typeof scorecardEntries.$inferSelect;
 export const kpis = pgTable("kpis", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
+  widgetId: varchar("widget_id"),
   name: text("name").notNull(),
   currentValue: real("current_value").notNull().default(0),
   targetValue: real("target_value").notNull().default(0),
@@ -317,6 +324,7 @@ export type Kpi = typeof kpis.$inferSelect;
 export const waitingItems = pgTable("waiting_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
+  widgetId: varchar("widget_id"),
   person: text("person").notNull(),
   description: text("description").notNull(),
   dateSent: text("date_sent").notNull(),
@@ -332,6 +340,7 @@ export type WaitingItem = typeof waitingItems.$inferSelect;
 export const deals = pgTable("deals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
+  widgetId: varchar("widget_id"),
   name: text("name").notNull(),
   value: real("value").default(0),
   stage: text("stage").notNull().default("lead"),
@@ -348,6 +357,7 @@ export type Deal = typeof deals.$inferSelect;
 export const timeBlocks = pgTable("time_blocks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
+  widgetId: varchar("widget_id"),
   date: text("date").notNull(),
   startTime: text("start_time").notNull(),
   endTime: text("end_time").notNull(),
@@ -363,6 +373,7 @@ export type TimeBlock = typeof timeBlocks.$inferSelect;
 export const recurringExpenses = pgTable("recurring_expenses", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
+  widgetId: varchar("widget_id"),
   name: text("name").notNull(),
   amount: real("amount").notNull().default(0),
   category: text("category").default(""),
@@ -375,6 +386,7 @@ export type RecurringExpense = typeof recurringExpenses.$inferSelect;
 export const variableExpenses = pgTable("variable_expenses", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
+  widgetId: varchar("widget_id"),
   name: text("name").notNull(),
   amount: real("amount").notNull().default(0),
   date: text("date").notNull(),
@@ -389,6 +401,7 @@ export type VariableExpense = typeof variableExpenses.$inferSelect;
 export const meetings = pgTable("meetings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
+  widgetId: varchar("widget_id"),
   title: text("title").notNull(),
   person: text("person").default(""),
   date: text("date").notNull(),
@@ -530,6 +543,7 @@ export type WidgetTemplate = typeof widgetTemplates.$inferSelect;
 export const ads = pgTable("ads", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
+  widgetId: varchar("widget_id"),
   imageUrl: text("image_url").notNull().default(""),
   mediaType: text("media_type").notNull().default("image"),
   headline: text("headline").notNull(),

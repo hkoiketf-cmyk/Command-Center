@@ -11,21 +11,21 @@ function formatDate(dateStr: string): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export function ExpenseTrackerWidget() {
+export function ExpenseTrackerWidget({ widgetId }: { widgetId: string }) {
   const [showAddRecurring, setShowAddRecurring] = useState(false);
   const [showAddVariable, setShowAddVariable] = useState(false);
   const [newName, setNewName] = useState("");
   const [newAmount, setNewAmount] = useState("");
   const [newCategory, setNewCategory] = useState("");
 
-  const { data: recurring = [] } = useQuery<RecurringExpense[]>({ queryKey: ["/api/recurring-expenses"] });
-  const { data: variable = [] } = useQuery<VariableExpense[]>({ queryKey: ["/api/variable-expenses"] });
+  const { data: recurring = [] } = useQuery<RecurringExpense[]>({ queryKey: ["/api/recurring-expenses", widgetId], queryFn: () => fetch(`/api/recurring-expenses?widgetId=${widgetId}`).then(r => r.json()) });
+  const { data: variable = [] } = useQuery<VariableExpense[]>({ queryKey: ["/api/variable-expenses", widgetId], queryFn: () => fetch(`/api/variable-expenses?widgetId=${widgetId}`).then(r => r.json()) });
 
   const createRecurring = useMutation({
     mutationFn: (data: { name: string; amount: number; category: string }) =>
-      apiRequest("POST", "/api/recurring-expenses", data),
+      apiRequest("POST", "/api/recurring-expenses", { ...data, widgetId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/recurring-expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/recurring-expenses", widgetId] });
       setNewName("");
       setNewAmount("");
       setNewCategory("");
@@ -35,14 +35,14 @@ export function ExpenseTrackerWidget() {
 
   const deleteRecurring = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/recurring-expenses/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/recurring-expenses"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/recurring-expenses", widgetId] }),
   });
 
   const createVariable = useMutation({
     mutationFn: (data: { name: string; amount: number; date: string; category: string }) =>
-      apiRequest("POST", "/api/variable-expenses", data),
+      apiRequest("POST", "/api/variable-expenses", { ...data, widgetId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/variable-expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/variable-expenses", widgetId] });
       setNewName("");
       setNewAmount("");
       setNewCategory("");
@@ -52,7 +52,7 @@ export function ExpenseTrackerWidget() {
 
   const deleteVariable = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/variable-expenses/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/variable-expenses"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/variable-expenses", widgetId] }),
   });
 
   const monthlyBurn = recurring.reduce((sum, e) => sum + e.amount, 0);
