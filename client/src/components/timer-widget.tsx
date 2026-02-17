@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Play, Pause, RotateCcw, Settings, Volume2, VolumeX } from "lucide-react";
+import { Play, Pause, RotateCcw, Settings, Volume2, VolumeX, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,9 +14,21 @@ const SOUNDS: { id: string; label: string; frequency: number; pattern: number[] 
   { id: "pulse", label: "Pulse", frequency: 350, pattern: [100, 50, 100, 50, 100, 300, 100, 50, 100, 50, 100] },
 ];
 
-function playSound(soundId: string) {
+let sharedAudioCtx: AudioContext | null = null;
+
+function getAudioContext(): AudioContext {
+  if (!sharedAudioCtx || sharedAudioCtx.state === "closed") {
+    sharedAudioCtx = new AudioContext();
+  }
+  if (sharedAudioCtx.state === "suspended") {
+    sharedAudioCtx.resume();
+  }
+  return sharedAudioCtx;
+}
+
+function playSoundOnce(soundId: string) {
   const sound = SOUNDS.find((s) => s.id === soundId) || SOUNDS[0];
-  const ctx = new AudioContext();
+  const ctx = getAudioContext();
 
   let time = ctx.currentTime;
   for (let i = 0; i < sound.pattern.length; i++) {
@@ -28,7 +40,7 @@ function playSound(soundId: string) {
       gain.connect(ctx.destination);
       osc.frequency.value = sound.frequency;
       osc.type = "sine";
-      gain.gain.setValueAtTime(0.3, time);
+      gain.gain.setValueAtTime(0.7, time);
       gain.gain.exponentialRampToValueAtTime(0.01, time + duration);
       osc.start(time);
       osc.stop(time + duration);
@@ -37,19 +49,22 @@ function playSound(soundId: string) {
   }
 }
 
-function previewSound(soundId: string) {
-  const sound = SOUNDS.find((s) => s.id === soundId) || SOUNDS[0];
-  const ctx = new AudioContext();
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.connect(gain);
-  gain.connect(ctx.destination);
-  osc.frequency.value = sound.frequency;
-  osc.type = "sine";
-  gain.gain.setValueAtTime(0.2, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-  osc.start();
-  osc.stop(ctx.currentTime + 0.3);
+function requestNotificationPermission() {
+  if ("Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission();
+  }
+}
+
+function showTimerNotification() {
+  if ("Notification" in window && Notification.permission === "granted") {
+    try {
+      new Notification("Timer Complete", {
+        body: "Your countdown timer has finished!",
+        icon: "/favicon.ico",
+        requireInteraction: true,
+      });
+    } catch (_e) {}
+  }
 }
 
 function padNum(n: number): string {
@@ -78,11 +93,18 @@ export function TimerWidget({ content, onContentChange }: TimerWidgetProps) {
   const [settingsSound, setSettingsSound] = useState(selectedSound);
   const [hasFinished, setHasFinished] = useState(false);
   const [soundMuted, setSoundMuted] = useState(false);
+  const [showAlert, setShowAlert] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const soundTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const startTimeRef = useRef<number>(0);
   const pausedElapsedRef = useRef<number>(0);
 
   const totalCountdownSeconds = initialH * 3600 + initialM * 60 + initialS;
+
+  const clearSoundTimeouts = useCallback(() => {
+    soundTimeoutsRef.current.forEach(clearTimeout);
+    soundTimeoutsRef.current = [];
+  }, []);
 
   const stopInterval = useCallback(() => {
     if (intervalRef.current) {
@@ -92,12 +114,26 @@ export function TimerWidget({ content, onContentChange }: TimerWidgetProps) {
   }, []);
 
   useEffect(() => {
-    return () => stopInterval();
-  }, [stopInterval]);
+    return () => {
+      stopInterval();
+      clearSoundTimeouts();
+    };
+  }, [stopInterval, clearSoundTimeouts]);
+
+  const playRepeatingSound = (soundId: string) => {
+    clearSoundTimeouts();
+    playSoundOnce(soundId);
+    const t1 = setTimeout(() => playSoundOnce(soundId), 1500);
+    const t2 = setTimeout(() => playSoundOnce(soundId), 3000);
+    soundTimeoutsRef.current = [t1, t2];
+  };
 
   const startTimer = () => {
     if (mode === "countdown" && totalCountdownSeconds === 0) return;
+    getAudioContext();
+    requestNotificationPermission();
     setHasFinished(false);
+    setShowAlert(false);
     startTimeRef.current = Date.now();
     pausedElapsedRef.current = elapsed;
     setIsRunning(true);
@@ -110,7 +146,9 @@ export function TimerWidget({ content, onContentChange }: TimerWidgetProps) {
         setElapsed(totalCountdownSeconds);
         setIsRunning(false);
         setHasFinished(true);
-        if (!soundMuted) playSound(selectedSound);
+        setShowAlert(true);
+        if (!soundMuted) playRepeatingSound(selectedSound);
+        showTimerNotification();
         stopInterval();
       } else {
         setElapsed(newElapsed);
@@ -128,8 +166,15 @@ export function TimerWidget({ content, onContentChange }: TimerWidgetProps) {
     setIsRunning(false);
     setElapsed(0);
     setHasFinished(false);
+    setShowAlert(false);
     pausedElapsedRef.current = 0;
     stopInterval();
+    clearSoundTimeouts();
+  };
+
+  const dismissAlert = () => {
+    setShowAlert(false);
+    clearSoundTimeouts();
   };
 
   const displaySeconds = mode === "countdown"
@@ -232,7 +277,7 @@ export function TimerWidget({ content, onContentChange }: TimerWidgetProps) {
         <div className="space-y-1">
           <Label className="text-xs">Alert Sound</Label>
           <div className="flex gap-2">
-            <Select value={settingsSound} onValueChange={(v) => { setSettingsSound(v); previewSound(v); }}>
+            <Select value={settingsSound} onValueChange={(v) => { setSettingsSound(v); playSoundOnce(v); }}>
               <SelectTrigger className="flex-1" data-testid="select-timer-sound">
                 <SelectValue />
               </SelectTrigger>
@@ -242,7 +287,7 @@ export function TimerWidget({ content, onContentChange }: TimerWidgetProps) {
                 ))}
               </SelectContent>
             </Select>
-            <Button variant="ghost" size="icon" onClick={() => previewSound(settingsSound)} data-testid="button-preview-sound">
+            <Button variant="ghost" size="icon" onClick={() => playSoundOnce(settingsSound)} data-testid="button-preview-sound">
               <Volume2 className="h-4 w-4" />
             </Button>
           </div>
@@ -261,7 +306,21 @@ export function TimerWidget({ content, onContentChange }: TimerWidgetProps) {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-full gap-3 p-4" data-testid="timer-widget">
+    <div className="relative flex flex-col items-center justify-center h-full gap-3 p-4" data-testid="timer-widget">
+      {showAlert && (
+        <div
+          className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-md"
+          style={{ backgroundColor: "hsl(var(--destructive) / 0.12)" }}
+          data-testid="timer-alert-overlay"
+        >
+          <Bell className="h-10 w-10 text-destructive animate-bounce" />
+          <div className="text-lg font-bold text-destructive">Time's Up!</div>
+          <Button variant="outline" size="sm" onClick={dismissAlert} data-testid="button-dismiss-alert">
+            Dismiss
+          </Button>
+        </div>
+      )}
+
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
         {mode === "countdown" ? "Countdown" : "Stopwatch"}
       </div>
@@ -319,7 +378,7 @@ export function TimerWidget({ content, onContentChange }: TimerWidgetProps) {
         </Button>
       </div>
 
-      {hasFinished && (
+      {hasFinished && !showAlert && (
         <div className="text-xs text-destructive font-medium animate-pulse" data-testid="timer-finished-text">
           Time's up!
         </div>
