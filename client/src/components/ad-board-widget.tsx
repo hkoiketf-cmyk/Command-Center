@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -32,8 +32,63 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, LayoutGrid, Presentation, ExternalLink, Pencil, Trash2, MoreVertical, ChevronLeft, ChevronRight, Image, Globe, Eye, EyeOff } from "lucide-react";
+import { Plus, LayoutGrid, Presentation, ExternalLink, Pencil, Trash2, MoreVertical, ChevronLeft, ChevronRight, Image, Globe, Eye, EyeOff, Upload, X, FileText, Film, Loader2 } from "lucide-react";
+import { useUpload } from "@/hooks/use-upload";
 import type { Ad, AdBoardContent } from "@shared/schema";
+
+function getMediaTypeFromFile(file: File): string {
+  if (file.type.startsWith("image/")) return "image";
+  if (file.type.startsWith("video/")) return "video";
+  if (file.type === "application/pdf") return "pdf";
+  return "file";
+}
+
+function getMediaTypeFromUrl(url: string): string {
+  const lower = url.toLowerCase();
+  if (/\.(jpg|jpeg|png|gif|webp|svg|bmp|avif)(\?|$)/.test(lower)) return "image";
+  if (/\.(mp4|webm|mov|avi|mkv)(\?|$)/.test(lower)) return "video";
+  if (/\.pdf(\?|$)/.test(lower)) return "pdf";
+  return "image";
+}
+
+function MediaPreview({ url, mediaType, alt, className }: { url: string; mediaType: string; alt: string; className?: string }) {
+  if (!url) return null;
+
+  if (mediaType === "video") {
+    return (
+      <video
+        src={url}
+        className={className || "w-full h-full object-cover"}
+        controls
+        muted
+        playsInline
+        preload="metadata"
+        data-testid="media-video"
+      />
+    );
+  }
+
+  if (mediaType === "pdf") {
+    return (
+      <div className={`flex flex-col items-center justify-center gap-2 bg-muted ${className || "w-full h-full"}`} data-testid="media-pdf">
+        <FileText className="h-8 w-8 text-muted-foreground" />
+        <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline">
+          View PDF
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={url}
+      alt={alt}
+      className={className || "w-full h-full object-cover"}
+      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+      data-testid="media-image"
+    />
+  );
+}
 
 interface AdBoardWidgetProps {
   content: AdBoardContent;
@@ -238,16 +293,14 @@ export function AdBoardWidget({ content, onContentChange, isAdmin = false }: AdB
 }
 
 function AdCard({ ad, compact = false }: { ad: Ad; compact?: boolean }) {
+  const mediaType = ad.mediaType || "image";
   return (
     <Card className="overflow-hidden flex flex-col" data-testid={`card-ad-${ad.id}`}>
       {ad.imageUrl && (
-        <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
-          <img
-            src={ad.imageUrl}
-            alt={ad.headline}
-            className="absolute inset-0 w-full h-full object-cover"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-          />
+        <div className={`relative w-full ${mediaType === "video" ? "" : ""}`} style={{ paddingBottom: mediaType === "pdf" ? "40%" : "56.25%" }}>
+          <div className="absolute inset-0">
+            <MediaPreview url={ad.imageUrl} mediaType={mediaType} alt={ad.headline} />
+          </div>
         </div>
       )}
       <div className={`p-3 flex flex-col gap-1.5 flex-1 ${compact ? "p-2" : "p-3"}`}>
@@ -298,17 +351,15 @@ function SpotlightView({
   const ad = ads[currentIndex];
   if (!ad) return null;
 
+  const mediaType = ad.mediaType || "image";
   return (
     <div className="flex flex-col h-full gap-3" data-testid="spotlight-view">
       <div className="flex-1 flex flex-col">
         {ad.imageUrl && (
-          <div className="relative w-full rounded-md overflow-hidden" style={{ paddingBottom: "50%" }}>
-            <img
-              src={ad.imageUrl}
-              alt={ad.headline}
-              className="absolute inset-0 w-full h-full object-cover"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-            />
+          <div className="relative w-full rounded-md overflow-hidden" style={{ paddingBottom: mediaType === "pdf" ? "40%" : "50%" }}>
+            <div className="absolute inset-0">
+              <MediaPreview url={ad.imageUrl} mediaType={mediaType} alt={ad.headline} />
+            </div>
           </div>
         )}
         <div className="py-3 flex flex-col gap-2 flex-1">
@@ -367,9 +418,44 @@ function AdForm({
   const [headline, setHeadline] = useState(ad?.headline || "");
   const [description, setDescription] = useState(ad?.description || "");
   const [imageUrl, setImageUrl] = useState(ad?.imageUrl || "");
+  const [mediaType, setMediaType] = useState(ad?.mediaType || "image");
   const [ctaText, setCtaText] = useState(ad?.ctaText || "Learn More");
   const [ctaLink, setCtaLink] = useState(ad?.ctaLink || "");
   const [isGlobal, setIsGlobal] = useState(ad?.isGlobal || false);
+  const [uploadMode, setUploadMode] = useState<"upload" | "url">(ad?.imageUrl && !ad.imageUrl.startsWith("/objects/") ? "url" : "upload");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+
+  const { uploadFile, isUploading, progress } = useUpload({
+    onSuccess: (response) => {
+      setImageUrl(response.objectPath);
+      toast({ title: "File uploaded successfully" });
+    },
+    onError: (error) => {
+      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const maxSize = 50 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast({ title: "File too large", description: "Maximum file size is 50MB", variant: "destructive" });
+      return;
+    }
+
+    const detectedType = getMediaTypeFromFile(file);
+    setMediaType(detectedType);
+    await uploadFile(file);
+  };
+
+  const handleRemoveMedia = () => {
+    setImageUrl("");
+    setMediaType("image");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -378,6 +464,7 @@ function AdForm({
       headline,
       description,
       imageUrl,
+      mediaType,
       ctaText,
       ctaLink,
     };
@@ -413,22 +500,95 @@ function AdForm({
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="imageUrl">Image URL</Label>
-        <Input
-          id="imageUrl"
-          value={imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
-          placeholder="https://example.com/image.jpg"
-          data-testid="input-ad-image-url"
-        />
-        {imageUrl && (
-          <div className="rounded-md overflow-hidden border border-border">
-            <img
-              src={imageUrl}
-              alt="Preview"
-              className="w-full h-24 object-cover"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <Label>Media</Label>
+          <div className="flex gap-1">
+            <Button
+              type="button"
+              size="sm"
+              variant={uploadMode === "upload" ? "default" : "ghost"}
+              onClick={() => setUploadMode("upload")}
+              data-testid="button-upload-mode"
+            >
+              <Upload className="h-3.5 w-3.5 mr-1" />
+              Upload
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={uploadMode === "url" ? "default" : "ghost"}
+              onClick={() => setUploadMode("url")}
+              data-testid="button-url-mode"
+            >
+              <ExternalLink className="h-3.5 w-3.5 mr-1" />
+              URL
+            </Button>
+          </div>
+        </div>
+
+        {uploadMode === "upload" ? (
+          <div className="space-y-2">
+            {imageUrl && imageUrl.startsWith("/objects/") ? (
+              <div className="rounded-md overflow-hidden border border-border relative">
+                <div className="h-24">
+                  <MediaPreview url={imageUrl} mediaType={mediaType} alt="Preview" className="w-full h-full object-cover" />
+                </div>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="absolute top-1 right-1 h-6 w-6 bg-background/80"
+                  onClick={handleRemoveMedia}
+                  data-testid="button-remove-media"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ) : (
+              <div
+                className="border-2 border-dashed border-border rounded-md p-4 text-center cursor-pointer hover-elevate transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+                data-testid="dropzone-upload"
+              >
+                {isUploading ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground">Uploading... {progress}%</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2">
+                    <Upload className="h-6 w-6 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground">Click to upload image, video, or PDF</p>
+                    <p className="text-xs text-muted-foreground/60">Max 50MB</p>
+                  </div>
+                )}
+              </div>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              accept="image/*,video/*,.pdf"
+              onChange={handleFileChange}
+              data-testid="input-file-upload"
             />
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <Input
+              value={imageUrl}
+              onChange={(e) => {
+                setImageUrl(e.target.value);
+                if (e.target.value) setMediaType(getMediaTypeFromUrl(e.target.value));
+              }}
+              placeholder="https://example.com/image.jpg"
+              data-testid="input-ad-image-url"
+            />
+            {imageUrl && !imageUrl.startsWith("/objects/") && (
+              <div className="rounded-md overflow-hidden border border-border h-24">
+                <MediaPreview url={imageUrl} mediaType={mediaType} alt="Preview" className="w-full h-full object-cover" />
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -467,7 +627,7 @@ function AdForm({
           </div>
         </div>
       )}
-      <Button type="submit" className="w-full" disabled={!headline.trim() || isPending} data-testid="button-submit-ad">
+      <Button type="submit" className="w-full" disabled={!headline.trim() || isPending || isUploading} data-testid="button-submit-ad">
         {isPending ? "Saving..." : (ad ? "Update Ad" : "Create Ad")}
       </Button>
     </form>
@@ -551,7 +711,19 @@ function ManageAdsView({
                 data-testid={`manage-ad-${ad.id}`}
               >
                 {ad.imageUrl ? (
-                  <img src={ad.imageUrl} alt="" className="w-12 h-12 rounded-md object-cover shrink-0" />
+                  <div className="w-12 h-12 rounded-md overflow-hidden shrink-0">
+                    {(ad.mediaType || "image") === "video" ? (
+                      <div className="w-full h-full bg-muted flex items-center justify-center">
+                        <Film className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    ) : (ad.mediaType || "image") === "pdf" ? (
+                      <div className="w-full h-full bg-muted flex items-center justify-center">
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    ) : (
+                      <img src={ad.imageUrl} alt="" className="w-full h-full object-cover" />
+                    )}
+                  </div>
                 ) : (
                   <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center shrink-0">
                     <Image className="h-5 w-5 text-muted-foreground" />

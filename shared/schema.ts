@@ -531,6 +531,7 @@ export const ads = pgTable("ads", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
   imageUrl: text("image_url").notNull().default(""),
+  mediaType: text("media_type").notNull().default("image"),
   headline: text("headline").notNull(),
   description: text("description").notNull().default(""),
   ctaText: text("cta_text").notNull().default("Learn More"),

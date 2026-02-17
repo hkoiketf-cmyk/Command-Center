@@ -2103,11 +2103,12 @@ Only set passed=false if there are critical or major issues. Minor issues alone 
   app.patch("/api/ads/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
-      const { headline, description, imageUrl, ctaText, ctaLink, active, order } = req.body;
+      const { headline, description, imageUrl, mediaType, ctaText, ctaLink, active, order } = req.body;
       const allowedUpdates: Record<string, any> = {};
       if (headline !== undefined) allowedUpdates.headline = headline;
       if (description !== undefined) allowedUpdates.description = description;
       if (imageUrl !== undefined) allowedUpdates.imageUrl = imageUrl;
+      if (mediaType !== undefined) allowedUpdates.mediaType = mediaType;
       if (ctaText !== undefined) allowedUpdates.ctaText = ctaText;
       if (ctaLink !== undefined) allowedUpdates.ctaLink = ctaLink;
       if (active !== undefined) allowedUpdates.active = active;
