@@ -350,7 +350,7 @@ window.onerror = function(msg, src, line) {
             ref={iframeRef}
             srcDoc={wrapCodeInHtml(localCode)}
             className="w-full h-full border-0"
-            sandbox="allow-scripts"
+            sandbox="allow-scripts allow-same-origin"
             title="Code Preview"
             data-testid="iframe-code-preview"
           />

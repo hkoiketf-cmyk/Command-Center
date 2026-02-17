@@ -278,7 +278,7 @@ ${rawCode}
               <div className="border rounded-lg overflow-hidden" style={{ height: "300px" }}>
                 <iframe
                   srcDoc={wrapCode(code)}
-                  sandbox="allow-scripts"
+                  sandbox="allow-scripts allow-same-origin"
                   className="w-full h-full border-0"
                   title="Widget Preview"
                   data-testid="iframe-template-preview"

@@ -93,7 +93,7 @@ ${code}
     <div className="h-full relative group" data-testid="custom-widget-container">
       <iframe
         srcDoc={wrappedCode}
-        sandbox="allow-scripts"
+        sandbox="allow-scripts allow-same-origin"
         className="w-full h-full border-0 rounded"
         title={template?.name || content?.templateName || "Custom Widget"}
         data-testid="iframe-custom-widget"

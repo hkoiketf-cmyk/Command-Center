@@ -1666,9 +1666,36 @@ Today's date is ${today}.`,
       res.flushHeaders();
 
       const baseConstraints = `TECHNICAL CONSTRAINTS:
-- This widget runs in a sandboxed iframe with allow-scripts only. NO localStorage, NO sessionStorage, NO fetch, NO XMLHttpRequest, NO parent window access.
-- Allowed CDNs: Chart.js, D3.js, Font Awesome, Google Fonts, animate.css via https://cdn.jsdelivr.net or https://cdnjs.cloudflare.com.
+- This widget runs in a sandboxed iframe with allow-scripts and allow-same-origin.
+- You CAN use fetch(), XMLHttpRequest, localStorage, and sessionStorage.
+- You CAN load external CDN libraries: Chart.js, D3.js, Font Awesome, Google Fonts, animate.css, axios, moment.js, etc. via <script src="https://cdn.jsdelivr.net/..."> or https://cdnjs.cloudflare.com.
+- You CANNOT access the parent page's DOM or data. Do NOT try to read window.parent properties or manipulate the parent page.
 - Target container: 250-800px wide, 200-500px tall. MUST be fully responsive.
+
+CRITICAL JAVASCRIPT RULES (follow these exactly):
+1. ALL JavaScript code MUST go inside a <script> tag at the END of <body>, AFTER all HTML elements.
+2. Use DOMContentLoaded or place scripts after HTML elements to ensure DOM is ready.
+3. EVERY interactive element (button, input, select, etc.) MUST have a working event listener attached in JavaScript.
+4. NEVER use onclick="functionName()" inline attributes. ALWAYS use addEventListener or document.getElementById().addEventListener().
+5. NEVER define functions and leave them uncalled. Every function must be invoked where appropriate.
+6. If using fetch() for API data, ALWAYS include proper error handling with try/catch or .catch(), and show a user-friendly message on failure.
+7. If an API key is needed, include a settings/config section in the widget UI where the user can paste their API key, save it to localStorage, and the widget uses it from there.
+8. For API calls, use HTTPS endpoints. Handle CORS issues by noting them in the UI if they occur.
+9. Test your logic mentally: trace through every user interaction and verify the code handles it.
+
+API KEY PATTERN (use when the widget needs an external API):
+- On first load, check localStorage for the API key
+- If no key found, show a setup screen with an input field and "Save Key" button
+- When key is saved, store in localStorage and immediately load data
+- Show a small gear/settings icon to change the key later
+- NEVER hardcode API keys
+
+DATA FETCHING PATTERN:
+- Wrap fetch calls in async functions with try/catch
+- Show a loading spinner/skeleton while data loads
+- Show clear error messages if fetch fails
+- If data needs refreshing, use setInterval and show "Last updated: X" timestamp
+- Cache data in localStorage with a timestamp to avoid excessive API calls
 
 QUALITY REQUIREMENTS:
 1. Start with <!DOCTYPE html>. Include complete <html>, <head> (with <title>), and <body>.
@@ -1690,15 +1717,15 @@ QUALITY REQUIREMENTS:
             role: "system",
             content: `You are a senior front-end engineer doing a thorough quality review of HTML widget code. Your job is to take the code and make it PRODUCTION-QUALITY.
 
-OUTPUT: Only the complete, improved HTML code. No explanations, no markdown fences. Raw HTML starting with <!DOCTYPE html>.
+OUTPUT FORMAT: Only the complete, improved HTML code. No explanations, no markdown fences, no comments about changes. Start directly with <!DOCTYPE html>.
 
 REVIEW AND FIX ALL OF THESE:
-- Fix any JavaScript bugs, missing event listeners, broken logic
+- Fix any JavaScript bugs, missing event listeners, broken logic, undefined variables, or runtime errors
 - Ensure ALL interactive elements actually work (buttons do things, inputs process data, timers count)
-- Improve visual design: consistent spacing, proper colors, clean typography
+- If fetch/API calls are present, ensure they have proper error handling, loading states, and actually work
+- If an API key is needed, ensure there's a UI for the user to enter it (stored in localStorage)
+- Ensure all JavaScript is in a <script> tag at the END of <body>, after all HTML elements
 - Make responsive for 250-800px containers
-- Add proper hover/active states on interactive elements
-- Add subtle load-in animation
 - Ensure dark-friendly colors (no white backgrounds)
 - Add a descriptive <title> tag
 - Ensure no content overflow or scrollbar issues
@@ -1730,13 +1757,14 @@ ${currentCode}`
             content: `You are a world-class front-end developer maintaining an HTML widget through iterative improvements. The user has been working with you to build this widget and now wants changes.
 
 CRITICAL RULES:
-- Output ONLY the complete, updated HTML code. No explanations, no markdown, no code fences. Just raw HTML starting with <!DOCTYPE html>.
+- Output ONLY the complete, updated HTML code. No explanations, no markdown, no code fences, no comments about what changed. Start directly with <!DOCTYPE html>.
 - You MUST preserve ALL existing functionality that the user hasn't asked to change.
-- Apply ONLY the specific changes the user requests. Do NOT rewrite unrelated sections.
+- Apply the specific changes the user requests.
 - Keep the same overall design language, color scheme, layout, and features unless asked to change them.
-- If the user reports a bug, fix it while keeping everything else intact.
+- If the user reports a bug or the code isn't working, you MUST actually fix the code - don't just describe what's wrong.
 - Never simplify, remove, or replace features that were already working.
 - The current code below is the GROUND TRUTH of what the widget looks like. Your job is to make targeted edits to it.
+- IMPORTANT: If fixing JavaScript issues, make sure ALL scripts are at the END of <body> after all HTML elements, ALL event listeners are properly attached, and ALL functions are actually called.
 
 ${baseConstraints}
 
@@ -1754,17 +1782,51 @@ ${currentCode}`
             role: "system",
             content: `You are a world-class front-end developer who builds stunning, production-quality HTML widgets. You create widgets that look like they belong in a premium SaaS product. Every widget you build is fully functional, beautifully designed, and works perfectly on first try.
 
-OUTPUT: Only the HTML code. No explanations, no markdown, no code fences. Raw HTML starting with <!DOCTYPE html>. The widget must be fully self-contained with inline <style> and <script> tags.
+OUTPUT FORMAT: Only raw HTML code. No explanations, no markdown, no code fences, no comments like "here's the code". Start directly with <!DOCTYPE html>. The widget must be fully self-contained with inline <style> and <script> tags.
 
 ${baseConstraints}
 
-BEFORE YOU WRITE CODE, think through:
-- What data/state does this widget need?
-- What are all the interactive elements and what should they do?
-- What's the visual layout (header, content areas, controls)?
-- What edge cases need handling?
+STRUCTURE YOUR CODE EXACTLY LIKE THIS:
+\`\`\`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Widget Title</title>
+  <!-- External CDN scripts/styles here if needed -->
+  <style>
+    /* ALL CSS here */
+  </style>
+</head>
+<body>
+  <!-- ALL HTML elements here -->
 
-Then write the COMPLETE, WORKING code.`
+  <script>
+    // ALL JavaScript here - AFTER the HTML
+    // This ensures all DOM elements exist when the script runs
+    
+    (function() {
+      // Your widget code wrapped in an IIFE
+      // 1. Get DOM references
+      // 2. Define state variables
+      // 3. Define functions
+      // 4. Attach event listeners
+      // 5. Initialize / fetch data
+    })();
+  </script>
+</body>
+</html>
+\`\`\`
+
+BEFORE YOU WRITE CODE, plan your approach:
+1. What external API or data source does this need? What's the endpoint URL and format?
+2. Does the user need to provide an API key? If so, implement the localStorage key management pattern.
+3. What are ALL the interactive elements and their exact behaviors?
+4. What states does the widget have? (loading, error, empty, populated, settings)
+5. What's the visual layout? (header with title, main content, controls/footer)
+
+Then write the COMPLETE, FULLY WORKING code. Every button must do something. Every function must be called. Every API must be properly connected.`
           },
           { role: "user", content: prompt }
         ];
@@ -1830,10 +1892,14 @@ Then write the COMPLETE, WORKING code.`
 The user asked for: "${userPrompt || "a widget"}"
 
 Check these categories:
-1. FUNCTIONALITY: Do all buttons/inputs/interactive elements have working JavaScript? Are there missing event listeners, broken logic, or runtime errors?
-2. VISUAL: Is the layout broken? Is text unreadable? Are colors clashing? Is spacing extremely off?
-3. RESPONSIVENESS: Will it break in a 250-800px container?
-4. COMPLETENESS: Does it fulfill what the user actually asked for? Are major requested features missing?
+1. FUNCTIONALITY: Do all buttons/inputs/interactive elements have working JavaScript event listeners? Are there undefined variables, missing functions, or runtime errors? Are scripts placed AFTER the HTML elements they reference? Are all functions actually called (not just defined)?
+2. DATA/API: If the widget needs external data (APIs, fetch calls), are they properly implemented with error handling? Is there a way for the user to enter API keys if needed? Do fetch URLs look correct?
+3. VISUAL: Is the layout broken? Is text unreadable? Are colors clashing? Is spacing extremely off?
+4. COMPLETENESS: Does it actually fulfill what the user asked for? Are major requested features missing or non-functional?
+
+CRITICAL: For each issue, the "fix" field must contain SPECIFIC, ACTIONABLE code instructions - not vague suggestions. Example:
+- BAD fix: "Add error handling"
+- GOOD fix: "Wrap the fetch call on line X in a try/catch block and display error.message in the #error-display element"
 
 IMPORTANT: Only report REAL issues. If the code looks good and works, say it passes.
 Minor style preferences are NOT issues. "Could be better" is NOT an issue.
@@ -1843,7 +1909,7 @@ Respond with ONLY valid JSON (no markdown, no code fences):
   "passed": true/false,
   "score": 1-10,
   "issues": [
-    { "category": "functionality|visual|responsiveness|completeness", "severity": "critical|major|minor", "description": "specific problem", "fix": "specific fix instruction" }
+    { "category": "functionality|data|visual|completeness", "severity": "critical|major|minor", "description": "specific problem", "fix": "specific actionable fix with exact code changes needed" }
   ]
 }
 

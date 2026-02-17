@@ -345,7 +345,7 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
           setGenerationPhase(`Iteration ${i + 1}/${MAX_ITERATIONS}: Fixing ${actionableIssues.length} issues...`);
           setGeneratedCode("");
 
-          const fixPrompt = `Fix ONLY these specific issues. Do NOT rewrite or restructure anything else. Preserve all existing features, styling, and functionality.\n\nISSUES TO FIX:\n${issueList}\n\nReturn the complete HTML with ONLY the listed issues fixed.`;
+          const fixPrompt = `Fix these specific issues in the widget code. You MUST output the complete, corrected HTML code - not explanations or descriptions of what to fix. Actually apply the fixes to the code.\n\nISSUES TO FIX:\n${issueList}\n\nPreserve all existing features and styling. Return the COMPLETE fixed HTML starting with <!DOCTYPE html>.`;
 
           const fixedRaw = await streamFromEndpoint({
             prompt: fixPrompt,
@@ -887,7 +887,7 @@ ${rawCode}
                 <iframe
                   ref={iframeRef}
                   srcDoc={wrapCode(generatedCode)}
-                  sandbox="allow-scripts"
+                  sandbox="allow-scripts allow-same-origin"
                   className="w-full h-full border-0"
                   title="AI Widget Preview"
                   data-testid="iframe-ai-widget-preview"
