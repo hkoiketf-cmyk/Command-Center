@@ -5,6 +5,7 @@ import { insertWidgetSchema, insertVentureSchema, insertPrioritySchema, insertRe
 import { z } from "zod";
 import OpenAI from "openai";
 import { isAuthenticated } from "./replit_integrations/auth";
+import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 import { sql } from "drizzle-orm";
 import { db } from "./db";
@@ -14,6 +15,9 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   const getUserId = (req: any): string => req.user?.claims?.sub;
+
+  // ============ OBJECT STORAGE (File Uploads) ============
+  registerObjectStorageRoutes(app);
 
   // ============ DESKTOPS ============
 
