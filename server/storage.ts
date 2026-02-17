@@ -1,4 +1,4 @@
-import { eq, and, desc, sql, or, isNull } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
   widgets,
@@ -364,7 +364,7 @@ export class DatabaseStorage implements IStorage {
   // Quick Capture
   async getCaptureItems(userId: string, widgetId?: string): Promise<CaptureItem[]> {
     const conditions = [eq(captureItems.userId, userId)];
-    if (widgetId) conditions.push(or(eq(captureItems.widgetId, widgetId), isNull(captureItems.widgetId)));
+    if (widgetId) conditions.push(eq(captureItems.widgetId, widgetId));
     return await db.select().from(captureItems).where(and(...conditions)).orderBy(desc(captureItems.createdAt));
   }
   async createCaptureItem(userId: string, item: InsertCaptureItem, widgetId?: string): Promise<CaptureItem> {
@@ -383,7 +383,7 @@ export class DatabaseStorage implements IStorage {
   // Habits
   async getHabits(userId: string, widgetId?: string): Promise<Habit[]> {
     const conditions = [eq(habits.userId, userId)];
-    if (widgetId) conditions.push(or(eq(habits.widgetId, widgetId), isNull(habits.widgetId)));
+    if (widgetId) conditions.push(eq(habits.widgetId, widgetId));
     return await db.select().from(habits).where(and(...conditions)).orderBy(habits.order);
   }
   async createHabit(userId: string, habit: InsertHabit, widgetId?: string): Promise<Habit> {
@@ -403,7 +403,7 @@ export class DatabaseStorage implements IStorage {
   }
   async getAllHabitEntries(userId: string, widgetId?: string): Promise<HabitEntry[]> {
     const conditions = [eq(habitEntries.userId, userId)];
-    if (widgetId) conditions.push(or(eq(habitEntries.widgetId, widgetId), isNull(habitEntries.widgetId)));
+    if (widgetId) conditions.push(eq(habitEntries.widgetId, widgetId));
     return await db.select().from(habitEntries).where(and(...conditions));
   }
   async createHabitEntry(userId: string, entry: InsertHabitEntry, widgetId?: string): Promise<HabitEntry> {
@@ -418,18 +418,18 @@ export class DatabaseStorage implements IStorage {
   // Journal
   async getJournalEntries(userId: string, widgetId?: string): Promise<JournalEntry[]> {
     const conditions = [eq(journalEntries.userId, userId)];
-    if (widgetId) conditions.push(or(eq(journalEntries.widgetId, widgetId), isNull(journalEntries.widgetId)));
+    if (widgetId) conditions.push(eq(journalEntries.widgetId, widgetId));
     return await db.select().from(journalEntries).where(and(...conditions)).orderBy(desc(journalEntries.date));
   }
   async getJournalEntry(userId: string, date: string, widgetId?: string): Promise<JournalEntry | undefined> {
     const conditions = [eq(journalEntries.date, date), eq(journalEntries.userId, userId)];
-    if (widgetId) conditions.push(or(eq(journalEntries.widgetId, widgetId), isNull(journalEntries.widgetId)));
+    if (widgetId) conditions.push(eq(journalEntries.widgetId, widgetId));
     const result = await db.select().from(journalEntries).where(and(...conditions));
     return result[0];
   }
   async getJournalEntriesByDate(userId: string, date: string, widgetId?: string): Promise<JournalEntry[]> {
     const conditions = [eq(journalEntries.date, date), eq(journalEntries.userId, userId)];
-    if (widgetId) conditions.push(or(eq(journalEntries.widgetId, widgetId), isNull(journalEntries.widgetId)));
+    if (widgetId) conditions.push(eq(journalEntries.widgetId, widgetId));
     return await db.select().from(journalEntries).where(and(...conditions)).orderBy(journalEntries.createdAt);
   }
   async createJournalEntry(userId: string, data: InsertJournalEntry, widgetId?: string): Promise<JournalEntry> {
@@ -453,7 +453,7 @@ export class DatabaseStorage implements IStorage {
   // Scorecard
   async getScorecardMetrics(userId: string, widgetId?: string): Promise<ScorecardMetric[]> {
     const conditions = [eq(scorecardMetrics.userId, userId)];
-    if (widgetId) conditions.push(or(eq(scorecardMetrics.widgetId, widgetId), isNull(scorecardMetrics.widgetId)));
+    if (widgetId) conditions.push(eq(scorecardMetrics.widgetId, widgetId));
     return await db.select().from(scorecardMetrics).where(and(...conditions)).orderBy(scorecardMetrics.order);
   }
   async createScorecardMetric(userId: string, metric: InsertScorecardMetric, widgetId?: string): Promise<ScorecardMetric> {
@@ -473,12 +473,12 @@ export class DatabaseStorage implements IStorage {
   }
   async getAllScorecardEntries(userId: string, widgetId?: string): Promise<ScorecardEntry[]> {
     const conditions = [eq(scorecardEntries.userId, userId)];
-    if (widgetId) conditions.push(or(eq(scorecardEntries.widgetId, widgetId), isNull(scorecardEntries.widgetId)));
+    if (widgetId) conditions.push(eq(scorecardEntries.widgetId, widgetId));
     return await db.select().from(scorecardEntries).where(and(...conditions));
   }
   async upsertScorecardEntry(userId: string, data: InsertScorecardEntry, widgetId?: string): Promise<ScorecardEntry> {
     const conditions = [eq(scorecardEntries.metricId, data.metricId), eq(scorecardEntries.weekStart, data.weekStart), eq(scorecardEntries.userId, userId)];
-    if (widgetId) conditions.push(or(eq(scorecardEntries.widgetId, widgetId), isNull(scorecardEntries.widgetId)));
+    if (widgetId) conditions.push(eq(scorecardEntries.widgetId, widgetId));
     const existing = await db.select().from(scorecardEntries).where(and(...conditions));
     if (existing.length > 0) {
       const result = await db.update(scorecardEntries).set(data).where(eq(scorecardEntries.id, existing[0].id)).returning();
@@ -491,7 +491,7 @@ export class DatabaseStorage implements IStorage {
   // KPIs
   async getKpis(userId: string, widgetId?: string): Promise<Kpi[]> {
     const conditions = [eq(kpis.userId, userId)];
-    if (widgetId) conditions.push(or(eq(kpis.widgetId, widgetId), isNull(kpis.widgetId)));
+    if (widgetId) conditions.push(eq(kpis.widgetId, widgetId));
     return await db.select().from(kpis).where(and(...conditions)).orderBy(kpis.order);
   }
   async createKpi(userId: string, kpi: InsertKpi, widgetId?: string): Promise<Kpi> {
@@ -510,7 +510,7 @@ export class DatabaseStorage implements IStorage {
   // Waiting For
   async getWaitingItems(userId: string, widgetId?: string): Promise<WaitingItem[]> {
     const conditions = [eq(waitingItems.userId, userId)];
-    if (widgetId) conditions.push(or(eq(waitingItems.widgetId, widgetId), isNull(waitingItems.widgetId)));
+    if (widgetId) conditions.push(eq(waitingItems.widgetId, widgetId));
     return await db.select().from(waitingItems).where(and(...conditions));
   }
   async createWaitingItem(userId: string, item: InsertWaitingItem, widgetId?: string): Promise<WaitingItem> {
@@ -529,7 +529,7 @@ export class DatabaseStorage implements IStorage {
   // Deals (CRM)
   async getDeals(userId: string, widgetId?: string): Promise<Deal[]> {
     const conditions = [eq(deals.userId, userId)];
-    if (widgetId) conditions.push(or(eq(deals.widgetId, widgetId), isNull(deals.widgetId)));
+    if (widgetId) conditions.push(eq(deals.widgetId, widgetId));
     return await db.select().from(deals).where(and(...conditions));
   }
   async createDeal(userId: string, deal: InsertDeal, widgetId?: string): Promise<Deal> {
@@ -548,7 +548,7 @@ export class DatabaseStorage implements IStorage {
   // Time Blocks
   async getTimeBlocks(userId: string, date: string, widgetId?: string): Promise<TimeBlock[]> {
     const conditions = [eq(timeBlocks.date, date), eq(timeBlocks.userId, userId)];
-    if (widgetId) conditions.push(or(eq(timeBlocks.widgetId, widgetId), isNull(timeBlocks.widgetId)));
+    if (widgetId) conditions.push(eq(timeBlocks.widgetId, widgetId));
     return await db.select().from(timeBlocks).where(and(...conditions));
   }
   async createTimeBlock(userId: string, block: InsertTimeBlock, widgetId?: string): Promise<TimeBlock> {
@@ -567,7 +567,7 @@ export class DatabaseStorage implements IStorage {
   // Expenses
   async getRecurringExpenses(userId: string, widgetId?: string): Promise<RecurringExpense[]> {
     const conditions = [eq(recurringExpenses.userId, userId)];
-    if (widgetId) conditions.push(or(eq(recurringExpenses.widgetId, widgetId), isNull(recurringExpenses.widgetId)));
+    if (widgetId) conditions.push(eq(recurringExpenses.widgetId, widgetId));
     return await db.select().from(recurringExpenses).where(and(...conditions));
   }
   async createRecurringExpense(userId: string, expense: InsertRecurringExpense, widgetId?: string): Promise<RecurringExpense> {
@@ -584,7 +584,7 @@ export class DatabaseStorage implements IStorage {
   }
   async getVariableExpenses(userId: string, widgetId?: string): Promise<VariableExpense[]> {
     const conditions = [eq(variableExpenses.userId, userId)];
-    if (widgetId) conditions.push(or(eq(variableExpenses.widgetId, widgetId), isNull(variableExpenses.widgetId)));
+    if (widgetId) conditions.push(eq(variableExpenses.widgetId, widgetId));
     return await db.select().from(variableExpenses).where(and(...conditions)).orderBy(desc(variableExpenses.date));
   }
   async createVariableExpense(userId: string, expense: InsertVariableExpense, widgetId?: string): Promise<VariableExpense> {
@@ -599,7 +599,7 @@ export class DatabaseStorage implements IStorage {
   // Meetings
   async getMeetings(userId: string, widgetId?: string): Promise<Meeting[]> {
     const conditions = [eq(meetings.userId, userId)];
-    if (widgetId) conditions.push(or(eq(meetings.widgetId, widgetId), isNull(meetings.widgetId)));
+    if (widgetId) conditions.push(eq(meetings.widgetId, widgetId));
     return await db.select().from(meetings).where(and(...conditions)).orderBy(meetings.date);
   }
   async createMeeting(userId: string, meeting: InsertMeeting, widgetId?: string): Promise<Meeting> {
@@ -783,7 +783,7 @@ export class DatabaseStorage implements IStorage {
 
   async getAds(userId: string, widgetId?: string): Promise<Ad[]> {
     const conditions = [eq(ads.userId, userId)];
-    if (widgetId) conditions.push(or(eq(ads.widgetId, widgetId), isNull(ads.widgetId)));
+    if (widgetId) conditions.push(eq(ads.widgetId, widgetId));
     return await db.select().from(ads).where(and(...conditions)).orderBy(ads.order);
   }
 
