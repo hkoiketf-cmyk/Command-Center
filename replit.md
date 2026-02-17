@@ -34,6 +34,7 @@ The application supports multiple customizable "desktops" (workspaces), each wit
 - **Timer**: Countdown or stopwatch functionality.
 - **Custom Widgets**: Admin-created templates rendered via sandboxed iframes. Live-update from templates every 30 seconds.
 - **AI Widget Builder**: Any user can build custom widgets using AI (OpenAI). Describe what you want, AI generates HTML/CSS/JS code, preview it live, iterate, then add to dashboard. Features an agentic self-improving loop: generates code, runs automated QA critique (gpt-4o-mini), fixes issues, and iterates up to 3 times until quality passes. Includes iteration checkpoints for rollback. Refinements use conversation memory to make targeted changes without losing context. Requires user's OpenAI API key in settings.
+- **Dashboard Setup Wizard**: AI-powered questionnaire in the Template Library that asks users about their role (content creator, sales, freelancer, etc.), priorities, and tools, then auto-generates a complete personalized dashboard with the optimal widget selection. No API key needed - uses intelligent role-based mapping.
 
 The application ensures multi-user data isolation by associating all data with a `userId`. Authentication is handled via Replit Auth (OIDC). The UI is designed to be fully mobile-responsive, adapting to smaller viewports with a stacked layout and touch-optimized controls.
 

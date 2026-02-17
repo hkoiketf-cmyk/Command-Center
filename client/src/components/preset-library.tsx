@@ -10,8 +10,9 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Library, Plus, Globe, Lock, Trash2, LayoutTemplate, Loader2, Hammer, ArrowLeft, FileText, Code, Target, TrendingUp, Globe as GlobeIcon, Crosshair, Inbox, Flame, BookOpen, BarChart3, Gauge, Clock, Kanban, CalendarClock, DollarSign, Users, Calendar, Bot, Timer } from "lucide-react";
+import { Library, Plus, Globe, Lock, Trash2, LayoutTemplate, Loader2, Hammer, ArrowLeft, FileText, Code, Target, TrendingUp, Globe as GlobeIcon, Crosshair, Inbox, Flame, BookOpen, BarChart3, Gauge, Clock, Kanban, CalendarClock, DollarSign, Users, Calendar, Bot, Timer, Sparkles } from "lucide-react";
 import type { DashboardPreset, WidgetType } from "@shared/schema";
+import { SetupWizard } from "./setup-wizard";
 
 const WIDGET_OPTIONS: { type: WidgetType; label: string; icon: typeof FileText }[] = [
   { type: "notes", label: "Notes", icon: FileText },
@@ -43,7 +44,7 @@ interface PresetLibraryProps {
   onPresetApplied: (desktopId: string) => void;
 }
 
-type View = "browse" | "save" | "build";
+type View = "browse" | "save" | "build" | "wizard";
 
 export function PresetLibrary({ open, onOpenChange, activeDesktopId, isAdmin, onPresetApplied }: PresetLibraryProps) {
   const { toast } = useToast();
@@ -175,18 +176,41 @@ export function PresetLibrary({ open, onOpenChange, activeDesktopId, isAdmin, on
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             )}
-            <Library className="h-5 w-5" />
-            {view === "browse" ? "Template Library" : view === "save" ? "Save as Template" : "Build a Template"}
+            {view === "wizard" ? <Sparkles className="h-5 w-5" /> : <Library className="h-5 w-5" />}
+            {view === "browse" ? "Template Library" : view === "save" ? "Save as Template" : view === "wizard" ? "Dashboard Setup Wizard" : "Build a Template"}
           </DialogTitle>
           <DialogDescription>
-            {view === "browse" && "Browse templates, save your current dashboard, or build a new template from scratch."}
+            {view === "browse" && "Browse templates, get a personalized setup, or build from scratch."}
             {view === "save" && "Save your current dashboard layout as a reusable template."}
             {view === "build" && "Pick the widgets you want and create a reusable template."}
+            {view === "wizard" && "Answer a few quick questions and we'll build the perfect dashboard for you."}
           </DialogDescription>
         </DialogHeader>
 
         {view === "browse" && (
           <>
+            <Card className="p-3 space-y-2 border-primary/30 bg-primary/5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary shrink-0" />
+                    <span className="font-medium text-sm">Smart Setup Wizard</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Answer 3 quick questions and get a personalized dashboard built for your exact workflow.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => setView("wizard")}
+                  data-testid="button-start-wizard"
+                >
+                  <Sparkles className="h-3.5 w-3.5 mr-1" />
+                  Start
+                </Button>
+              </div>
+            </Card>
+
             <div className="flex items-center gap-2 flex-wrap">
               {activeDesktopId && (
                 <Button
@@ -417,6 +441,16 @@ export function PresetLibrary({ open, onOpenChange, activeDesktopId, isAdmin, on
               </Button>
             </div>
           </div>
+        )}
+
+        {view === "wizard" && (
+          <SetupWizard
+            onComplete={(desktopId) => {
+              handleOpenChange(false);
+              onPresetApplied(desktopId);
+            }}
+            onCancel={() => setView("browse")}
+          />
         )}
       </DialogContent>
     </Dialog>
