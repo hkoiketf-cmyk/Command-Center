@@ -84,6 +84,9 @@ import {
   widgetTemplates,
   type WidgetTemplate,
   type InsertWidgetTemplate,
+  ads,
+  type Ad,
+  type InsertAd,
   users,
   type User,
 } from "@shared/schema";
@@ -203,6 +206,12 @@ export interface IStorage {
   createWidgetTemplate(data: InsertWidgetTemplate): Promise<WidgetTemplate>;
   updateWidgetTemplate(id: string, updates: Partial<WidgetTemplate>): Promise<WidgetTemplate | undefined>;
   deleteWidgetTemplate(id: string): Promise<boolean>;
+  getAds(userId: string): Promise<Ad[]>;
+  getGlobalAds(): Promise<Ad[]>;
+  getAd(userId: string, id: string): Promise<Ad | undefined>;
+  createAd(userId: string, ad: InsertAd): Promise<Ad>;
+  updateAd(userId: string, id: string, updates: Partial<Ad>): Promise<Ad | undefined>;
+  deleteAd(userId: string, id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -737,6 +746,34 @@ export class DatabaseStorage implements IStorage {
 
   async deleteWidgetTemplate(id: string): Promise<boolean> {
     const result = await db.delete(widgetTemplates).where(eq(widgetTemplates.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getAds(userId: string): Promise<Ad[]> {
+    return await db.select().from(ads).where(eq(ads.userId, userId)).orderBy(ads.order);
+  }
+
+  async getGlobalAds(): Promise<Ad[]> {
+    return await db.select().from(ads).where(and(eq(ads.isGlobal, true), eq(ads.active, true))).orderBy(ads.order);
+  }
+
+  async getAd(userId: string, id: string): Promise<Ad | undefined> {
+    const result = await db.select().from(ads).where(and(eq(ads.id, id), eq(ads.userId, userId)));
+    return result[0];
+  }
+
+  async createAd(userId: string, ad: InsertAd): Promise<Ad> {
+    const result = await db.insert(ads).values({ ...ad, userId }).returning();
+    return result[0];
+  }
+
+  async updateAd(userId: string, id: string, updates: Partial<Ad>): Promise<Ad | undefined> {
+    const result = await db.update(ads).set(updates).where(and(eq(ads.id, id), eq(ads.userId, userId))).returning();
+    return result[0];
+  }
+
+  async deleteAd(userId: string, id: string): Promise<boolean> {
+    const result = await db.delete(ads).where(and(eq(ads.id, id), eq(ads.userId, userId))).returning();
     return result.length > 0;
   }
 }

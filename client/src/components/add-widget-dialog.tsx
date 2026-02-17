@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { FileText, Target, TrendingUp, Globe, Plus, Code, Crosshair, Inbox, Flame, BookOpen, BarChart3, Gauge, Clock, Kanban, CalendarClock, DollarSign, Users, Calendar, Timer, Blocks, Wand2, ArrowLeft } from "lucide-react";
+import { FileText, Target, TrendingUp, Globe, Plus, Code, Crosshair, Inbox, Flame, BookOpen, BarChart3, Gauge, Clock, Kanban, CalendarClock, DollarSign, Users, Calendar, Timer, Blocks, Wand2, ArrowLeft, Megaphone } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -122,6 +122,12 @@ const widgetOptions: { type: WidgetType; label: string; description: string; ico
     label: "Timer",
     description: "Countdown or count-up timer with sound alerts",
     icon: Timer,
+  },
+  {
+    type: "ad_board",
+    label: "Ad Board",
+    description: "Display ads in grid or rotating spotlight mode",
+    icon: Megaphone,
   },
 ];
 

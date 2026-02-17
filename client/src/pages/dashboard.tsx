@@ -30,6 +30,7 @@ import { MeetingPrepWidget } from "@/components/meeting-prep-widget";
 import { AiChatWidget } from "@/components/ai-chat-widget";
 import { TimerWidget } from "@/components/timer-widget";
 import { CustomWidget } from "@/components/custom-widget";
+import { AdBoardWidget } from "@/components/ad-board-widget";
 import { HunterAI } from "@/components/hunter-ai";
 import { AddWidgetDialog } from "@/components/add-widget-dialog";
 import { PresetLibrary } from "@/components/preset-library";
@@ -76,7 +77,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Widget, WidgetType, LayoutItem, NotesContent, PrioritiesContent, RevenueContent, IframeContent, CodeContent, AiChatContent, TimerContent, CustomWidgetContent, Desktop, FocusContract, AppSettings, ExitGuardMode } from "@shared/schema";
+import type { Widget, WidgetType, LayoutItem, NotesContent, PrioritiesContent, RevenueContent, IframeContent, CodeContent, AiChatContent, TimerContent, CustomWidgetContent, AdBoardContent, Desktop, FocusContract, AppSettings, ExitGuardMode } from "@shared/schema";
 
 type GridLayoutItem = {
   i: string;
@@ -112,6 +113,7 @@ const defaultWidgetSizes: Record<WidgetType, { w: number; h: number; minW: numbe
   ai_chat: { w: 4, h: 8, minW: 2, minH: 5 },
   timer: { w: 3, h: 6, minW: 2, minH: 4 },
   custom: { w: 4, h: 6, minW: 2, minH: 3 },
+  ad_board: { w: 6, h: 8, minW: 3, minH: 4 },
 };
 
 const BG_COLORS = [
@@ -741,6 +743,14 @@ export default function Dashboard() {
           <CustomWidget
             content={(widget.content as CustomWidgetContent) || {}}
             onContentChange={(content) => handleContentChange(widget, content)}
+          />
+        );
+      case "ad_board":
+        return (
+          <AdBoardWidget
+            content={(widget.content as AdBoardContent) || {}}
+            onContentChange={(content) => handleContentChange(widget, content)}
+            isAdmin={userSettings?.isAdmin || false}
           />
         );
       default:

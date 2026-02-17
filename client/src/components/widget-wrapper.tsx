@@ -189,6 +189,15 @@ const WIDGET_INFO: Record<WidgetType, { description: string; tips: string[] }> =
       "Use the AI Widget Builder to generate widgets from a description",
     ],
   },
+  ad_board: {
+    description: "Display ads in a grid layout or rotating spotlight mode. Create your own ads or view global sponsored ads.",
+    tips: [
+      "Toggle between Grid and Spotlight views",
+      "Spotlight mode auto-rotates through ads",
+      "Click the pencil icon to manage your ads",
+      "Admin users can create global ads visible to everyone",
+    ],
+  },
 };
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {

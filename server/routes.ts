@@ -2060,5 +2060,81 @@ Only set passed=false if there are critical or major issues. Minor issues alone 
     }
   });
 
+  app.get("/api/ads", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const userAds = await storage.getAds(userId);
+      res.json(userAds);
+    } catch (error) {
+      console.error("Get ads error:", error);
+      res.status(500).json({ error: "Failed to get ads" });
+    }
+  });
+
+  app.get("/api/ads/global", isAuthenticated, async (req, res) => {
+    try {
+      const globalAds = await storage.getGlobalAds();
+      res.json(globalAds);
+    } catch (error) {
+      console.error("Get global ads error:", error);
+      res.status(500).json({ error: "Failed to get global ads" });
+    }
+  });
+
+  app.post("/api/ads", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const isAdminFlag = req.body.isGlobal ? await isAdmin(userId) : false;
+      if (req.body.isGlobal && !isAdminFlag) {
+        return res.status(403).json({ error: "Admin access required for global ads" });
+      }
+      const ad = await storage.createAd(userId, req.body);
+      res.json(ad);
+    } catch (error) {
+      console.error("Create ad error:", error);
+      res.status(500).json({ error: "Failed to create ad" });
+    }
+  });
+
+  app.patch("/api/ads/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const { headline, description, imageUrl, ctaText, ctaLink, active, order } = req.body;
+      const allowedUpdates: Record<string, any> = {};
+      if (headline !== undefined) allowedUpdates.headline = headline;
+      if (description !== undefined) allowedUpdates.description = description;
+      if (imageUrl !== undefined) allowedUpdates.imageUrl = imageUrl;
+      if (ctaText !== undefined) allowedUpdates.ctaText = ctaText;
+      if (ctaLink !== undefined) allowedUpdates.ctaLink = ctaLink;
+      if (active !== undefined) allowedUpdates.active = active;
+      if (order !== undefined) allowedUpdates.order = order;
+      if (req.body.isGlobal !== undefined) {
+        const isAdminFlag = await isAdmin(userId);
+        if (!isAdminFlag) {
+          return res.status(403).json({ error: "Admin access required to set global ads" });
+        }
+        allowedUpdates.isGlobal = req.body.isGlobal;
+      }
+      const ad = await storage.updateAd(userId, req.params.id, allowedUpdates);
+      if (!ad) return res.status(404).json({ error: "Ad not found" });
+      res.json(ad);
+    } catch (error) {
+      console.error("Update ad error:", error);
+      res.status(500).json({ error: "Failed to update ad" });
+    }
+  });
+
+  app.delete("/api/ads/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const deleted = await storage.deleteAd(userId, req.params.id);
+      if (!deleted) return res.status(404).json({ error: "Ad not found" });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete ad error:", error);
+      res.status(500).json({ error: "Failed to delete ad" });
+    }
+  });
+
   return httpServer;
 }

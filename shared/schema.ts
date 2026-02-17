@@ -35,7 +35,7 @@ export type InsertDesktop = z.infer<typeof insertDesktopSchema>;
 export type Desktop = typeof desktops.$inferSelect;
 
 // Widget types enum
-export const widgetTypes = ["notes", "priorities", "revenue", "iframe", "code", "context_mode", "quick_capture", "habit_tracker", "daily_journal", "weekly_scorecard", "kpi_dashboard", "waiting_for", "crm_pipeline", "time_blocks", "expense_tracker", "meeting_prep", "google_calendar", "ai_chat", "timer", "custom"] as const;
+export const widgetTypes = ["notes", "priorities", "revenue", "iframe", "code", "context_mode", "quick_capture", "habit_tracker", "daily_journal", "weekly_scorecard", "kpi_dashboard", "waiting_for", "crm_pipeline", "time_blocks", "expense_tracker", "meeting_prep", "google_calendar", "ai_chat", "timer", "custom", "ad_board"] as const;
 export type WidgetType = typeof widgetTypes[number];
 
 // Layout item for react-grid-layout
@@ -526,3 +526,28 @@ export const widgetTemplates = pgTable("widget_templates", {
 export const insertWidgetTemplateSchema = createInsertSchema(widgetTemplates).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertWidgetTemplate = z.infer<typeof insertWidgetTemplateSchema>;
 export type WidgetTemplate = typeof widgetTemplates.$inferSelect;
+
+export const ads = pgTable("ads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  imageUrl: text("image_url").notNull().default(""),
+  headline: text("headline").notNull(),
+  description: text("description").notNull().default(""),
+  ctaText: text("cta_text").notNull().default("Learn More"),
+  ctaLink: text("cta_link").notNull().default(""),
+  isGlobal: boolean("is_global").notNull().default(false),
+  order: integer("order").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertAdSchema = createInsertSchema(ads).omit({ id: true, userId: true, createdAt: true });
+export type InsertAd = z.infer<typeof insertAdSchema>;
+export type Ad = typeof ads.$inferSelect;
+
+export type AdBoardContent = {
+  viewMode?: "grid" | "spotlight";
+  rotationInterval?: number;
+  showOwnAds?: boolean;
+  showGlobalAds?: boolean;
+};
