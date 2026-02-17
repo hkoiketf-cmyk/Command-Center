@@ -198,6 +198,33 @@ const WIDGET_INFO: Record<WidgetType, { description: string; tips: string[] }> =
       "Admin users can create global ads visible to everyone",
     ],
   },
+  bookmarks: {
+    description: "Save and organize your favorite links with categories, tags, and star ratings.",
+    tips: [
+      "Click the star to mark important bookmarks",
+      "Filter by category using the dropdown",
+      "Add tags to organize and find bookmarks easily",
+      "Starred bookmarks appear at the top",
+    ],
+  },
+  goal_tracker: {
+    description: "Track progress on personal and business goals with visual progress bars and target dates.",
+    tips: [
+      "Set target dates to stay accountable",
+      "Use quick progress buttons (25%, 50%, 75%, 100%)",
+      "Add descriptions to capture details about each goal",
+      "Completed goals are shown separately with strikethrough",
+    ],
+  },
+  weather: {
+    description: "Display current weather conditions for your location at a glance.",
+    tips: [
+      "Configure your location in settings",
+      "Switch between Fahrenheit and Celsius",
+      "Weather updates automatically every 30 minutes",
+      "Currently shows sample data - connect to a weather API for real data",
+    ],
+  },
 };
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
