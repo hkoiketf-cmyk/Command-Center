@@ -1,8 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Wand2, Send, Eye, Code, Loader2, RotateCcw, Check } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Wand2, Send, Eye, Code, Loader2, RotateCcw, Check, Key, CheckCircle2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 interface AiWidgetBuilderProps {
   onAddWidget: (code: string, title: string) => void;
@@ -26,8 +29,37 @@ export function AiWidgetBuilder({ onAddWidget, onClose }: AiWidgetBuilderProps) 
   const [showPreview, setShowPreview] = useState(false);
   const [error, setError] = useState("");
   const [history, setHistory] = useState<{ role: string; text: string }[]>([]);
+  const [apiKeyInput, setApiKeyInput] = useState("");
+  const [showApiKeyForm, setShowApiKeyForm] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const { toast } = useToast();
+
+  const { data: userSettings } = useQuery<{ hasOpenaiKey: boolean; openaiApiKey: string | null }>({
+    queryKey: ["/api/user-settings"],
+  });
+
+  const hasKey = !!userSettings?.hasOpenaiKey;
+
+  const saveApiKey = useMutation({
+    mutationFn: (key: string) => apiRequest("PATCH", "/api/user-settings", { openaiApiKey: key }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user-settings"] });
+      toast({ title: "API key saved successfully" });
+      setApiKeyInput("");
+      setShowApiKeyForm(false);
+    },
+    onError: () => {
+      toast({ title: "Failed to save API key", variant: "destructive" });
+    },
+  });
+
+  const removeApiKey = useMutation({
+    mutationFn: () => apiRequest("PATCH", "/api/user-settings", { openaiApiKey: null }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user-settings"] });
+      toast({ title: "API key removed" });
+    },
+  });
 
   useEffect(() => {
     return () => {
@@ -160,6 +192,13 @@ export function AiWidgetBuilder({ onAddWidget, onClose }: AiWidgetBuilderProps) 
     setError("");
   };
 
+  const handleSaveApiKey = (e: React.FormEvent) => {
+    e.preventDefault();
+    const key = apiKeyInput.trim();
+    if (!key) return;
+    saveApiKey.mutate(key);
+  };
+
   const wrapCode = (rawCode: string): string => {
     const trimmed = rawCode.trim();
     if (trimmed.toLowerCase().startsWith("<!doctype") || trimmed.toLowerCase().startsWith("<html")) {
@@ -183,12 +222,84 @@ ${rawCode}
 
   return (
     <div className="flex flex-col h-full gap-4" data-testid="ai-widget-builder">
-      {!generatedCode ? (
-        <div className="flex flex-col items-center gap-4 py-4">
-          <div className="flex items-center gap-2 text-center">
-            <Wand2 className="h-6 w-6 text-primary" />
-            <h3 className="text-lg font-semibold">AI Widget Builder</h3>
+      <div className="rounded-lg border p-3" data-testid="api-key-section">
+        {hasKey ? (
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-sm">
+              <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+              <span className="text-muted-foreground">
+                OpenAI key connected
+                {userSettings?.openaiApiKey && (
+                  <span className="ml-1 font-mono text-xs">({userSettings.openaiApiKey})</span>
+                )}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowApiKeyForm(!showApiKeyForm)}
+                className="text-xs h-7"
+                data-testid="button-change-api-key"
+              >
+                Change
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => removeApiKey.mutate()}
+                className="text-xs h-7 text-destructive"
+                disabled={removeApiKey.isPending}
+                data-testid="button-remove-api-key"
+              >
+                Remove
+              </Button>
+            </div>
           </div>
+        ) : (
+          <div className="flex items-center gap-2 text-sm">
+            <Key className="h-4 w-4 text-muted-foreground shrink-0" />
+            <span className="text-muted-foreground">
+              Connect your OpenAI API key to start building
+            </span>
+          </div>
+        )}
+
+        {(!hasKey || showApiKeyForm) && (
+          <form onSubmit={handleSaveApiKey} className="flex items-center gap-2 mt-2" data-testid="form-api-key">
+            <Input
+              type="password"
+              value={apiKeyInput}
+              onChange={(e) => setApiKeyInput(e.target.value)}
+              placeholder="sk-..."
+              className="text-sm flex-1 font-mono"
+              data-testid="input-openai-api-key"
+            />
+            <Button
+              type="submit"
+              size="sm"
+              disabled={!apiKeyInput.trim() || saveApiKey.isPending}
+              data-testid="button-save-api-key"
+            >
+              {saveApiKey.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save"}
+            </Button>
+            {showApiKeyForm && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => { setShowApiKeyForm(false); setApiKeyInput(""); }}
+                data-testid="button-cancel-api-key"
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </form>
+        )}
+      </div>
+
+      {!generatedCode ? (
+        <div className="flex flex-col items-center gap-4 py-2">
           <p className="text-sm text-muted-foreground text-center max-w-md">
             Describe the widget you want and AI will build it for you.
             You can iterate and refine until it's perfect.
@@ -197,11 +308,6 @@ ${rawCode}
           {error && (
             <div className="w-full max-w-md rounded-md bg-destructive/10 border border-destructive/20 p-3">
               <p className="text-sm text-destructive">{error}</p>
-              {error.includes("API key") && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Go to Settings (gear icon at top) to add your OpenAI API key.
-                </p>
-              )}
             </div>
           )}
 
@@ -212,8 +318,8 @@ ${rawCode}
                 <button
                   key={s}
                   onClick={() => handleSuggestionClick(s)}
-                  disabled={isGenerating}
-                  className="text-left text-xs px-3 py-2 rounded-md border border-border hover-elevate transition-colors"
+                  disabled={isGenerating || !hasKey}
+                  className="text-left text-xs px-3 py-2 rounded-md border border-border hover-elevate transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   data-testid={`button-suggestion-${s.slice(0, 20).replace(/\s/g, "-").toLowerCase()}`}
                 >
                   {s}
@@ -226,15 +332,15 @@ ${rawCode}
             <Textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Describe your widget... e.g. 'A beautiful countdown timer to New Year's Eve with fireworks animation'"
+              placeholder={hasKey ? "Describe your widget... e.g. 'A beautiful countdown timer to New Year's Eve with fireworks animation'" : "Add your OpenAI API key above to get started..."}
               className="resize-none text-sm min-h-[80px]"
-              disabled={isGenerating}
+              disabled={isGenerating || !hasKey}
               data-testid="textarea-widget-prompt"
             />
             <Button
               type="submit"
               className="w-full"
-              disabled={!prompt.trim() || isGenerating}
+              disabled={!prompt.trim() || isGenerating || !hasKey}
               data-testid="button-generate-widget"
             >
               {isGenerating ? (
