@@ -31,6 +31,9 @@ import { AiChatWidget } from "@/components/ai-chat-widget";
 import { TimerWidget } from "@/components/timer-widget";
 import { CustomWidget } from "@/components/custom-widget";
 import { AdBoardWidget } from "@/components/ad-board-widget";
+import { BookmarksWidget } from "@/components/bookmarks-widget";
+import { GoalTrackerWidget } from "@/components/goal-tracker-widget";
+import { WeatherWidget } from "@/components/weather-widget";
 import { HunterAI } from "@/components/hunter-ai";
 import { AddWidgetDialog } from "@/components/add-widget-dialog";
 import { PresetLibrary } from "@/components/preset-library";
@@ -77,7 +80,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Widget, WidgetType, LayoutItem, NotesContent, PrioritiesContent, RevenueContent, IframeContent, CodeContent, AiChatContent, TimerContent, CustomWidgetContent, AdBoardContent, Desktop, FocusContract, AppSettings, ExitGuardMode } from "@shared/schema";
+import type { Widget, WidgetType, LayoutItem, NotesContent, PrioritiesContent, RevenueContent, IframeContent, CodeContent, AiChatContent, TimerContent, CustomWidgetContent, AdBoardContent, BookmarksContent, GoalTrackerContent, WeatherContent, Desktop, FocusContract, AppSettings, ExitGuardMode } from "@shared/schema";
 
 type GridLayoutItem = {
   i: string;
@@ -114,6 +117,9 @@ const defaultWidgetSizes: Record<WidgetType, { w: number; h: number; minW: numbe
   timer: { w: 3, h: 6, minW: 2, minH: 4 },
   custom: { w: 4, h: 6, minW: 2, minH: 3 },
   ad_board: { w: 6, h: 8, minW: 3, minH: 4 },
+  bookmarks: { w: 4, h: 8, minW: 2, minH: 4 },
+  goal_tracker: { w: 5, h: 8, minW: 3, minH: 5 },
+  weather: { w: 4, h: 7, minW: 3, minH: 5 },
 };
 
 const BG_COLORS = [
@@ -759,6 +765,30 @@ export default function Dashboard() {
             content={(widget.content as AdBoardContent) || {}}
             onContentChange={(content) => handleContentChange(widget, content)}
             isAdmin={userSettings?.isAdmin || false}
+          />
+        );
+      case "bookmarks":
+        return (
+          <BookmarksWidget
+            widgetId={widget.id}
+            content={(widget.content as BookmarksContent) || {}}
+            onContentChange={(content) => handleContentChange(widget, content)}
+          />
+        );
+      case "goal_tracker":
+        return (
+          <GoalTrackerWidget
+            widgetId={widget.id}
+            content={(widget.content as GoalTrackerContent) || {}}
+            onContentChange={(content) => handleContentChange(widget, content)}
+          />
+        );
+      case "weather":
+        return (
+          <WeatherWidget
+            widgetId={widget.id}
+            content={(widget.content as WeatherContent) || {}}
+            onContentChange={(content) => handleContentChange(widget, content)}
           />
         );
       default:

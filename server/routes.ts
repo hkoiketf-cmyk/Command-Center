@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertWidgetSchema, insertVentureSchema, insertPrioritySchema, insertRevenueDataSchema, insertDesktopSchema, insertFocusContractSchema, insertCaptureItemSchema, insertHabitSchema, insertHabitEntrySchema, insertJournalEntrySchema, insertScorecardMetricSchema, insertScorecardEntrySchema, insertKpiSchema, insertWaitingItemSchema, insertDealSchema, insertTimeBlockSchema, insertRecurringExpenseSchema, insertVariableExpenseSchema, insertMeetingSchema, insertAiConversationSchema, insertAiMessageSchema } from "@shared/schema";
+import { insertWidgetSchema, insertVentureSchema, insertPrioritySchema, insertRevenueDataSchema, insertDesktopSchema, insertFocusContractSchema, insertCaptureItemSchema, insertHabitSchema, insertHabitEntrySchema, insertJournalEntrySchema, insertScorecardMetricSchema, insertScorecardEntrySchema, insertKpiSchema, insertWaitingItemSchema, insertDealSchema, insertTimeBlockSchema, insertRecurringExpenseSchema, insertVariableExpenseSchema, insertMeetingSchema, insertAiConversationSchema, insertAiMessageSchema, insertBookmarkSchema, insertGoalSchema } from "@shared/schema";
 import { z } from "zod";
 import OpenAI from "openai";
 import { isAuthenticated } from "./replit_integrations/auth";
@@ -2217,6 +2217,102 @@ Only set passed=false if there are critical or major issues. Minor issues alone 
     } catch (error) {
       console.error("Delete ad error:", error);
       res.status(500).json({ error: "Failed to delete ad" });
+    }
+  });
+
+  // ============ BOOKMARKS ============
+
+  app.get("/api/bookmarks", isAuthenticated, async (req, res) => {
+    try {
+      const widgetId = req.query.widgetId as string | undefined;
+      const bookmarks = await storage.getBookmarks(getUserId(req), widgetId);
+      res.json(bookmarks);
+    } catch (error) {
+      console.error("Get bookmarks error:", error);
+      res.status(500).json({ error: "Failed to fetch bookmarks" });
+    }
+  });
+
+  app.post("/api/bookmarks", isAuthenticated, async (req, res) => {
+    try {
+      const parsed = insertBookmarkSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
+      const widgetId = req.body.widgetId as string | undefined;
+      const bookmark = await storage.createBookmark(getUserId(req), parsed.data, widgetId);
+      res.status(201).json(bookmark);
+    } catch (error) {
+      console.error("Create bookmark error:", error);
+      res.status(500).json({ error: "Failed to create bookmark" });
+    }
+  });
+
+  app.patch("/api/bookmarks/:id", isAuthenticated, async (req, res) => {
+    try {
+      const bookmark = await storage.updateBookmark(getUserId(req), req.params.id, req.body);
+      if (!bookmark) return res.status(404).json({ error: "Bookmark not found" });
+      res.json(bookmark);
+    } catch (error) {
+      console.error("Update bookmark error:", error);
+      res.status(500).json({ error: "Failed to update bookmark" });
+    }
+  });
+
+  app.delete("/api/bookmarks/:id", isAuthenticated, async (req, res) => {
+    try {
+      const deleted = await storage.deleteBookmark(getUserId(req), req.params.id);
+      if (!deleted) return res.status(404).json({ error: "Bookmark not found" });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete bookmark error:", error);
+      res.status(500).json({ error: "Failed to delete bookmark" });
+    }
+  });
+
+  // ============ GOALS ============
+
+  app.get("/api/goals", isAuthenticated, async (req, res) => {
+    try {
+      const widgetId = req.query.widgetId as string | undefined;
+      const goals = await storage.getGoals(getUserId(req), widgetId);
+      res.json(goals);
+    } catch (error) {
+      console.error("Get goals error:", error);
+      res.status(500).json({ error: "Failed to fetch goals" });
+    }
+  });
+
+  app.post("/api/goals", isAuthenticated, async (req, res) => {
+    try {
+      const parsed = insertGoalSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
+      const widgetId = req.body.widgetId as string | undefined;
+      const goal = await storage.createGoal(getUserId(req), parsed.data, widgetId);
+      res.status(201).json(goal);
+    } catch (error) {
+      console.error("Create goal error:", error);
+      res.status(500).json({ error: "Failed to create goal" });
+    }
+  });
+
+  app.patch("/api/goals/:id", isAuthenticated, async (req, res) => {
+    try {
+      const goal = await storage.updateGoal(getUserId(req), req.params.id, req.body);
+      if (!goal) return res.status(404).json({ error: "Goal not found" });
+      res.json(goal);
+    } catch (error) {
+      console.error("Update goal error:", error);
+      res.status(500).json({ error: "Failed to update goal" });
+    }
+  });
+
+  app.delete("/api/goals/:id", isAuthenticated, async (req, res) => {
+    try {
+      const deleted = await storage.deleteGoal(getUserId(req), req.params.id);
+      if (!deleted) return res.status(404).json({ error: "Goal not found" });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete goal error:", error);
+      res.status(500).json({ error: "Failed to delete goal" });
     }
   });
 

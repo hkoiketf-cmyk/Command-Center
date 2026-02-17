@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { FileText, Target, TrendingUp, Globe, Plus, Code, Crosshair, Inbox, Flame, BookOpen, BarChart3, Gauge, Clock, Kanban, CalendarClock, DollarSign, Users, Calendar, Timer, Blocks, Wand2, ArrowLeft, Megaphone } from "lucide-react";
+import { FileText, Target, TrendingUp, Globe, Plus, Code, Crosshair, Inbox, Flame, BookOpen, BarChart3, Gauge, Clock, Kanban, CalendarClock, DollarSign, Users, Calendar, Timer, Blocks, Wand2, ArrowLeft, Megaphone, Bookmark, Flag, CloudSun } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -128,6 +128,24 @@ const widgetOptions: { type: WidgetType; label: string; description: string; ico
     label: "Ad Board",
     description: "Display ads in grid or rotating spotlight mode",
     icon: Megaphone,
+  },
+  {
+    type: "bookmarks",
+    label: "Bookmarks",
+    description: "Save and organize favorite links",
+    icon: Bookmark,
+  },
+  {
+    type: "goal_tracker",
+    label: "Goal Tracker",
+    description: "Track progress on personal and business goals",
+    icon: Flag,
+  },
+  {
+    type: "weather",
+    label: "Weather",
+    description: "Current weather conditions at a glance",
+    icon: CloudSun,
   },
 ];
 

@@ -89,6 +89,12 @@ import {
   type InsertAd,
   users,
   type User,
+  bookmarks,
+  type Bookmark,
+  type InsertBookmark,
+  goals,
+  type Goal,
+  type InsertGoal,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -212,6 +218,14 @@ export interface IStorage {
   createAd(userId: string, ad: InsertAd, widgetId?: string): Promise<Ad>;
   updateAd(userId: string, id: string, updates: Partial<Ad>): Promise<Ad | undefined>;
   deleteAd(userId: string, id: string): Promise<boolean>;
+  getBookmarks(userId: string, widgetId?: string): Promise<Bookmark[]>;
+  createBookmark(userId: string, bookmark: InsertBookmark, widgetId?: string): Promise<Bookmark>;
+  updateBookmark(userId: string, id: string, updates: Partial<Bookmark>): Promise<Bookmark | undefined>;
+  deleteBookmark(userId: string, id: string): Promise<boolean>;
+  getGoals(userId: string, widgetId?: string): Promise<Goal[]>;
+  createGoal(userId: string, goal: InsertGoal, widgetId?: string): Promise<Goal>;
+  updateGoal(userId: string, id: string, updates: Partial<Goal>): Promise<Goal | undefined>;
+  deleteGoal(userId: string, id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -808,6 +822,52 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAd(userId: string, id: string): Promise<boolean> {
     const result = await db.delete(ads).where(and(eq(ads.id, id), eq(ads.userId, userId))).returning();
+    return result.length > 0;
+  }
+
+  // ============ BOOKMARKS ============
+
+  async getBookmarks(userId: string, widgetId?: string): Promise<Bookmark[]> {
+    const conditions = [eq(bookmarks.userId, userId)];
+    if (widgetId) conditions.push(eq(bookmarks.widgetId, widgetId));
+    return await db.select().from(bookmarks).where(and(...conditions)).orderBy(desc(bookmarks.starred), bookmarks.order);
+  }
+
+  async createBookmark(userId: string, bookmark: InsertBookmark, widgetId?: string): Promise<Bookmark> {
+    const result = await db.insert(bookmarks).values({ ...bookmark, userId, widgetId }).returning();
+    return result[0];
+  }
+
+  async updateBookmark(userId: string, id: string, updates: Partial<Bookmark>): Promise<Bookmark | undefined> {
+    const result = await db.update(bookmarks).set(updates).where(and(eq(bookmarks.id, id), eq(bookmarks.userId, userId))).returning();
+    return result[0];
+  }
+
+  async deleteBookmark(userId: string, id: string): Promise<boolean> {
+    const result = await db.delete(bookmarks).where(and(eq(bookmarks.id, id), eq(bookmarks.userId, userId))).returning();
+    return result.length > 0;
+  }
+
+  // ============ GOALS ============
+
+  async getGoals(userId: string, widgetId?: string): Promise<Goal[]> {
+    const conditions = [eq(goals.userId, userId)];
+    if (widgetId) conditions.push(eq(goals.widgetId, widgetId));
+    return await db.select().from(goals).where(and(...conditions)).orderBy(goals.order);
+  }
+
+  async createGoal(userId: string, goal: InsertGoal, widgetId?: string): Promise<Goal> {
+    const result = await db.insert(goals).values({ ...goal, userId, widgetId }).returning();
+    return result[0];
+  }
+
+  async updateGoal(userId: string, id: string, updates: Partial<Goal>): Promise<Goal | undefined> {
+    const result = await db.update(goals).set(updates).where(and(eq(goals.id, id), eq(goals.userId, userId))).returning();
+    return result[0];
+  }
+
+  async deleteGoal(userId: string, id: string): Promise<boolean> {
+    const result = await db.delete(goals).where(and(eq(goals.id, id), eq(goals.userId, userId))).returning();
     return result.length > 0;
   }
 }

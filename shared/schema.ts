@@ -35,7 +35,7 @@ export type InsertDesktop = z.infer<typeof insertDesktopSchema>;
 export type Desktop = typeof desktops.$inferSelect;
 
 // Widget types enum
-export const widgetTypes = ["notes", "priorities", "revenue", "iframe", "code", "context_mode", "quick_capture", "habit_tracker", "daily_journal", "weekly_scorecard", "kpi_dashboard", "waiting_for", "crm_pipeline", "time_blocks", "expense_tracker", "meeting_prep", "google_calendar", "ai_chat", "timer", "custom", "ad_board"] as const;
+export const widgetTypes = ["notes", "priorities", "revenue", "iframe", "code", "context_mode", "quick_capture", "habit_tracker", "daily_journal", "weekly_scorecard", "kpi_dashboard", "waiting_for", "crm_pipeline", "time_blocks", "expense_tracker", "meeting_prep", "google_calendar", "ai_chat", "timer", "custom", "ad_board", "bookmarks", "goal_tracker", "weather"] as const;
 export type WidgetType = typeof widgetTypes[number];
 
 // Layout item for react-grid-layout
@@ -565,4 +565,62 @@ export type AdBoardContent = {
   rotationInterval?: number;
   showOwnAds?: boolean;
   showGlobalAds?: boolean;
+};
+
+// ============ NEW FEATURE WIDGETS ============
+
+// Bookmarks Widget
+export const bookmarks = pgTable("bookmarks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  widgetId: varchar("widget_id"),
+  title: text("title").notNull(),
+  url: text("url").notNull(),
+  description: text("description").default(""),
+  category: text("category").default("General"),
+  tags: jsonb("tags").$type<string[]>().default([]),
+  starred: boolean("starred").default(false),
+  order: integer("order").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertBookmarkSchema = createInsertSchema(bookmarks).omit({ id: true, userId: true, createdAt: true });
+export type InsertBookmark = z.infer<typeof insertBookmarkSchema>;
+export type Bookmark = typeof bookmarks.$inferSelect;
+
+export type BookmarksContent = {
+  viewMode?: "list" | "grid";
+  showCategories?: boolean;
+};
+
+// Goal Tracker Widget
+export const goals = pgTable("goals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  widgetId: varchar("widget_id"),
+  title: text("title").notNull(),
+  description: text("description").default(""),
+  targetDate: text("target_date"),
+  progress: integer("progress").notNull().default(0),
+  category: text("category").default("Personal"),
+  color: text("color").notNull().default("#3B82F6"),
+  completed: boolean("completed").default(false),
+  order: integer("order").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertGoalSchema = createInsertSchema(goals).omit({ id: true, userId: true, createdAt: true });
+export type InsertGoal = z.infer<typeof insertGoalSchema>;
+export type Goal = typeof goals.$inferSelect;
+
+export type GoalTrackerContent = {
+  showCompleted?: boolean;
+  sortBy?: "dueDate" | "progress" | "created";
+};
+
+// Weather Widget
+export type WeatherContent = {
+  location?: string;
+  units?: "metric" | "imperial";
+  apiKey?: string;
 };
