@@ -81,7 +81,7 @@ function FeatureShowcase({
   return (
     <div
       ref={ref}
-      className={`flex flex-col ${image && (reverse ? "lg:flex-row-reverse" : "lg:flex-row")} items-center gap-8 lg:gap-16 transition-all duration-700 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
+      className={`flex flex-col ${image && (reverse ? "lg:flex-row-reverse" : "lg:flex-row")} items-center gap-8 lg:gap-16 transition-all duration-500 ease-out ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
     >
       <div className={`flex-1 ${image ? "max-w-xl" : "max-w-2xl mx-auto text-center"}`}>
         <p className="text-sm font-semibold uppercase tracking-widest text-primary mb-2">{subtitle}</p>
@@ -147,7 +147,7 @@ export default function Landing() {
 
           <div
             ref={heroAnim.ref}
-            className={`relative max-w-5xl mx-auto text-center transition-all duration-1000 ${heroAnim.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+            className={`relative max-w-5xl mx-auto text-center transition-all duration-500 ease-out ${heroAnim.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
           >
             <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card/50 px-4 py-1.5 text-sm text-muted-foreground mb-6 backdrop-blur-sm">
               <Sparkles className="w-4 h-4 text-primary" />
@@ -186,9 +186,10 @@ export default function Landing() {
                 <img
                   src={landingImages.hero}
                   alt="MallenniumDash dashboard"
-                  className="w-full h-auto"
+                  className="w-full h-auto min-h-[200px]"
                   loading="eager"
                   decoding="async"
+                  fetchPriority="high"
                   data-testid="img-hero-dashboard"
                 />
               </div>
@@ -238,12 +239,12 @@ export default function Landing() {
               <FeatureShowcase
                 subtitle="Organize"
                 title="Drag & Drop Everything"
-                description="Create multiple desktop layouts and arrange widgets exactly how you think. Resize from any edge, collapse when you need space, and switch between workspaces instantly."
+                description="Make it your own. Pick colors for every widget, arrange your layout, and resize from any edge—so your dashboard looks and works the way you want. See how colorful it can get when you personalize it."
                 image={landingImages.featureWidgets}
                 items={[
+                  "Personalize each widget with its own color—make it your own",
                   "Multiple desktops with custom backgrounds",
-                  "Resize widgets from all 8 directions",
-                  "Collapse and expand widgets on the fly",
+                  "Resize and collapse widgets on the fly",
                   "Full mobile-responsive experience",
                 ]}
               />
@@ -361,7 +362,7 @@ export default function Landing() {
 
             <div
               ref={widgetGridAnim.ref}
-              className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 transition-all duration-700 ${widgetGridAnim.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
+              className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 transition-all duration-500 ease-out ${widgetGridAnim.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
             >
               {widgetTypes.map((w, i) => (
                 <Card
@@ -529,7 +530,7 @@ export default function Landing() {
         <section className="py-20 sm:py-28 px-4 border-t border-border">
           <div
             ref={ctaAnim.ref}
-            className={`max-w-3xl mx-auto text-center transition-all duration-700 ${ctaAnim.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
+            className={`max-w-3xl mx-auto text-center transition-all duration-500 ease-out ${ctaAnim.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
           >
             <h2 className="text-3xl sm:text-5xl font-bold tracking-tight mb-6">
               Ready to take control of your day?

@@ -172,10 +172,16 @@
 
   html {
     scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    overflow-x: hidden;
+    min-height: 100dvh;
+    min-height: 100vh;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
 
   /* Visible focus for keyboard navigation (accessibility) */
@@ -185,6 +191,21 @@
 
   :focus:not(:focus-visible) {
     outline: none;
+  }
+
+  /* Smoother taps on phones; avoid 300ms delay on touch */
+  button, a, [role="button"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
