@@ -135,7 +135,7 @@ export default function Pricing() {
           )}
         </div>
 
-        {isActive && (
+        {(isActive || isTrial) && (
           <div className="text-center mb-8">
             <Button
               onClick={handleManageBilling}
@@ -147,8 +147,13 @@ export default function Pricing() {
               ) : (
                 <CreditCard className="mr-2 h-4 w-4" />
               )}
-              Manage Billing
+              {isTrial ? "Manage Billing or Cancel" : "Manage Billing"}
             </Button>
+            {isTrial && (
+              <p className="mt-2 text-sm text-muted-foreground" data-testid="text-cancel-during-trial">
+                Cancel during your trial and you won't be charged.
+              </p>
+            )}
           </div>
         )}
 
@@ -181,7 +186,7 @@ export default function Pricing() {
                     </li>
                   ))}
                 </ul>
-                {!isActive && monthlyPrice && (
+                {!isActive && !isTrial && monthlyPrice && (
                   <Button
                     className="w-full"
                     onClick={() => handleSubscribe(monthlyPrice.id, "monthly")}
@@ -223,7 +228,7 @@ export default function Pricing() {
                     </li>
                   ))}
                 </ul>
-                {!isActive && yearlyPrice && (
+                {!isActive && !isTrial && yearlyPrice && (
                   <Button
                     className="w-full"
                     onClick={() => handleSubscribe(yearlyPrice.id, "yearly")}

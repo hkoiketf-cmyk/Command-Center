@@ -520,6 +520,9 @@ export default function Landing() {
                 </CardContent>
               </Card>
             </div>
+            <p className="text-center text-sm text-muted-foreground mt-6 max-w-lg mx-auto" data-testid="text-cancel-anytime">
+              Cancel anytime during your trial—you won't be charged. After trial, manage or cancel from Billing in your account.
+            </p>
           </div>
         </section>
 
@@ -541,7 +544,7 @@ export default function Landing() {
               </a>
             </Button>
             <p className="mt-4 text-sm text-muted-foreground">
-              3-day free trial. You're charged after the trial ends.
+              3-day free trial. Cancel anytime during trial—no charge. You're charged only if you continue after the trial.
             </p>
           </div>
         </section>
