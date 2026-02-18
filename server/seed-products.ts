@@ -29,7 +29,7 @@ async function createProducts() {
     currency: 'usd',
     recurring: {
       interval: 'month',
-      trial_period_days: 3,
+      trial_period_days: 3
     },
     metadata: {
       plan: 'monthly',
