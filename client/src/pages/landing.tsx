@@ -66,6 +66,8 @@ function FeatureShowcase({
   subtitle,
   description,
   image,
+  imageClassName,
+  imageWrapperClassName,
   reverse,
   items,
 }: {
@@ -73,6 +75,8 @@ function FeatureShowcase({
   subtitle: string;
   description: string;
   image?: string;
+  imageClassName?: string;
+  imageWrapperClassName?: string;
   reverse?: boolean;
   items: string[];
 }) {
@@ -100,8 +104,14 @@ function FeatureShowcase({
       </div>
       {image && (
         <div className="flex-1 max-w-2xl w-full">
-          <div className="rounded-md overflow-hidden border border-border/50">
-            <img src={image} alt={title} className="w-full h-auto" loading="lazy" decoding="async" />
+          <div className={`rounded-md overflow-hidden border border-border/50 ${imageWrapperClassName ?? ""}`}>
+            <img
+              src={image}
+              alt={title}
+              className={imageClassName ?? "w-full h-auto"}
+              loading="lazy"
+              decoding="async"
+            />
           </div>
         </div>
       )}
@@ -254,6 +264,8 @@ export default function Landing() {
                 title="HunterAI Knows Your Dashboard"
                 description="Ask HunterAI about your priorities, journal entries, revenue, or who to follow up with. It reads your widgets and answers in context—no copying data into a chat."
                 image={landingImages.featureHunterAi}
+                imageWrapperClassName="flex items-center justify-center p-4"
+                imageClassName="h-[420px] sm:h-[520px] w-auto max-w-full object-contain mx-auto"
                 reverse
                 items={[
                   "Ask about tasks, journal, revenue, or follow-ups",
