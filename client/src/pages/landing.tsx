@@ -9,10 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 const landingImages = {
+  hero: "/landing/hero-dashboard.png",
+  featureWidgets: "/landing/feature-widgets.png",
   featureHunterAi: "/landing/feature-hunter-ai.png",
   featureAnalytics: "/landing/feature-analytics.png",
   featureBusiness: "/landing/feature-business.png",
   featureEmbedCustom: "/landing/feature-embed-custom.png",
+  setupWizardRole: "/landing/setup-wizard-role.png",
+  setupWizardTools: "/landing/setup-wizard-tools.png",
 };
 
 const WIDGET_COUNT = 19;
@@ -176,6 +180,20 @@ export default function Landing() {
               3-day free trial. Add your card—you're charged when the trial ends.
             </p>
 
+            <div className="mt-12 sm:mt-16 relative group">
+              <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-primary/10 to-primary/20 rounded-lg blur-xl opacity-60" />
+              <div className="relative rounded-md overflow-hidden border border-border/50 bg-card">
+                <img
+                  src={landingImages.hero}
+                  alt="MallenniumDash dashboard"
+                  className="w-full h-auto"
+                  loading="eager"
+                  decoding="async"
+                  data-testid="img-hero-dashboard"
+                />
+              </div>
+            </div>
+
             <a
               href="#features"
               className="inline-flex items-center gap-1 mt-10 text-sm text-muted-foreground animate-bounce"
@@ -221,6 +239,7 @@ export default function Landing() {
                 subtitle="Organize"
                 title="Drag & Drop Everything"
                 description="Create multiple desktop layouts and arrange widgets exactly how you think. Resize from any edge, collapse when you need space, and switch between workspaces instantly."
+                image={landingImages.featureWidgets}
                 items={[
                   "Multiple desktops with custom backgrounds",
                   "Resize widgets from all 8 directions",
@@ -283,6 +302,43 @@ export default function Landing() {
                 ]}
               />
             </div>
+          </div>
+        </section>
+
+        <section className="py-20 sm:py-28 px-4 border-t border-border bg-muted/30">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-12 sm:mb-16">
+              <p className="text-sm font-semibold uppercase tracking-widest text-primary mb-2">Quick setup</p>
+              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">
+                Pre-built templates, not a blank canvas
+              </h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto">
+                Other dashboards hand you an empty grid and expect you to spend hours configuring everything. We give you a Setup Wizard: pick your role, choose your tools, and get a ready-to-use dashboard in under a minute.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-8">
+              <div className="flex-1 max-w-sm w-full rounded-md overflow-hidden border border-border/50 bg-card shadow-sm">
+                <img
+                  src={landingImages.setupWizardRole}
+                  alt="Setup Wizard: choose your role (Content Creator, Sales, Freelancer, etc.)"
+                  className="w-full h-auto"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </div>
+              <div className="flex-1 max-w-sm w-full rounded-md overflow-hidden border border-border/50 bg-card shadow-sm">
+                <img
+                  src={landingImages.setupWizardTools}
+                  alt="Setup Wizard: pick your tools (Timer, Journal, CRM, etc.)"
+                  className="w-full h-auto"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </div>
+            </div>
+            <p className="text-center text-sm text-muted-foreground mt-6 max-w-xl mx-auto">
+              Answer a few questions → we build the perfect dashboard for you. No manual widget hunting, no starting from zero.
+            </p>
           </div>
         </section>
 
