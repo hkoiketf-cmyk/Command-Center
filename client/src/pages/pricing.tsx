@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Check, Zap, CreditCard, Loader2, Gift } from "lucide-react";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, getErrorMessage } from "@/lib/queryClient";
 import { useSubscription } from "@/hooks/use-subscription";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -55,7 +55,7 @@ export default function Pricing() {
         window.location.href = data.url;
       }
     } catch (error) {
-      console.error("Checkout error:", error);
+      toast({ title: "Checkout failed", description: getErrorMessage(error), variant: "destructive" });
     } finally {
       setLoadingPlan(null);
     }
@@ -70,7 +70,7 @@ export default function Pricing() {
         window.location.href = data.url;
       }
     } catch (error) {
-      console.error("Portal error:", error);
+      toast({ title: "Could not open billing", description: getErrorMessage(error), variant: "destructive" });
     } finally {
       setLoadingPlan(null);
     }
@@ -123,10 +123,10 @@ export default function Pricing() {
           </h1>
           <p className="text-muted-foreground text-lg max-w-xl mx-auto">
             {isTrial
-              ? "Your free trial is active. Subscribe before it ends to keep access."
+              ? "Your free trial is active. You'll be charged when it ends."
               : isActive
                 ? `You're on the ${subscription?.plan || "pro"} plan.`
-                : "Start with a 3-day free trial. No credit card required to begin."}
+                : "Add your card to start your 3-day free trial. You won't be charged until the trial ends."}
           </p>
           {isTrial && subscription?.trialEnd && (
             <p className="mt-2 text-sm text-muted-foreground" data-testid="text-trial-end">
@@ -165,11 +165,11 @@ export default function Pricing() {
                   {subscription?.plan === "monthly" && <Badge>Current Plan</Badge>}
                 </CardTitle>
                 <div className="mt-2">
-                  <span className="text-4xl font-bold">$9</span>
+                  <span className="text-4xl font-bold">$6</span>
                   <span className="text-muted-foreground">/month</span>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Includes 3-day free trial
+                  Card required. Charged after 3-day free trial.
                 </p>
               </CardHeader>
               <CardContent>
@@ -191,7 +191,7 @@ export default function Pricing() {
                     {loadingPlan === "monthly" ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : null}
-                    Start Free Trial
+                    Add card & start trial
                   </Button>
                 )}
               </CardContent>
@@ -199,7 +199,7 @@ export default function Pricing() {
 
             <Card className={`relative ${subscription?.plan === "yearly" ? "ring-2 ring-primary" : ""}`} data-testid="card-yearly-plan">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <Badge variant="default">Save 30%</Badge>
+                <Badge variant="default">Save 17%</Badge>
               </div>
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center justify-between gap-2 flex-wrap">
@@ -207,11 +207,11 @@ export default function Pricing() {
                   {subscription?.plan === "yearly" && <Badge>Current Plan</Badge>}
                 </CardTitle>
                 <div className="mt-2">
-                  <span className="text-4xl font-bold">$75.60</span>
+                  <span className="text-4xl font-bold">$60</span>
                   <span className="text-muted-foreground">/year</span>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
-                  $6.30/mo — Includes 3-day free trial
+                  $5/mo — Card required. Charged after 3-day trial.
                 </p>
               </CardHeader>
               <CardContent>
@@ -233,7 +233,7 @@ export default function Pricing() {
                     {loadingPlan === "yearly" ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : null}
-                    Start Free Trial
+                    Add card & start trial
                   </Button>
                 )}
               </CardContent>

@@ -90,7 +90,7 @@ export function IframeWidget({ content, onContentChange }: IframeWidgetProps) {
           <div className="h-full flex flex-col items-center justify-center gap-3 p-4" data-testid="iframe-empty-state">
             <Globe className="h-8 w-8 text-muted-foreground/40" />
             <div className="text-center">
-              <p className="text-sm font-medium text-muted-foreground">Embed any web app</p>
+              <p className="text-sm font-medium text-muted-foreground">Enter a web address to embed</p>
               <p className="text-xs text-muted-foreground/70 mt-1">Paste a URL above, or try one of these:</p>
             </div>
             <div className="flex flex-wrap gap-1.5 justify-center">

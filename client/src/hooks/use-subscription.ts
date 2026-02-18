@@ -29,7 +29,10 @@ export function useSubscription() {
     staleTime: 1000 * 60 * 2,
   });
 
-  const hasAccess = data?.status === "trialing" || data?.status === "active";
+  const hasAccess =
+    data?.status === "trialing" ||
+    data?.status === "active" ||
+    data?.status === "past_due";
 
   return {
     subscription: data,

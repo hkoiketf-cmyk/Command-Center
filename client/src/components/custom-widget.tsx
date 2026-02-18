@@ -37,27 +37,27 @@ window.onerror = function(msg, src, line) {
 };
 </script>`;
     const trimmed = code.trim();
-    if (trimmed.toLowerCase().startsWith("<!doctype") || trimmed.toLowerCase().startsWith("<html")) {
-      return code.replace(/<head([^>]*)>/i, `<head$1>${errorBridge}`);
+    const lower = trimmed.toLowerCase();
+    const isFullDoc = lower.startsWith("<!doctype") || lower.startsWith("<html");
+    if (isFullDoc) {
+      if (/<head[\s>]/i.test(trimmed)) {
+        return trimmed.replace(/<head([^>]*)>/i, `<head$1>${errorBridge}`);
+      }
+      if (/<body[\s>]/i.test(trimmed)) {
+        return trimmed.replace(/<body([^>]*)>/i, `<body$1>${errorBridge}`);
+      }
+      return trimmed;
     }
     return `<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   ${errorBridge}
-  <style>
-    * { box-sizing: border-box; }
-    body { 
-      margin: 0; 
-      padding: 16px; 
-      font-family: system-ui, -apple-system, sans-serif;
-      background: transparent;
-    }
-  </style>
+  <style>*{box-sizing:border-box;}body{margin:0;padding:16px;font-family:system-ui,-apple-system,sans-serif;background:transparent;}</style>
 </head>
 <body>
-${code}
+${trimmed}
 </body>
 </html>`;
   }, [code]);

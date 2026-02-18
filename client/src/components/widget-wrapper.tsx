@@ -52,7 +52,7 @@ const WIDGET_INFO: Record<WidgetType, { description: string; tips: string[] }> =
     ],
   },
   iframe: {
-    description: "Embed any external website or tool directly in your dashboard.",
+    description: "Load any web address (URL) directly in your dashboard.",
     tips: [
       "Paste any URL to embed it",
       "Works with tools like Notion, Google Docs, Trello, etc.",

@@ -201,21 +201,64 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
     return fullText;
   };
 
+  /** Extract HTML from model output: prefer code fences, then DOCTYPE/html start; always return usable fragment or full document. */
   const cleanCode = (raw: string): string => {
     let code = raw.trim();
-    const fenceMatch = code.match(/```(?:html)?\s*\n?([\s\S]*?)```/);
-    if (fenceMatch) {
-      code = fenceMatch[1].trim();
+    if (!code) return "";
+
+    // 1) Prefer content from markdown code block(s) — take the block that looks like full HTML or largest
+    const fenceRegex = /```(?:html|xml)?\s*\n?([\s\S]*?)```/g;
+    let match: RegExpExecArray | null;
+    let bestBlock = "";
+    while ((match = fenceRegex.exec(code)) !== null) {
+      const block = match[1].trim();
+      if (block.length < 30) continue;
+      const hasFullDoc = /<!DOCTYPE\s+html>/i.test(block) || /<html[\s>]/i.test(block) || /<body[\s>]/i.test(block);
+      if (hasFullDoc && block.length > bestBlock.length) bestBlock = block;
+      else if (!bestBlock || block.length > bestBlock.length) bestBlock = block;
     }
-    if (code.includes("<!DOCTYPE") || code.includes("<html") || code.includes("<div") || code.includes("<style")) {
-      const htmlStart = code.indexOf("<!DOCTYPE");
-      const htmlStart2 = code.indexOf("<html");
-      const start = htmlStart >= 0 ? htmlStart : htmlStart2;
-      if (start > 0) {
-        code = code.substring(start);
-      }
-    }
-    return code;
+    if (bestBlock) code = bestBlock;
+
+    // 2) If no fence, find start of HTML in the text
+    const docStart = code.indexOf("<!DOCTYPE");
+    const htmlStart = code.search(/<html[\s>]/i);
+    const bodyStart = code.search(/<body[\s>]/i);
+    const fragmentStart = code.search(/<(?:div|style|section|main)[\s>]/i);
+    let start = -1;
+    if (docStart >= 0) start = docStart;
+    else if (htmlStart >= 0) start = htmlStart;
+    else if (bodyStart >= 0) start = bodyStart;
+    else if (fragmentStart >= 0) start = fragmentStart;
+    if (start > 0) code = code.slice(start);
+
+    // 3) Trim trailing markdown/code fence
+    code = code.replace(/\s*```\s*$/gm, "").trim();
+    const closeHtml = code.lastIndexOf("</html>");
+    if (closeHtml >= 0) code = code.slice(0, closeHtml + 7);
+
+    return code.trim();
+  };
+
+  /** Ensure we have a full HTML document for display. If code is body-only or fragment, wrap it. */
+  const ensureFullDocument = (code: string): string => {
+    const trimmed = code.trim();
+    if (!trimmed) return "";
+    const lower = trimmed.toLowerCase();
+    if (lower.startsWith("<!doctype") && lower.includes("<html")) return trimmed;
+    if (lower.startsWith("<html")) return trimmed;
+    // Body or fragment: wrap in minimal full document
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Widget</title>
+  <style>*{box-sizing:border-box;}body{margin:0;padding:16px;font-family:system-ui,-apple-system,sans-serif;background:transparent;}</style>
+</head>
+<body>
+${trimmed}
+</body>
+</html>`;
   };
 
   const schedulePreviewUpdate = useCallback((code: string) => {
@@ -329,7 +372,7 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
           schedulePreviewUpdate(text);
         });
 
-        let currentCode = cleanCode(rawCode);
+        let currentCode = ensureFullDocument(cleanCode(rawCode));
         setGeneratedCode(currentCode);
         flushPreview(currentCode);
 
@@ -383,7 +426,7 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
             schedulePreviewUpdate(text);
           });
 
-          currentCode = cleanCode(fixedRaw);
+          currentCode = ensureFullDocument(cleanCode(fixedRaw));
           setGeneratedCode(currentCode);
           flushPreview(currentCode);
         }
@@ -424,7 +467,7 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
           schedulePreviewUpdate(text);
         });
 
-        let currentCode = cleanCode(refinedRaw);
+        let currentCode = ensureFullDocument(cleanCode(refinedRaw));
         setGeneratedCode(currentCode);
         flushPreview(currentCode);
 
@@ -470,7 +513,7 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
             schedulePreviewUpdate(text);
           });
 
-          currentCode = cleanCode(fixedRaw);
+          currentCode = ensureFullDocument(cleanCode(fixedRaw));
           setGeneratedCode(currentCode);
           flushPreview(currentCode);
         }
@@ -550,28 +593,35 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
 
   const wrapCode = (rawCode: string): string => {
     const trimmed = rawCode.trim();
+    if (!trimmed) return "";
     const errorBridge = `<script>
 window.onerror = function(msg, src, line) {
   try { parent.postMessage({ type: "iframe-error", source: "ai-widget-preview", message: msg + (line ? " (line " + line + ")" : "") }, "*"); } catch(e) {}
   return true;
 };
 </script>`;
-    if (trimmed.toLowerCase().startsWith("<!doctype") || trimmed.toLowerCase().startsWith("<html")) {
-      return rawCode.replace(/<head([^>]*)>/i, `<head$1>${errorBridge}`);
+    const lower = trimmed.toLowerCase();
+    const isFullDoc = lower.startsWith("<!doctype") || lower.startsWith("<html");
+    if (isFullDoc) {
+      // Inject error bridge into head, or at start of body if no head
+      if (/<head[\s>]/i.test(trimmed)) {
+        return trimmed.replace(/<head([^>]*)>/i, `<head$1>${errorBridge}`);
+      }
+      if (/<body[\s>]/i.test(trimmed)) {
+        return trimmed.replace(/<body([^>]*)>/i, `<body$1>${errorBridge}`);
+      }
+      return trimmed;
     }
     return `<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   ${errorBridge}
-  <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; padding: 16px; font-family: system-ui, -apple-system, sans-serif; background: transparent; }
-  </style>
+  <style>*{box-sizing:border-box;}body{margin:0;padding:16px;font-family:system-ui,-apple-system,sans-serif;background:transparent;}</style>
 </head>
 <body>
-${rawCode}
+${trimmed}
 </body>
 </html>`;
   };
@@ -911,10 +961,10 @@ ${rawCode}
             </div>
           )}
 
-          <div className={`flex-1 min-h-[250px] ${viewMode === "split" ? "flex gap-2" : "flex flex-col"}`}>
+          <div className={`flex-1 min-h-[320px] ${viewMode === "split" ? "flex gap-2" : "flex flex-col"}`}>
             {(viewMode === "split" || viewMode === "code") && (
-              <div className={`${viewMode === "split" ? "w-1/2" : "w-full"} min-h-0 flex flex-col`}>
-                <div className="flex-1 overflow-auto rounded-lg border bg-[#011627] p-3 font-mono text-xs">
+              <div className={`${viewMode === "split" ? "w-1/2" : "w-full"} min-h-0 flex flex-col min-h-[280px]`}>
+                <div className="flex-1 overflow-auto rounded-lg border bg-[#011627] p-3 font-mono text-xs min-h-[240px]">
                   <Highlight theme={themes.nightOwl} code={generatedCode || ""} language="markup">
                     {({ tokens, getLineProps, getTokenProps }) => (
                       <pre className="m-0" style={{ background: "transparent" }}>
@@ -936,15 +986,21 @@ ${rawCode}
             )}
 
             {(viewMode === "split" || viewMode === "preview") && (
-              <div className={`${viewMode === "split" ? "w-1/2" : "w-full"} min-h-0 border rounded-lg overflow-hidden`}>
-                <iframe
-                  ref={iframeRef}
-                  srcDoc={wrappedPreview}
-                  sandbox="allow-scripts"
-                  className="w-full h-full border-0"
-                  title="AI Widget Preview"
-                  data-testid="iframe-ai-widget-preview"
-                />
+              <div className={`${viewMode === "split" ? "w-1/2" : "w-full"} min-h-0 border rounded-lg overflow-hidden flex flex-col min-h-[280px]`}>
+                {!previewCode.trim() ? (
+                  <div className="flex-1 min-h-[280px] flex items-center justify-center bg-muted/30 text-muted-foreground text-sm rounded-lg border border-dashed">
+                    Preview will appear here
+                  </div>
+                ) : (
+                  <iframe
+                    ref={iframeRef}
+                    srcDoc={wrappedPreview}
+                    sandbox="allow-scripts"
+                    className="w-full flex-1 min-h-[280px] border-0"
+                    title="AI Widget Preview"
+                    data-testid="iframe-ai-widget-preview"
+                  />
+                )}
               </div>
             )}
           </div>

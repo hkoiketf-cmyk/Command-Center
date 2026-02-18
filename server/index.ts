@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
+import compression from "compression";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -82,6 +83,7 @@ app.use(
 );
 
 app.use(express.urlencoded({ extended: false }));
+app.use(compression());
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -108,11 +110,10 @@ app.use((req, res, next) => {
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+      let logLine = `${req.method} ${path} ${res.statusCode} ${duration}ms`;
+      if (res.statusCode >= 400 && capturedJsonResponse && typeof capturedJsonResponse === "object" && "error" in capturedJsonResponse) {
+        logLine += ` — ${String((capturedJsonResponse as { error?: unknown }).error)}`;
       }
-
       log(logLine);
     }
   });
@@ -133,16 +134,22 @@ app.use((req, res, next) => {
   startRetentionSchedule();
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    const status = err.status ?? err.statusCode ?? 500;
+    const is4xx = status >= 400 && status < 500;
+    const safeMessage =
+      process.env.NODE_ENV === "production" && status === 500
+        ? "Internal Server Error"
+        : (err.message || "Internal Server Error");
 
-    console.error("Internal Server Error:", err);
+    if (!is4xx) {
+      console.error("Unhandled error:", err.message || err);
+    }
 
     if (res.headersSent) {
       return next(err);
     }
 
-    return res.status(status).json({ message });
+    return res.status(status).json({ error: safeMessage });
   });
 
   // importantly only setup vite in development and after

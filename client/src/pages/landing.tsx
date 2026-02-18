@@ -2,18 +2,20 @@ import { useEffect, useRef, useState } from "react";
 import {
   Zap, LayoutGrid, Target, BarChart3, Clock, CheckSquare, Brain,
   ArrowRight, Sparkles, Shield, Monitor, Smartphone, ChevronDown,
-  Timer, BookOpen, TrendingUp, Kanban, CalendarDays, MessageSquare,
+  Timer, BookOpen, TrendingUp, Kanban, MessageSquare,
   DollarSign, Users, Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
-import heroDashboard from "@/assets/images/hero-dashboard.png";
-import featureWidgets from "@/assets/images/feature-widgets.png";
-import featureAnalytics from "@/assets/images/feature-analytics.png";
-import featureFocus from "@/assets/images/feature-focus.png";
-import featureBusiness from "@/assets/images/feature-business.png";
-import sectionBg from "@/assets/images/section-bg.png";
+const landingImages = {
+  hero: "/landing/hero-dashboard.png",
+  featureWidgets: "/landing/feature-widgets.png",
+  featureHunterAi: "/landing/feature-hunter-ai.png",
+  featureAnalytics: "/landing/feature-analytics.png",
+  featureBusiness: "/landing/feature-business.png",
+  featureEmbedCustom: "/landing/feature-embed-custom.png",
+};
 
 function useInView(threshold = 0.15) {
   const ref = useRef<HTMLDivElement>(null);
@@ -42,13 +44,13 @@ const widgetTypes = [
   { icon: BookOpen, name: "Journal" },
   { icon: TrendingUp, name: "KPIs" },
   { icon: Kanban, name: "CRM" },
-  { icon: CalendarDays, name: "Calendar" },
+  { icon: Target, name: "Focus Mode" },
   { icon: Clock, name: "Time Blocks" },
   { icon: DollarSign, name: "Expenses" },
   { icon: Users, name: "Meetings" },
   { icon: Brain, name: "Quick Capture" },
   { icon: MessageSquare, name: "AI Chat" },
-  { icon: Monitor, name: "Iframe Embed" },
+  { icon: Monitor, name: "Embed Web Address" },
   { icon: Sparkles, name: "Context Mode" },
   { icon: TrendingUp, name: "Scorecard" },
   { icon: Clock, name: "Waiting For" },
@@ -135,10 +137,6 @@ export default function Landing() {
 
       <main>
         <section className="relative py-20 sm:py-28 px-4 overflow-hidden">
-          <div
-            className="absolute inset-0 bg-cover bg-center opacity-[0.07] dark:opacity-[0.12]"
-            style={{ backgroundImage: `url(${sectionBg})` }}
-          />
           <div className="absolute inset-0 bg-gradient-to-b from-background via-background/80 to-background" />
 
           <div
@@ -173,15 +171,15 @@ export default function Landing() {
             </div>
 
             <p className="mt-4 text-sm text-muted-foreground">
-              3-day free trial. No credit card required.
+              3-day free trial. Add your card—you're charged when the trial ends.
             </p>
 
             <div className="mt-12 sm:mt-16 relative group">
               <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-primary/10 to-primary/20 rounded-lg blur-xl opacity-60" />
               <div className="relative rounded-md overflow-hidden border border-border/50 bg-card">
                 <img
-                  src={heroDashboard}
-                  alt="MallenniumDash Dashboard"
+                  src={landingImages.hero}
+                  alt="MallenniumDash dashboard with Sales Pipeline, Follow-ups, Revenue, Focus Mode, and more"
                   className="w-full h-auto"
                   data-testid="img-hero-dashboard"
                 />
@@ -233,7 +231,7 @@ export default function Landing() {
                 subtitle="Organize"
                 title="Drag & Drop Everything"
                 description="Create multiple desktop layouts and arrange widgets exactly how you think. Resize from any edge, collapse when you need space, and switch between workspaces instantly."
-                image={featureWidgets}
+                image={landingImages.featureWidgets}
                 items={[
                   "Multiple desktops with custom backgrounds",
                   "Resize widgets from all 8 directions",
@@ -243,11 +241,24 @@ export default function Landing() {
               />
 
               <FeatureShowcase
+                subtitle="AI-Powered"
+                title="HunterAI Knows Your Dashboard"
+                description="Ask HunterAI about your priorities, journal entries, revenue, or who to follow up with. It reads your widgets and answers in context—no copying data into a chat."
+                image={landingImages.featureHunterAi}
+                reverse
+                items={[
+                  "Ask about tasks, journal, revenue, or follow-ups",
+                  "Answers pulled from your actual dashboard data",
+                  "Optional: add your OpenAI API key for full AI",
+                  "Setup Wizard and AI Widget Builder for custom widgets",
+                ]}
+              />
+
+              <FeatureShowcase
                 subtitle="Analyze"
                 title="Revenue & KPI Tracking"
                 description="Keep a pulse on your business with revenue charts, KPI dashboards with color-coded thresholds, and weekly scorecards that show trends at a glance."
-                image={featureAnalytics}
-                reverse
+                image={landingImages.featureAnalytics}
                 items={[
                   "Monthly revenue charts per venture",
                   "KPI progress bars with green/yellow/red thresholds",
@@ -257,29 +268,29 @@ export default function Landing() {
               />
 
               <FeatureShowcase
-                subtitle="Focus"
-                title="Deep Work Sessions"
-                description="Enter Context Mode to define your objective, lock in your top 3 actions, set a timebox, and block out distractions. Track habits with streak grids and journal daily."
-                image={featureFocus}
-                items={[
-                  "Focus contracts with exit conditions",
-                  "Countdown and stopwatch timers with alerts",
-                  "GitHub-style habit streak tracking",
-                  "Daily journal with auto-save",
-                ]}
-              />
-
-              <FeatureShowcase
                 subtitle="Manage"
                 title="CRM & Business Tools"
                 description="Run your business from one screen. A 5-column CRM pipeline, meeting prep workflows, expense tracking, and a waiting-for list that warns you when items go stale."
-                image={featureBusiness}
+                image={landingImages.featureBusiness}
                 reverse
                 items={[
                   "Drag-and-drop CRM pipeline (Lead to Closed)",
                   "Meeting prep with talking points and action items",
                   "Recurring and variable expense tracking",
                   "Delegated task tracking with overdue warnings",
+                ]}
+              />
+
+              <FeatureShowcase
+                subtitle="Integrate"
+                title="Embed Web Addresses & Custom Widgets"
+                description="Load any website by URL in an Embed Web Address widget, or build custom widgets with the AI Widget Builder. One dashboard for your tools and your code."
+                image={landingImages.featureEmbedCustom}
+                items={[
+                  "Embed Web Address: any URL in your dashboard",
+                  "Code Block: edit HTML/JS with live preview",
+                  "AI Widget Builder: describe a widget, get working code",
+                  "Custom widgets with Preview and Code tabs",
                 ]}
               />
             </div>
@@ -290,10 +301,6 @@ export default function Landing() {
           id="widgets"
           className="py-20 sm:py-28 px-4 border-t border-border relative overflow-hidden"
         >
-          <div
-            className="absolute inset-0 bg-cover bg-center opacity-[0.04] dark:opacity-[0.08]"
-            style={{ backgroundImage: `url(${sectionBg})` }}
-          />
           <div className="absolute inset-0 bg-gradient-to-b from-background to-background" />
 
           <div className="relative max-w-6xl mx-auto">
@@ -407,10 +414,6 @@ export default function Landing() {
         </section>
 
         <section id="pricing" className="py-20 sm:py-28 px-4 border-t border-border relative overflow-hidden">
-          <div
-            className="absolute inset-0 bg-cover bg-center opacity-[0.04] dark:opacity-[0.08]"
-            style={{ backgroundImage: `url(${sectionBg})` }}
-          />
           <div className="absolute inset-0 bg-gradient-to-b from-background to-background" />
 
           <div className="relative max-w-4xl mx-auto">
@@ -420,7 +423,7 @@ export default function Landing() {
                 Simple, transparent pricing
               </h2>
               <p className="text-muted-foreground max-w-lg mx-auto">
-                Start with a 3-day free trial. Then choose the plan that works for you.
+                Add your card for a 3-day free trial. You're charged when the trial ends.
               </p>
             </div>
 
@@ -429,11 +432,11 @@ export default function Landing() {
                 <CardContent className="pt-6 pb-6">
                   <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-1">Monthly</p>
                   <div className="flex items-baseline gap-1 mb-4">
-                    <span className="text-4xl font-bold">$9</span>
+                    <span className="text-4xl font-bold">$6</span>
                     <span className="text-muted-foreground">/month</span>
                   </div>
                   <ul className="space-y-2 mb-6">
-                    {["All 19 widgets", "Unlimited desktops", "Google Calendar sync", "Priority support"].map((f) => (
+                    {["All 19 widgets", "Unlimited desktops", "Embed web addresses & AI tools", "Priority support"].map((f) => (
                       <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Check className="w-4 h-4 text-primary flex-shrink-0" />
                         {f}
@@ -455,11 +458,11 @@ export default function Landing() {
                 <CardContent className="pt-6 pb-6">
                   <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-1">Yearly</p>
                   <div className="flex items-baseline gap-1 mb-4">
-                    <span className="text-4xl font-bold">$75.60</span>
+                    <span className="text-4xl font-bold">$60</span>
                     <span className="text-muted-foreground">/year</span>
                   </div>
                   <ul className="space-y-2 mb-6">
-                    {["Everything in Monthly", "Save over $32/year", "Google Calendar sync", "Priority support"].map((f) => (
+                    {["Everything in Monthly", "Save $12/year", "Embed web addresses & AI tools", "Priority support"].map((f) => (
                       <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Check className="w-4 h-4 text-primary flex-shrink-0" />
                         {f}
@@ -493,7 +496,7 @@ export default function Landing() {
               </a>
             </Button>
             <p className="mt-4 text-sm text-muted-foreground">
-              No credit card required. 3-day free trial.
+              3-day free trial. You're charged after the trial ends.
             </p>
           </div>
         </section>

@@ -30,6 +30,28 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    target: "es2020",
+    minify: "esbuild",
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          if (id.includes("node_modules")) {
+            if (id.includes("react-dom") || id.includes("react/")) return "react";
+            if (id.includes("@tanstack/react-query")) return "query";
+            if (id.includes("react-grid-layout") || id.includes("react-resizable")) return "grid";
+            if (id.includes("recharts") || id.includes("chart.js") || id.includes("react-chartjs")) return "charts";
+            if (id.includes("radix-ui") || id.includes("@radix-ui")) return "radix";
+            if (id.includes("lucide-react")) return "icons";
+            return "vendor";
+          }
+        },
+        chunkFileNames: "assets/[name]-[hash].js",
+        entryFileNames: "assets/[name]-[hash].js",
+        assetFileNames: "assets/[name]-[hash][extname]",
+      },
+    },
+    chunkSizeWarningLimit: 600,
   },
   server: {
     fs: {

@@ -1223,7 +1223,7 @@ export async function registerRoutes(
   app.get("/api/subscription", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
-      const user = await storage.getUserById(userId);
+      let user = await storage.getUserById(userId);
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
@@ -1242,25 +1242,36 @@ export async function registerRoutes(
         }
       }
 
-      if (!user.stripeSubscriptionId) {
-        const trialEnd = user.createdAt ? new Date(user.createdAt).getTime() + 3 * 24 * 60 * 60 * 1000 : 0;
-        const now = Date.now();
-        if (now < trialEnd) {
-          if (user.subscriptionEndedAt) {
-            await storage.updateUser(userId, { subscriptionEndedAt: null });
-          }
-          return res.json({
-            status: "trialing",
-            trialEnd: new Date(trialEnd).toISOString(),
-            plan: null,
+      // No Stripe subscription: try to attach one if they have a customer (e.g. completed checkout in another tab)
+      if (!user.stripeSubscriptionId && user.stripeCustomerId) {
+        try {
+          const stripe = await getUncachableStripeClient();
+          const list = await stripe.subscriptions.list({
+            customer: user.stripeCustomerId,
+            status: "all",
+            limit: 5,
           });
+          const preferred =
+            list.data.find((s) => s.status === "active" || s.status === "trialing") ||
+            list.data.find((s) => s.status === "past_due") ||
+            list.data[0];
+          if (preferred) {
+            await storage.updateUser(userId, { stripeSubscriptionId: preferred.id });
+            const updated = await storage.getUserById(userId);
+            if (updated) user = updated;
+          }
+        } catch (_) {
+          // ignore sync errors
         }
+      }
+
+      if (!user.stripeSubscriptionId) {
         if (!user.subscriptionEndedAt) {
           await storage.updateUser(userId, { subscriptionEndedAt: new Date() });
         }
         return res.json({
           status: "expired",
-          trialEnd: user.createdAt ? new Date(trialEnd).toISOString() : null,
+          trialEnd: null,
           plan: null,
         });
       }
@@ -1298,9 +1309,21 @@ export async function registerRoutes(
         }
       }
 
+      // trial_end is when the free trial ends (Stripe charges after this)
+      const trialEndRaw = subscription.trial_end ?? (subStatus === "trialing" ? subscription.current_period_end : null);
+      const trialEndMs =
+        trialEndRaw == null
+          ? null
+          : typeof trialEndRaw === "number"
+            ? trialEndRaw < 1e12
+              ? trialEndRaw * 1000
+              : trialEndRaw
+            : new Date(trialEndRaw).getTime();
+
       res.json({
         status: subStatus,
         plan,
+        trialEnd: trialEndMs != null ? new Date(trialEndMs).toISOString() : null,
         currentPeriodEnd: subscription.current_period_end,
         cancelAtPeriodEnd: subscription.cancel_at_period_end,
       });
@@ -1354,16 +1377,18 @@ export async function registerRoutes(
         await storage.updateUser(userId, { stripeCustomerId: customerId });
       }
 
+      // Card is collected upfront; first charge happens after 3-day trial (Stripe default for subscription + trial)
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         payment_method_types: ["card"],
         line_items: [{ price: priceId, quantity: 1 }],
         mode: "subscription",
         success_url: `${req.protocol}://${req.get("host")}/?checkout=success`,
-        cancel_url: `${req.protocol}://${req.get("host")}/?checkout=cancel`,
+        cancel_url: `${req.protocol}://${req.get("host")}/pricing?checkout=cancel`,
         subscription_data: {
           trial_period_days: 3,
         },
+        payment_method_collection: "always",
       });
 
       res.json({ url: session.url });
@@ -1733,7 +1758,7 @@ QUALITY REQUIREMENTS:
             content: `You are a world-class front-end developer maintaining an HTML widget through iterative improvements. The user has been working with you to build this widget and now wants changes.
 
 CRITICAL RULES:
-- Output ONLY the complete, updated HTML code. No explanations, no markdown, no code fences, no comments about what changed. Start directly with <!DOCTYPE html>.
+- Output ONLY the complete, updated HTML code. No explanations, no markdown, no code fences (no triple backticks), no comments about what changed. The very first character of your response must be <!DOCTYPE html>.
 - You MUST preserve ALL existing functionality that the user hasn't asked to change.
 - Apply the specific changes the user requests.
 - Keep the same overall design language, color scheme, layout, and features unless asked to change them.
@@ -1759,7 +1784,7 @@ ${currentCode}`
             role: "system",
             content: `You are a world-class front-end developer who builds stunning, production-quality HTML widgets. You create widgets that look like they belong in a premium SaaS product. Every widget you build is fully functional, beautifully designed, and works perfectly on first try.
 
-OUTPUT FORMAT: Only raw HTML code. No explanations, no markdown, no code fences, no comments like "here's the code". Start directly with <!DOCTYPE html>. The widget must be fully self-contained with inline <style> and <script> tags.
+OUTPUT FORMAT (CRITICAL): Output ONLY one single, complete HTML document. No explanations, no markdown, no code fences (no triple backticks), no text before or after the HTML. Start the very first character of your response with <!DOCTYPE html>. The widget must be fully self-contained with inline <style> and <script> tags. The entire response must be valid HTML that can be dropped into an iframe.
 
 ${baseConstraints}
 

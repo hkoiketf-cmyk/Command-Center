@@ -1,10 +1,19 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
-async function throwIfResNotOk(res: Response) {
-  if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+/** Parse server error body; prefer JSON { error } for user-facing message. */
+async function throwIfResNotOk(res: Response): Promise<never> {
+  const text = await res.text();
+  let message = res.statusText;
+  try {
+    const json = text ? JSON.parse(text) : null;
+    if (json && typeof json.error === "string") message = json.error;
+    else if (text && text.length < 200) message = text;
+  } catch {
+    if (text && text.length < 200) message = text;
   }
+  const err = new Error(`${res.status}: ${message}`) as Error & { status: number };
+  err.status = res.status;
+  throw err;
 }
 
 export async function apiRequest(
@@ -45,6 +54,16 @@ function handleGlobal401(error: Error) {
   if (/^401:/.test(error.message)) {
     window.location.href = "/api/login";
   }
+}
+
+/** User-facing message from API errors (strips status prefix when present). */
+export function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    const m = error.message;
+    const match = m.match(/^\d{3}:\s*(.+)$/);
+    return match ? match[1].trim() : m;
+  }
+  return String(error);
 }
 
 export const queryClient = new QueryClient({

@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Library, Plus, Globe, Lock, Trash2, LayoutTemplate, Loader2, Hammer, ArrowLeft, FileText, Code, Target, TrendingUp, Globe as GlobeIcon, Crosshair, Inbox, Flame, BookOpen, BarChart3, Gauge, Clock, Kanban, CalendarClock, DollarSign, Users, Calendar, Bot, Timer, Sparkles } from "lucide-react";
+import { Library, Plus, Globe, Lock, Trash2, LayoutTemplate, Loader2, Hammer, ArrowLeft, FileText, Code, Target, TrendingUp, Globe as GlobeIcon, Crosshair, Inbox, Flame, BookOpen, BarChart3, Gauge, Clock, Kanban, CalendarClock, DollarSign, Users, Bot, Timer, Sparkles } from "lucide-react";
 import type { DashboardPreset, WidgetType } from "@shared/schema";
 import { SetupWizard } from "./setup-wizard";
 
@@ -19,7 +19,7 @@ const WIDGET_OPTIONS: { type: WidgetType; label: string; icon: typeof FileText }
   { type: "code", label: "Code Block", icon: Code },
   { type: "priorities", label: "Priorities", icon: Target },
   { type: "revenue", label: "Revenue", icon: TrendingUp },
-  { type: "iframe", label: "Embed", icon: GlobeIcon },
+  { type: "iframe", label: "Embed Web Address", icon: GlobeIcon },
   { type: "context_mode", label: "Context Mode", icon: Crosshair },
   { type: "quick_capture", label: "Quick Capture", icon: Inbox },
   { type: "habit_tracker", label: "Habit Tracker", icon: Flame },
@@ -31,7 +31,6 @@ const WIDGET_OPTIONS: { type: WidgetType; label: string; icon: typeof FileText }
   { type: "time_blocks", label: "Time Blocks", icon: CalendarClock },
   { type: "expense_tracker", label: "Expense Tracker", icon: DollarSign },
   { type: "meeting_prep", label: "Meeting Prep", icon: Users },
-  { type: "google_calendar", label: "Google Calendar", icon: Calendar },
   { type: "ai_chat", label: "AI Chat", icon: Bot },
   { type: "timer", label: "Timer", icon: Timer },
 ];

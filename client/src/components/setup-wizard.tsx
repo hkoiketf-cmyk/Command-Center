@@ -55,7 +55,7 @@ const PRIORITIES: PriorityOption[] = [
 
 const TOOLS: ToolOption[] = [
   { id: "timer", label: "Timer / Pomodoro" },
-  { id: "external_apps", label: "Embed external web apps" },
+  { id: "external_apps", label: "Embed web addresses" },
   { id: "context_mode", label: "Focus / Deep Work Mode" },
   { id: "expense_tracker", label: "Expense Tracking" },
   { id: "daily_journal", label: "Daily Journal" },
@@ -171,7 +171,7 @@ function generateRecommendation(role: string, priorities: string[], tools: strin
   for (const tool of tools) {
     const toolWidgets: Record<string, { type: WidgetType; title: string }> = {
       timer: { type: "timer", title: "Focus Timer" },
-      external_apps: { type: "iframe", title: "Web App" },
+      external_apps: { type: "iframe", title: "Web Address" },
       context_mode: { type: "context_mode", title: "Focus Mode" },
       expense_tracker: { type: "expense_tracker", title: "Expense Tracker" },
       daily_journal: { type: "daily_journal", title: "Daily Journal" },

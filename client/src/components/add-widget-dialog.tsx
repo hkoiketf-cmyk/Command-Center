@@ -47,8 +47,8 @@ const widgetOptions: { type: WidgetType; label: string; description: string; ico
   },
   {
     type: "iframe",
-    label: "Embed",
-    description: "Embed external tools and websites",
+    label: "Embed Web Address",
+    description: "Load any website by URL in your dashboard",
     icon: Globe,
   },
   {
