@@ -9,13 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 const landingImages = {
-  hero: "/landing/hero-dashboard.png",
-  featureWidgets: "/landing/feature-widgets.png",
   featureHunterAi: "/landing/feature-hunter-ai.png",
   featureAnalytics: "/landing/feature-analytics.png",
   featureBusiness: "/landing/feature-business.png",
   featureEmbedCustom: "/landing/feature-embed-custom.png",
 };
+
+const WIDGET_COUNT = 19;
 
 function useInView(threshold = 0.15) {
   const ref = useRef<HTMLDivElement>(null);
@@ -68,7 +68,7 @@ function FeatureShowcase({
   title: string;
   subtitle: string;
   description: string;
-  image: string;
+  image?: string;
   reverse?: boolean;
   items: string[];
 }) {
@@ -77,13 +77,13 @@ function FeatureShowcase({
   return (
     <div
       ref={ref}
-      className={`flex flex-col ${reverse ? "lg:flex-row-reverse" : "lg:flex-row"} items-center gap-8 lg:gap-16 transition-all duration-700 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
+      className={`flex flex-col ${image && (reverse ? "lg:flex-row-reverse" : "lg:flex-row")} items-center gap-8 lg:gap-16 transition-all duration-700 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
     >
-      <div className="flex-1 max-w-xl">
+      <div className={`flex-1 ${image ? "max-w-xl" : "max-w-2xl mx-auto text-center"}`}>
         <p className="text-sm font-semibold uppercase tracking-widest text-primary mb-2">{subtitle}</p>
         <h3 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">{title}</h3>
         <p className="text-base text-muted-foreground mb-6 leading-relaxed">{description}</p>
-        <ul className="space-y-3">
+        <ul className={`space-y-3 ${!image ? "inline-block text-left" : ""}`}>
           {items.map((item) => (
             <li key={item} className="flex items-start gap-3">
               <div className="mt-0.5 w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -94,11 +94,13 @@ function FeatureShowcase({
           ))}
         </ul>
       </div>
-      <div className="flex-1 max-w-2xl">
-        <div className="rounded-md overflow-hidden border border-border/50">
-          <img src={image} alt={title} className="w-full h-auto" loading="lazy" />
+      {image && (
+        <div className="flex-1 max-w-2xl w-full">
+          <div className="rounded-md overflow-hidden border border-border/50">
+            <img src={image} alt={title} className="w-full h-auto" loading="lazy" decoding="async" />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -145,7 +147,7 @@ export default function Landing() {
           >
             <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card/50 px-4 py-1.5 text-sm text-muted-foreground mb-6 backdrop-blur-sm">
               <Sparkles className="w-4 h-4 text-primary" />
-              <span>19 productivity widgets in one dashboard</span>
+              <span>{WIDGET_COUNT} productivity widgets in one dashboard</span>
             </div>
 
             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6 leading-[1.1]">
@@ -174,18 +176,6 @@ export default function Landing() {
               3-day free trial. Add your card—you're charged when the trial ends.
             </p>
 
-            <div className="mt-12 sm:mt-16 relative group">
-              <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-primary/10 to-primary/20 rounded-lg blur-xl opacity-60" />
-              <div className="relative rounded-md overflow-hidden border border-border/50 bg-card">
-                <img
-                  src={landingImages.hero}
-                  alt="MallenniumDash dashboard with Sales Pipeline, Follow-ups, Revenue, Focus Mode, and more"
-                  className="w-full h-auto"
-                  data-testid="img-hero-dashboard"
-                />
-              </div>
-            </div>
-
             <a
               href="#features"
               className="inline-flex items-center gap-1 mt-10 text-sm text-muted-foreground animate-bounce"
@@ -200,7 +190,7 @@ export default function Landing() {
           <div className="max-w-5xl mx-auto">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
               {[
-                { value: "19", label: "Widget Types" },
+                { value: String(WIDGET_COUNT), label: "Widget Types" },
                 { value: "100%", label: "Customizable" },
                 { value: "Multi", label: "Desktop Layouts" },
                 { value: "Real-time", label: "Data Sync" },
@@ -231,7 +221,6 @@ export default function Landing() {
                 subtitle="Organize"
                 title="Drag & Drop Everything"
                 description="Create multiple desktop layouts and arrange widgets exactly how you think. Resize from any edge, collapse when you need space, and switch between workspaces instantly."
-                image={landingImages.featureWidgets}
                 items={[
                   "Multiple desktops with custom backgrounds",
                   "Resize widgets from all 8 directions",
@@ -307,7 +296,7 @@ export default function Landing() {
             <div className="text-center mb-12 sm:mb-16">
               <p className="text-sm font-semibold uppercase tracking-widest text-primary mb-2">Widgets</p>
               <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">
-                19 widgets. One dashboard.
+                {WIDGET_COUNT} widgets. One dashboard.
               </h2>
               <p className="text-muted-foreground max-w-xl mx-auto">
                 From quick notes to CRM pipelines, every tool you need is a widget away.
@@ -357,7 +346,7 @@ export default function Landing() {
                   step: "2",
                   icon: LayoutGrid,
                   title: "Add your widgets",
-                  desc: "Pick from 19 widget types. Drag, drop, and resize to build your layout.",
+                  desc: `Pick from ${WIDGET_COUNT} widget types. Drag, drop, and resize to build your layout.`,
                 },
                 {
                   step: "3",
@@ -436,7 +425,7 @@ export default function Landing() {
                     <span className="text-muted-foreground">/month</span>
                   </div>
                   <ul className="space-y-2 mb-6">
-                    {["All 19 widgets", "Unlimited desktops", "Embed web addresses & AI tools", "Priority support"].map((f) => (
+                    {[`All ${WIDGET_COUNT} widgets`, "Unlimited desktops", "Embed web addresses & AI tools", "Priority support"].map((f) => (
                       <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Check className="w-4 h-4 text-primary flex-shrink-0" />
                         {f}
@@ -452,7 +441,7 @@ export default function Landing() {
               <Card className="relative border-primary/30" data-testid="card-pricing-yearly">
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                   <span className="bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full" data-testid="badge-save-yearly">
-                    Save 30%
+                    Save 17%
                   </span>
                 </div>
                 <CardContent className="pt-6 pb-6">
