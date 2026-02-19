@@ -11,6 +11,7 @@ export const userSettings = pgTable("user_settings", {
   userId: varchar("user_id").notNull().unique(),
   appName: text("app_name").notNull().default("MallenniumDash"),
   openaiApiKey: text("openai_api_key"),
+  openaiApiBaseUrl: text("openai_api_base_url"),
 });
 
 export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({ id: true, userId: true });

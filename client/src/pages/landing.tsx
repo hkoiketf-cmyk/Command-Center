@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 const landingImages = {
   hero: "/landing/hero-dashboard.png",
   featureWidgets: "/landing/feature-widgets.png",
-  featureHunterAi: "/landing/feature-hunter-ai.png",
+  featureHunterAi: "/landing/feature-hunter-ai.png?v=2",
   featureAnalytics: "/landing/feature-analytics.png",
   featureBusiness: "/landing/feature-business.png",
   featureEmbedCustom: "/landing/feature-embed-custom.png",

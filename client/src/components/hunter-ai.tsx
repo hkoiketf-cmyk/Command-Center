@@ -1,11 +1,16 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Send, Search, Settings, Eye, EyeOff, Crosshair } from "lucide-react";
+import { Send, Search, Settings, Eye, EyeOff, Crosshair, HelpCircle, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -39,7 +44,9 @@ export function HunterAI({ open, onOpenChange }: HunterAIProps) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [huntPhrase, setHuntPhrase] = useState("");
   const [apiKeyInput, setApiKeyInput] = useState("");
+  const [baseUrlInput, setBaseUrlInput] = useState("");
   const [showKey, setShowKey] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -55,12 +62,12 @@ export function HunterAI({ open, onOpenChange }: HunterAIProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user-settings"] });
-      toast({ title: "API key saved" });
+      toast({ title: "Settings saved" });
       setApiKeyInput("");
       setShowSettings(false);
     },
     onError: () => {
-      toast({ title: "Failed to save API key", variant: "destructive" });
+      toast({ title: "Failed to save settings", variant: "destructive" });
     },
   });
 
@@ -74,10 +81,19 @@ export function HunterAI({ open, onOpenChange }: HunterAIProps) {
     }
   }, [open]);
 
-  const sendMessage = useCallback(async () => {
-    if (!input.trim() || isStreaming) return;
-    const userMsg = input.trim();
-    setInput("");
+  useEffect(() => {
+    if (showSettings && userSettings) {
+      setBaseUrlInput(userSettings.openaiApiBaseUrl ?? "");
+    }
+  }, [showSettings, userSettings?.openaiApiBaseUrl]);
+
+  const CAPABILITIES_PROMPT =
+    "What can you help me with? List all the things you can do with my dashboard data so I can get the most out of HunterAI.";
+
+  const sendMessage = useCallback(async (overrideMessage?: string) => {
+    const userMsg = (overrideMessage ?? input.trim()).trim();
+    if (!userMsg || isStreaming) return;
+    if (!overrideMessage) setInput("");
     setMessages(prev => [...prev, { role: "user", content: userMsg }]);
     setIsStreaming(true);
     setHuntPhrase(getRandomPhrase());
@@ -200,10 +216,23 @@ export function HunterAI({ open, onOpenChange }: HunterAIProps) {
                     <Settings className="h-3 w-3 mr-1" /> Set up API key
                   </Button>
                 )}
+                {hasKey && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => sendMessage(CAPABILITIES_PROMPT)}
+                    disabled={isStreaming}
+                    data-testid="button-see-all-capabilities"
+                  >
+                    See all the things I can do
+                  </Button>
+                )}
                 <div className="w-full space-y-1.5 mt-2">
                   <p className="text-xs text-muted-foreground font-medium">Try asking:</p>
                   {[
                     "What are my current KPIs?",
+                    "What are my habit streaks?",
+                    "What's my focus today?",
                     "Show me my revenue this month",
                     "What deals are in my pipeline?",
                     "What's on my waiting list?",
@@ -265,6 +294,19 @@ export function HunterAI({ open, onOpenChange }: HunterAIProps) {
           </div>
 
           <div className="border-t p-3 shrink-0">
+            {messages.length > 0 && hasKey && (
+              <div className="mb-2">
+                <button
+                  type="button"
+                  onClick={() => sendMessage(CAPABILITIES_PROMPT)}
+                  disabled={isStreaming}
+                  className="text-xs text-muted-foreground hover:text-foreground underline"
+                  data-testid="link-see-all-capabilities"
+                >
+                  See all the things I can do
+                </button>
+              </div>
+            )}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -299,10 +341,38 @@ export function HunterAI({ open, onOpenChange }: HunterAIProps) {
             <DialogTitle>HunterAI Settings</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            <Collapsible open={helpOpen} onOpenChange={setHelpOpen}>
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+                  data-testid="button-how-to-get-key"
+                >
+                  {helpOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  <HelpCircle className="h-4 w-4" />
+                  How do I get an API key?
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2 space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  HunterAI needs an API key to answer questions. Without one, the assistant cannot run.
+                </p>
+                <ol className="text-xs text-muted-foreground list-decimal list-inside space-y-1.5">
+                  <li>Go to <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary underline">platform.openai.com/api-keys</a> (or your preferred provider).</li>
+                  <li>Sign in or create an account.</li>
+                  <li>Click &quot;Create new secret key&quot;, name it (e.g. &quot;Command Center&quot;), and copy the key.</li>
+                  <li>Paste the key below and click Save. Your key is stored only on your instance and never shared.</li>
+                </ol>
+                <p className="text-xs text-muted-foreground">
+                  You can also use any OpenAI-compatible API (e.g. OpenRouter, Together, local models). Set the optional base URL below and use that provider&apos;s API key.
+                </p>
+              </CollapsibleContent>
+            </Collapsible>
+
             <div className="space-y-2">
-              <Label className="text-sm">OpenAI API Key</Label>
+              <Label className="text-sm">API Key (OpenAI or compatible)</Label>
               <p className="text-xs text-muted-foreground">
-                Your key is stored securely and never shared. Each user provides their own key.
+                Stored securely on your instance. Each user provides their own key.
               </p>
               {hasKey && (
                 <p className="text-xs text-green-600 dark:text-green-400">
@@ -330,19 +400,35 @@ export function HunterAI({ open, onOpenChange }: HunterAIProps) {
                   </Button>
                 </div>
               </div>
-              <Button
-                size="sm"
-                onClick={() => {
-                  if (apiKeyInput.trim()) {
-                    updateSettings.mutate({ openaiApiKey: apiKeyInput.trim() });
-                  }
-                }}
-                disabled={!apiKeyInput.trim() || updateSettings.isPending}
-                data-testid="button-save-key"
-              >
-                {updateSettings.isPending ? "Saving..." : "Save Key"}
-              </Button>
             </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm">API base URL (optional)</Label>
+              <p className="text-xs text-muted-foreground">
+                Leave blank for OpenAI. Set for OpenRouter, Together, or other OpenAI-compatible endpoints.
+              </p>
+              <Input
+                type="url"
+                value={baseUrlInput}
+                onChange={(e) => setBaseUrlInput(e.target.value)}
+                placeholder="https://api.openai.com/v1"
+                data-testid="input-openai-base-url"
+              />
+            </div>
+
+            <Button
+              size="sm"
+              onClick={() => {
+                const payload: Record<string, string | null> = {};
+                if (apiKeyInput.trim()) payload.openaiApiKey = apiKeyInput.trim();
+                payload.openaiApiBaseUrl = baseUrlInput.trim() || null;
+                updateSettings.mutate(payload);
+              }}
+              disabled={(!apiKeyInput.trim() && baseUrlInput === (userSettings?.openaiApiBaseUrl ?? "")) || updateSettings.isPending}
+              data-testid="button-save-key"
+            >
+              {updateSettings.isPending ? "Saving..." : "Save"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

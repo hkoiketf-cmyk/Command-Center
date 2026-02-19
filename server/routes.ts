@@ -1010,6 +1010,7 @@ export async function registerRoutes(
           ? `sk-...${settings.openaiApiKey.slice(-4)}`
           : null,
         hasOpenaiKey: !!settings.openaiApiKey,
+        openaiApiBaseUrl: settings.openaiApiBaseUrl ?? null,
         isAdmin: userIsAdmin,
       };
       res.json(masked);
@@ -1030,6 +1031,10 @@ export async function registerRoutes(
           allowedFields.openaiApiKey = null;
         }
       }
+      if (req.body.openaiApiBaseUrl !== undefined) {
+        const url = req.body.openaiApiBaseUrl;
+        allowedFields.openaiApiBaseUrl = (url && typeof url === "string" && url.trim()) ? url.trim() : null;
+      }
       const settings = await storage.updateUserSettings(getUserId(req), allowedFields);
       const masked = {
         ...settings,
@@ -1037,6 +1042,7 @@ export async function registerRoutes(
           ? `sk-...${settings.openaiApiKey.slice(-4)}`
           : null,
         hasOpenaiKey: !!settings.openaiApiKey,
+        openaiApiBaseUrl: settings.openaiApiBaseUrl ?? null,
       };
       res.json(masked);
     } catch (error) {
@@ -1542,6 +1548,8 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Please add your OpenAI API key in the HunterAI settings to use this feature." });
       }
 
+      const today = new Date().toISOString().split("T")[0];
+
       const [
         desktops,
         widgets,
@@ -1556,6 +1564,7 @@ export async function registerRoutes(
         meetings,
         scorecardMetrics,
         allScorecardEntries,
+        allHabitEntries,
       ] = await Promise.all([
         storage.getDesktops(userId),
         storage.getWidgets(userId),
@@ -1570,6 +1579,7 @@ export async function registerRoutes(
         storage.getMeetings(userId),
         storage.getScorecardMetrics(userId),
         storage.getAllScorecardEntries(userId),
+        storage.getAllHabitEntries(userId),
       ]);
 
       const prioritiesMap: Record<string, any[]> = {};
@@ -1583,8 +1593,51 @@ export async function registerRoutes(
         revenueMap[v.name] = revenue;
       }
 
-      const today = new Date().toISOString().split("T")[0];
-      const journalEntry = await storage.getJournalEntry(userId, today);
+      const habitEntriesByHabit: Record<string, { date: string; completed: boolean }[]> = {};
+      for (const e of allHabitEntries) {
+        if (!habitEntriesByHabit[e.habitId]) habitEntriesByHabit[e.habitId] = [];
+        habitEntriesByHabit[e.habitId].push({ date: e.date, completed: e.completed ?? true });
+      }
+      for (const arr of Object.values(habitEntriesByHabit)) {
+        arr.sort((a, b) => b.date.localeCompare(a.date));
+      }
+
+      const focusContractsToday = await Promise.all(
+        desktops.map(d => storage.getFocusContract(userId, d.id, today))
+      );
+      const focusList = desktops.map((d, i) => ({
+        desktopName: d.name,
+        contract: focusContractsToday[i] ? {
+          objective: focusContractsToday[i]?.objective,
+          top3: focusContractsToday[i]?.top3,
+          timeboxMinutes: focusContractsToday[i]?.timeboxMinutes,
+        } : null,
+      })).filter(x => x.contract != null);
+
+      const journalDates: string[] = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        journalDates.push(d.toISOString().split("T")[0]);
+      }
+      const recentJournalEntries = await Promise.all(
+        journalDates.map(date => storage.getJournalEntry(userId, date))
+      );
+      const recentJournal = journalDates.map((date, i) => ({
+        date,
+        content: recentJournalEntries[i]?.content || null,
+      })).filter(j => j.content != null && j.content.trim() !== "");
+
+      const timeBlocksToday = await storage.getTimeBlocks(userId, today);
+
+      const desktopNames: Record<string, string> = {};
+      for (const d of desktops) desktopNames[d.id] = d.name;
+      const widgetLayout = desktops.map(d => ({
+        desktopName: d.name,
+        widgets: widgets
+          .filter(w => w.desktopId === d.id || w.pinnedAllDesktops)
+          .map(w => ({ type: w.type, title: w.title })),
+      }));
 
       const notesWidgets = widgets.filter(w => w.type === "notes").map(w => ({
         title: w.title,
@@ -1593,29 +1646,40 @@ export async function registerRoutes(
 
       const dashboardContext = JSON.stringify({
         desktops: desktops.map(d => ({ name: d.name, id: d.id })),
+        widgetLayout,
         ventures: ventures.map(v => ({
           name: v.name,
           color: v.color,
           priorities: prioritiesMap[v.name] || [],
-          revenue: (revenueMap[v.name] || []).slice(-12),
+          revenue: (revenueMap[v.name] || []).slice(-24),
         })),
-        kpis: kpis.map(k => ({ name: k.name, target: k.target, currentValue: k.currentValue, unit: k.unit })),
+        kpis: kpis.map(k => ({ name: k.name, targetValue: k.targetValue, currentValue: k.currentValue, unit: k.unit, prefix: k.prefix })),
         notes: notesWidgets,
         deals: deals.map(d => ({ name: d.name, company: d.company, value: d.value, stage: d.stage, lastContactDate: d.lastContactDate })),
         waitingItems: waitingItems.map(w => ({ description: w.description, person: w.person, dueDate: w.dueDate, completed: w.completed })),
         captureItems: captureItems.filter(c => !c.processed).map(c => ({ content: c.content })),
-        habits: habits.map(h => ({ name: h.name, color: h.color })),
+        habits: habits.map(h => ({
+          name: h.name,
+          color: h.color,
+          completionDates: (habitEntriesByHabit[h.id] || []).slice(0, 90).map(e => e.date),
+        })),
         scorecardMetrics: scorecardMetrics.map(m => {
-          const entries = allScorecardEntries.filter(e => e.metricId === m.id).slice(-4);
+          const entries = allScorecardEntries.filter(e => e.metricId === m.id).slice(-12);
           return { name: m.name, target: m.target, unit: m.unit, recentEntries: entries };
         }),
         recurringExpenses: recurringExpenses.map(e => ({ name: e.name, amount: e.amount, category: e.category })),
-        variableExpenses: variableExpenses.slice(-20).map(e => ({ name: e.name, amount: e.amount, category: e.category, date: e.date })),
-        meetings: meetings.filter(m => !m.completed).map(m => ({ title: m.title, objective: m.objective, date: m.date })),
-        todayJournal: journalEntry?.content || null,
+        variableExpenses: variableExpenses.slice(-30).map(e => ({ name: e.name, amount: e.amount, category: e.category, date: e.date })),
+        meetings: meetings.map(m => ({ title: m.title, objective: m.objective, date: m.date, completed: m.completed })),
+        todayJournal: recentJournal.find(j => j.date === today)?.content ?? null,
+        recentJournal,
+        focusContractsToday: focusList,
+        timeBlocksToday: timeBlocksToday.map(b => ({ label: b.label, startTime: b.startTime, endTime: b.endTime })),
       }, null, 0);
 
-      const openai = new OpenAI({ apiKey: settings.openaiApiKey });
+      const openai = new OpenAI({
+        apiKey: settings.openaiApiKey,
+        ...(settings.openaiApiBaseUrl ? { baseURL: settings.openaiApiBaseUrl } : {}),
+      });
 
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
@@ -1630,14 +1694,27 @@ export async function registerRoutes(
             role: "system",
             content: `You are HunterAI, a fun and enthusiastic personal dashboard assistant. Your personality is hunt-themed - you "hunt down", "track", "sniff out", and "gather" information for the user from their dashboard data.
 
+You have access to EVERYTHING on the user's dashboard. Use it all to answer questions accurately:
+- **Widget layout (widgetLayout)**: Which widgets (type, title) are on each desktop.
+- **Ventures & priorities**: Priorities per venture; **revenue** is an array of { month, year, amount } — use it to describe trends, totals, or "graph" data.
+- **KPIs**: name, currentValue, targetValue, unit — describe progress, % to target, or list all.
+- **Habits**: Each habit has \`completionDates\` (array of YYYY-MM-DD). Use this to compute streaks (consecutive days), "last 7 days", or "how many times this week/month". Describe habit progress in plain language.
+- **Weekly scorecard (scorecardMetrics)**: Each metric has \`recentEntries\` (weekStart, value). Summarize trends or latest values.
+- **Notes**: Per-notes-widget title and content (markdown).
+- **Deals (CRM)**: name, company, value, stage, lastContactDate.
+- **Waiting items**: description, person, dueDate, completed.
+- **Quick capture**: Unprocessed capture items.
+- **Expenses**: recurringExpenses and variableExpenses — use for spending questions, monthly burn, totals.
+- **Meetings**: title, objective, date, completed — upcoming vs past.
+- **Journal**: todayJournal and recentJournal (last 7 days with date + content).
+- **Focus (focusContractsToday)**: Today's focus per desktop: objective, top3 tasks, timebox.
+- **Time blocks (timeBlocksToday)**: Today's schedule: label, startTime, endTime.
+
 Your style rules:
-- Start responses with a hunt-themed opener like "Here's what I hunted down for you!" or "I tracked this down!" or "Found your prey!" or "Let me show you what I gathered!" etc.
-- Be concise and helpful - present data clearly
-- Use bold markdown for key numbers and names
-- If data doesn't exist for what they're asking, say something like "Came back empty-pawed on that one!" or "No tracks found for that!"
-- You can reference specific widgets, desktops, ventures by name
-- Format numbers nicely (currency with $, percentages with %)
-- Keep responses focused and scannable
+- Start with a hunt-themed opener ("Here's what I hunted down!", "I tracked this down!", etc.).
+- Be concise; use **bold** for key numbers and names.
+- If no data: "Came back empty-pawed on that one!" or "No tracks found for that!"
+- Format currency with $, percentages with %; describe graphs/trends in words when they ask about "revenue graph" or "habit streaks".
 
 Here is the user's complete dashboard data:
 ${dashboardContext}
