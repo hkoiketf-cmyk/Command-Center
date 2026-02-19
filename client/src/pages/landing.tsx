@@ -329,8 +329,8 @@ export default function Landing() {
                 Other dashboards hand you an empty grid and expect you to spend hours configuring everything. We give you a Setup Wizard: pick your role, choose your tools, and get a ready-to-use dashboard in under a minute.
               </p>
             </div>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-8">
-              <div className="flex-1 max-w-sm w-full rounded-md overflow-hidden border border-border/50 bg-card shadow-sm">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-10">
+              <div className="flex-1 max-w-lg w-full rounded-md overflow-hidden border border-border/50 bg-card shadow-sm">
                 <img
                   src={landingImages.setupWizardRole}
                   alt="Setup Wizard: choose your role (Content Creator, Sales, Freelancer, etc.)"
@@ -339,7 +339,7 @@ export default function Landing() {
                   decoding="async"
                 />
               </div>
-              <div className="flex-1 max-w-sm w-full rounded-md overflow-hidden border border-border/50 bg-card shadow-sm">
+              <div className="flex-1 max-w-lg w-full rounded-md overflow-hidden border border-border/50 bg-card shadow-sm">
                 <img
                   src={landingImages.setupWizardTools}
                   alt="Setup Wizard: pick your tools (Timer, Journal, CRM, etc.)"

@@ -6,6 +6,7 @@ import { createServer } from "http";
 import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
 import { runMigrations } from "stripe-replit-sync";
 import { getStripeSync } from "./stripeClient";
+import { ensureStripeProducts } from "./seed-products";
 import { WebhookHandlers } from "./webhookHandlers";
 import { startRetentionSchedule } from "./dataRetention";
 
@@ -39,10 +40,16 @@ async function initStripe() {
     console.log("Webhook configured:", webhookResult?.webhook?.url || "setup complete");
 
     console.log("Syncing Stripe data...");
-    stripeSync
-      .syncBackfill()
-      .then(() => console.log("Stripe data synced"))
-      .catch((err: any) => console.error("Error syncing Stripe data:", err));
+    await stripeSync.syncBackfill();
+    console.log("Stripe data synced");
+
+    // Ensure HunterOS Pro product and $6/mo + $60/yr prices exist in Stripe so /api/stripe/prices returns data and users can pay
+    try {
+      await ensureStripeProducts();
+      await stripeSync.syncBackfill();
+    } catch (err: any) {
+      console.error("Ensure Stripe products (non-fatal):", err?.message || err);
+    }
   } catch (error) {
     console.error("Failed to initialize Stripe:", error);
     throw error;

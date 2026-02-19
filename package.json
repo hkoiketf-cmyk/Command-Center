@@ -10,7 +10,8 @@
     "build:deploy": "rm -rf dist && npm run build",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "seed:stripe": "tsx script/seed-stripe.ts"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.19.0",

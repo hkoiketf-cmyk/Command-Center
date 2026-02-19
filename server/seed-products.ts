@@ -1,57 +1,57 @@
 import { getUncachableStripeClient } from './stripeClient';
 
-async function createProducts() {
+/**
+ * Ensures the HunterOS Pro product and monthly/yearly prices exist in Stripe.
+ * Safe to call on every startup; skips creation if product already exists.
+ * Used so /api/stripe/prices returns data and users can click "Add card & start trial".
+ */
+export async function ensureStripeProducts(): Promise<void> {
   const stripe = await getUncachableStripeClient();
 
   const existing = await stripe.products.search({ query: "name:'HunterOS Pro'" });
   if (existing.data.length > 0) {
-    console.log('HunterOS Pro product already exists:', existing.data[0].id);
     const prices = await stripe.prices.list({ product: existing.data[0].id, active: true });
-    for (const price of prices.data) {
-      console.log(`  Price: ${price.id} - $${(price.unit_amount || 0) / 100}/${price.recurring?.interval || 'one-time'}`);
+    if (prices.data.length >= 2) {
+      return; // Product and both prices exist
     }
-    return;
+    // Product exists but maybe missing a price; create any missing prices below (we'd need product id)
   }
 
-  const product = await stripe.products.create({
-    name: 'HunterOS Pro',
-    description: 'Full access to HunterOS personal dashboard with all 19 productivity widgets, unlimited desktops, and data storage.',
-    metadata: {
-      app: 'hunteros',
-    },
-  });
+  let productId: string;
+  if (existing.data.length > 0) {
+    productId = existing.data[0].id;
+  } else {
+    const product = await stripe.products.create({
+      name: 'HunterOS Pro',
+      description: 'Full access to MallenniumDash personal dashboard with all productivity widgets, unlimited desktops, and data storage.',
+      metadata: { app: 'mallenniumdash' },
+    });
+    productId = product.id;
+    console.log('Stripe: Created product HunterOS Pro:', productId);
+  }
 
-  console.log('Created product:', product.id);
+  const prices = await stripe.prices.list({ product: productId, active: true });
+  const hasMonthly = prices.data.some((p: { recurring?: { interval?: string } }) => p.recurring?.interval === 'month');
+  const hasYearly = prices.data.some((p: { recurring?: { interval?: string } }) => p.recurring?.interval === 'year');
 
-  const monthlyPrice = await stripe.prices.create({
-    product: product.id,
-    unit_amount: 600,
-    currency: 'usd',
-    recurring: {
-      interval: 'month',
-      trial_period_days: 3
-    },
-    metadata: {
-      plan: 'monthly',
-    },
-  });
-
-  console.log('Created monthly price:', monthlyPrice.id, '- $6/month with 3-day trial');
-
-  const yearlyPrice = await stripe.prices.create({
-    product: product.id,
-    unit_amount: 6000,
-    currency: 'usd',
-    recurring: {
-      interval: 'year',
-      trial_period_days: 3,
-    },
-    metadata: {
-      plan: 'yearly',
-    },
-  });
-
-  console.log('Created yearly price:', yearlyPrice.id, '- $60/year with 3-day trial');
+  if (!hasMonthly) {
+    const monthly = await stripe.prices.create({
+      product: productId,
+      unit_amount: 600,
+      currency: 'usd',
+      recurring: { interval: 'month', trial_period_days: 3 },
+      metadata: { plan: 'monthly' },
+    });
+    console.log('Stripe: Created monthly price $6/mo:', monthly.id);
+  }
+  if (!hasYearly) {
+    const yearly = await stripe.prices.create({
+      product: productId,
+      unit_amount: 6000,
+      currency: 'usd',
+      recurring: { interval: 'year', trial_period_days: 3 },
+      metadata: { plan: 'yearly' },
+    });
+    console.log('Stripe: Created yearly price $60/yr:', yearly.id);
+  }
 }
-
-createProducts().catch(console.error);
