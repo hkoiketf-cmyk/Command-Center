@@ -1025,7 +1025,6 @@ export default function Dashboard() {
                     </Button>
                   </div>
                 )}
-              </div>
               </a>
             </div>
 
