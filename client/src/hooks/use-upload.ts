@@ -145,13 +145,6 @@ export function useUpload(options: UseUploadOptions = {}) {
    *
    * IMPORTANT: This function receives the UppyFile object from Uppy.
    * Use file.name, file.size, file.type to request per-file presigned URLs.
-   *
-   * Use this with the ObjectUploader component:
-   * ```tsx
-   * <ObjectUploader onGetUploadParameters={getUploadParameters}>
-   *   Upload
-   * </ObjectUploader>
-   * ```
    */
   const getUploadParameters = useCallback(
     async (

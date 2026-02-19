@@ -40,7 +40,7 @@ export default defineConfig({
             if (id.includes("react-dom") || id.includes("react/")) return "react";
             if (id.includes("@tanstack/react-query")) return "query";
             if (id.includes("react-grid-layout") || id.includes("react-resizable")) return "grid";
-            if (id.includes("recharts") || id.includes("chart.js") || id.includes("react-chartjs")) return "charts";
+            if (id.includes("chart.js") || id.includes("react-chartjs")) return "charts";
             if (id.includes("radix-ui") || id.includes("@radix-ui")) return "radix";
             if (id.includes("lucide-react")) return "icons";
             return "vendor";
