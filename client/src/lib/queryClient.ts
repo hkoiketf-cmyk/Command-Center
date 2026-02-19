@@ -1,19 +1,21 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 /** Parse server error body; prefer JSON { error } for user-facing message. */
-async function throwIfResNotOk(res: Response): Promise<never> {
-  const text = await res.text();
-  let message = res.statusText;
-  try {
-    const json = text ? JSON.parse(text) : null;
-    if (json && typeof json.error === "string") message = json.error;
-    else if (text && text.length < 200) message = text;
-  } catch {
-    if (text && text.length < 200) message = text;
+async function throwIfResNotOk(res: Response) {
+  if (!res.ok) {
+    const text = await res.text();
+    let message = res.statusText;
+    try {
+      const json = text ? JSON.parse(text) : null;
+      if (json && typeof json.error === "string") message = json.error;
+      else if (text && text.length < 200) message = text;
+    } catch {
+      if (text && text.length < 200) message = text;
+    }
+    const err = new Error(`${res.status}: ${message}`) as Error & { status: number };
+    err.status = res.status;
+    throw err;
   }
-  const err = new Error(`${res.status}: ${message}`) as Error & { status: number };
-  err.status = res.status;
-  throw err;
 }
 
 export async function apiRequest(

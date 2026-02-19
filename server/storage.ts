@@ -190,7 +190,7 @@ export interface IStorage {
   incrementAccessCodeUsage(id: string): Promise<void>;
   getPresets(userId: string): Promise<DashboardPreset[]>;
   getPreset(id: string): Promise<DashboardPreset | undefined>;
-  createPreset(data: InsertDashboardPreset): Promise<DashboardPreset>;
+  createPreset(data: InsertDashboardPreset & { userId?: string }): Promise<DashboardPreset>;
   updatePreset(userId: string, id: string, updates: Partial<DashboardPreset>): Promise<DashboardPreset | undefined>;
   deletePreset(userId: string, id: string): Promise<boolean>;
   getAnnouncements(): Promise<PlatformAnnouncement[]>;
@@ -677,8 +677,8 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async createPreset(data: InsertDashboardPreset): Promise<DashboardPreset> {
-    const result = await db.insert(dashboardPresets).values(data).returning();
+  async createPreset(data: InsertDashboardPreset & { userId?: string }): Promise<DashboardPreset> {
+    const result = await db.insert(dashboardPresets).values(data as any).returning();
     return result[0];
   }
 

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useState, useRef } from "react";
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -19,17 +19,28 @@ function Router() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { subscription, isLoading: subLoading, hasAccess, refetch } = useSubscription();
   const [location, setLocation] = useLocation();
+  const [checkoutSyncing, setCheckoutSyncing] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("checkout") === "success";
+  });
+  const syncAttempted = useRef(false);
 
   useEffect(() => {
     if (!isAuthenticated || authLoading) return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get("checkout") === "success") {
+    if (params.get("checkout") === "success" && !syncAttempted.current) {
+      syncAttempted.current = true;
+      setCheckoutSyncing(true);
       apiRequest("POST", "/api/stripe/sync-subscription", {})
-        .then(() => {
-          queryClient.invalidateQueries({ queryKey: ["/api/subscription"] });
-          window.history.replaceState({}, "", "/");
+        .then(async () => {
+          await queryClient.invalidateQueries({ queryKey: ["/api/subscription"] });
+          await queryClient.refetchQueries({ queryKey: ["/api/subscription"] });
         })
-        .catch(console.error);
+        .catch(console.error)
+        .finally(() => {
+          window.history.replaceState({}, "", "/");
+          setCheckoutSyncing(false);
+        });
     } else if (params.get("checkout") === "cancel") {
       window.history.replaceState({}, "", "/pricing");
     }
@@ -48,6 +59,13 @@ function Router() {
     if (hasAccess) void import("@/pages/dashboard");
   }, [hasAccess]);
 
+  // Redirect to pricing when authenticated but no access (skip during checkout sync)
+  useEffect(() => {
+    if (!authLoading && isAuthenticated && !subLoading && !hasAccess && !checkoutSyncing && location !== "/pricing") {
+      setLocation("/pricing");
+    }
+  }, [authLoading, isAuthenticated, subLoading, hasAccess, checkoutSyncing, location, setLocation]);
+
   if (authLoading) {
     return <LoadingScreen label="Loading" />;
   }
@@ -60,16 +78,12 @@ function Router() {
     );
   }
 
-  if (subLoading) {
+  if (subLoading || checkoutSyncing) {
     return <LoadingScreen label="Loading subscription" />;
   }
 
   if (!hasAccess && location !== "/pricing") {
-    return (
-      <Suspense fallback={<LoadingScreen label="Loading" />}>
-        <Pricing />
-      </Suspense>
-    );
+    return <LoadingScreen label="Loading" />;
   }
 
   return (

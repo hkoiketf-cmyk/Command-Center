@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +33,8 @@ const features = [
 
 export default function Pricing() {
   const { user } = useAuth();
-  const { subscription } = useSubscription();
+  const { subscription, hasAccess } = useSubscription();
+  const [, setLocation] = useLocation();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [accessCode, setAccessCode] = useState("");
   const [redeemLoading, setRedeemLoading] = useState(false);
@@ -95,39 +97,42 @@ export default function Pricing() {
     }
   };
 
-  const isActive = subscription?.status === "active";
+  const isAccessCodeUser = subscription?.accessCode === true;
+  const isActive = subscription?.status === "active" && !isAccessCodeUser;
   const isTrial = subscription?.status === "trialing";
 
   return (
     <div className="min-h-screen bg-background">
       <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
-          <a href="/" className="flex items-center gap-2 rounded-md hover:opacity-90 transition-opacity" data-testid="link-home">
+          <button onClick={() => hasAccess ? setLocation("/") : undefined} className="flex items-center gap-2 rounded-md hover:opacity-90 transition-opacity cursor-pointer bg-transparent border-0 p-0" data-testid="link-home">
             <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
               <Zap className="h-5 w-5 text-primary-foreground" />
             </div>
             <span className="text-lg font-bold tracking-tight">MallenniumDash</span>
-          </a>
-          <Button variant="outline" size="sm" asChild data-testid="link-back-dashboard">
-            <a href="/">
+          </button>
+          {hasAccess && (
+            <Button variant="outline" size="sm" onClick={() => setLocation("/")} data-testid="link-back-dashboard">
               <Home className="h-4 w-4 mr-1.5" />
-              Home
-            </a>
-          </Button>
+              Dashboard
+            </Button>
+          )}
         </div>
       </nav>
 
       <main className="max-w-4xl mx-auto px-4 py-16">
         <div className="text-center mb-12">
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3" data-testid="text-pricing-title">
-            {isActive ? "Manage Your Plan" : "Choose Your Plan"}
+            {isActive ? "Manage Your Plan" : isAccessCodeUser ? "Your Plan" : "Choose Your Plan"}
           </h1>
           <p className="text-muted-foreground text-lg max-w-xl mx-auto">
             {isTrial
               ? "Your free trial is active. You'll be charged when it ends."
               : isActive
                 ? `You're on the ${subscription?.plan || "pro"} plan.`
-                : "Add your card to start your 3-day free trial. You won't be charged until the trial ends."}
+                : isAccessCodeUser
+                  ? "You have free access via access code. You can also subscribe to a paid plan below."
+                  : "Add your card to start your 3-day free trial. You won't be charged until the trial ends."}
           </p>
           {isTrial && subscription?.trialEnd && (
             <p className="mt-2 text-sm text-muted-foreground" data-testid="text-trial-end">
