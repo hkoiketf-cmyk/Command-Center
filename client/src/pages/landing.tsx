@@ -128,12 +128,12 @@ export default function Landing() {
     <div className="min-h-screen bg-background overflow-x-hidden">
       <nav className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <a href="#" className="flex items-center gap-2 flex-shrink-0 rounded-md hover:opacity-90 transition-opacity" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }} data-testid="link-home">
             <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
               <Zap className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="text-lg font-bold tracking-tight" data-testid="text-logo">MallenniumDash</span>
-          </div>
+            <span className="text-lg font-bold tracking-tight">MallenniumDash</span>
+          </a>
           <div className="flex items-center gap-3 flex-wrap">
             <Button variant="ghost" asChild>
               <a href="#features" data-testid="link-features">Features</a>

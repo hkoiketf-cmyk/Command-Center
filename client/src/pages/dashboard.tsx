@@ -775,9 +775,11 @@ export default function Dashboard() {
         <>
           <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="px-3 h-14 flex items-center justify-between gap-2">
-              <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center shrink-0">
-                <Zap className="h-5 w-5 text-primary-foreground" />
-              </div>
+              <a href="/" className="flex items-center gap-2 shrink-0 rounded-md hover:opacity-90" title="Home" data-testid="link-home-mobile">
+                <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
+                  <Zap className="h-5 w-5 text-primary-foreground" />
+                </div>
+              </a>
               <span className="text-sm font-semibold truncate" data-testid="text-mobile-desktop-name">
                 {activeDesktop?.name || appName}
               </span>
@@ -981,7 +983,7 @@ export default function Dashboard() {
         <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="px-4 h-14 flex items-center justify-between gap-2">
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
+              <a href="/" className="flex items-center gap-2 rounded-md hover:opacity-90 transition-opacity" title="Home" data-testid="link-home">
                 <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
                   <Zap className="h-5 w-5 text-primary-foreground" />
                 </div>
@@ -1024,6 +1026,7 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
+              </a>
             </div>
 
             <div className="flex items-center gap-1.5 overflow-x-auto flex-1 justify-center px-2">
@@ -1206,12 +1209,15 @@ export default function Dashboard() {
                 </Avatar>
                 <Button
                   variant="ghost"
-                  size="icon"
-                  onClick={() => { window.location.href = "/pricing"; }}
-                  title="Billing"
+                  size="sm"
+                  className="gap-1.5"
+                  asChild
                   data-testid="button-billing"
                 >
-                  <CreditCard className="h-4 w-4" />
+                  <a href="/pricing" title="Billing">
+                    <CreditCard className="h-4 w-4" />
+                    <span className="hidden sm:inline">Billing</span>
+                  </a>
                 </Button>
                 {userSettings?.isAdmin && (
                   <>

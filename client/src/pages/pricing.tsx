@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Check, Zap, CreditCard, Loader2, Gift } from "lucide-react";
+import { Check, Zap, CreditCard, Loader2, Gift, Home } from "lucide-react";
 import { apiRequest, queryClient, getErrorMessage } from "@/lib/queryClient";
 import { useSubscription } from "@/hooks/use-subscription";
 import { useAuth } from "@/hooks/use-auth";
@@ -38,7 +38,7 @@ export default function Pricing() {
   const [redeemLoading, setRedeemLoading] = useState(false);
   const { toast } = useToast();
 
-  const { data: pricesData, isLoading: pricesLoading } = useQuery<{ prices: StripePriceRow[] }>({
+  const { data: pricesData, isLoading: pricesLoading, isError: pricesError, refetch: refetchPrices } = useQuery<{ prices: StripePriceRow[] }>({
     queryKey: ["/api/stripe/prices"],
   });
 
@@ -102,17 +102,18 @@ export default function Pricing() {
     <div className="min-h-screen bg-background">
       <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+          <a href="/" className="flex items-center gap-2 rounded-md hover:opacity-90 transition-opacity" data-testid="link-home">
             <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
               <Zap className="h-5 w-5 text-primary-foreground" />
             </div>
             <span className="text-lg font-bold tracking-tight">MallenniumDash</span>
-          </div>
-          {isActive && (
-            <Button variant="outline" asChild data-testid="link-back-dashboard">
-              <a href="/">Back to Dashboard</a>
-            </Button>
-          )}
+          </a>
+          <Button variant="outline" size="sm" asChild data-testid="link-back-dashboard">
+            <a href="/">
+              <Home className="h-4 w-4 mr-1.5" />
+              Home
+            </a>
+          </Button>
         </div>
       </nav>
 
@@ -161,6 +162,13 @@ export default function Pricing() {
           <div className="flex justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
+        ) : pricesError ? (
+          <div className="text-center py-12 space-y-4 max-w-md mx-auto">
+            <p className="text-muted-foreground">Couldn&apos;t load plans. Please try again.</p>
+            <Button onClick={() => refetchPrices()} variant="outline" data-testid="button-retry-prices">
+              Try again
+            </Button>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
             <Card className={`relative ${subscription?.plan === "monthly" ? "ring-2 ring-primary" : ""}`} data-testid="card-monthly-plan">
@@ -186,18 +194,27 @@ export default function Pricing() {
                     </li>
                   ))}
                 </ul>
-                {!isActive && !isTrial && monthlyPrice && (
-                  <Button
-                    className="w-full"
-                    onClick={() => handleSubscribe(monthlyPrice.id, "monthly")}
-                    disabled={!!loadingPlan}
-                    data-testid="button-subscribe-monthly"
-                  >
-                    {loadingPlan === "monthly" ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : null}
-                    Add card & start trial
-                  </Button>
+                {!isActive && !isTrial && (
+                  monthlyPrice ? (
+                    <Button
+                      className="w-full"
+                      onClick={() => handleSubscribe(monthlyPrice.id, "monthly")}
+                      disabled={!!loadingPlan}
+                      data-testid="button-subscribe-monthly"
+                    >
+                      {loadingPlan === "monthly" ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : null}
+                      Add card & start trial
+                    </Button>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Plans didn&apos;t load. Refresh the page or try again in a moment.</p>
+                      <Button variant="outline" className="w-full" onClick={() => refetchPrices()} disabled={pricesLoading}>
+                        Refresh plans
+                      </Button>
+                    </div>
+                  )
                 )}
               </CardContent>
             </Card>
@@ -228,18 +245,27 @@ export default function Pricing() {
                     </li>
                   ))}
                 </ul>
-                {!isActive && !isTrial && yearlyPrice && (
-                  <Button
-                    className="w-full"
-                    onClick={() => handleSubscribe(yearlyPrice.id, "yearly")}
-                    disabled={!!loadingPlan}
-                    data-testid="button-subscribe-yearly"
-                  >
-                    {loadingPlan === "yearly" ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : null}
-                    Add card & start trial
-                  </Button>
+                {!isActive && !isTrial && (
+                  yearlyPrice ? (
+                    <Button
+                      className="w-full"
+                      onClick={() => handleSubscribe(yearlyPrice.id, "yearly")}
+                      disabled={!!loadingPlan}
+                      data-testid="button-subscribe-yearly"
+                    >
+                      {loadingPlan === "yearly" ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : null}
+                      Add card & start trial
+                    </Button>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Plans didn&apos;t load. Refresh the page or try again in a moment.</p>
+                      <Button variant="outline" className="w-full" onClick={() => refetchPrices()} disabled={pricesLoading}>
+                        Refresh plans
+                      </Button>
+                    </div>
+                  )
                 )}
               </CardContent>
             </Card>
