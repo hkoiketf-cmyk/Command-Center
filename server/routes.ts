@@ -1815,7 +1815,23 @@ QUALITY REQUIREMENTS:
 
       let messages: { role: "system" | "user" | "assistant"; content: string }[] = [];
 
-      if (mode === "refine") {
+      if (mode === "clarify") {
+        messages = [
+          {
+            role: "system",
+            content: `You are a friendly widget specifier for a dashboard app. The user has described something they want to build (e.g. step counter, habit tracker, expense log). Your job is to ask 2-4 short clarifying questions so we can build exactly what they need. Do NOT write any code. Do NOT use markdown code blocks.
+
+RULES:
+- Be concise and warm. One short intro sentence, then your questions.
+- For each question, offer 2-4 concrete options in parentheses so they can pick or describe in their own words. Examples: "How do you want to log data? (Manual entry each day | One input + Save button | Connect an API like Fitbit later)" or "Do you want a daily goal? (Yes, with a number I can set | No, just show total)".
+- Always include at least one question about HOW they want to input or log data (manual form, API, type and save, etc.).
+- Include questions about: data input method, any goals/targets, and how they want to see history (list, chart, total only).
+- End with one line: "Reply with your choices (or say **Use defaults** and I'll build it with sensible options)."
+- Keep the whole response under 400 words. Use simple formatting: numbered questions, options in parentheses or separated by |.`
+          },
+          { role: "user", content: prompt }
+        ];
+      } else if (mode === "refine") {
         const userRequestHistory: string[] = [];
         if (Array.isArray(conversationHistory)) {
           for (const msg of conversationHistory) {
@@ -1914,7 +1930,7 @@ Then write the COMPLETE, FULLY WORKING code. Every button must do something. Eve
         ];
       }
 
-      const modelToUse = "gpt-4o";
+      const modelToUse = mode === "clarify" ? "gpt-4o-mini" : "gpt-4o";
 
       const stream = await openai.chat.completions.create({
         model: modelToUse,

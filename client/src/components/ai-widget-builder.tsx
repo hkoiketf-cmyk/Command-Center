@@ -30,6 +30,8 @@ interface ConversationMessage {
   role: "user" | "assistant";
   content: string;
   summary?: string;
+  /** "clarify" = clarifying questions (user should reply with choices); "code" = generated widget */
+  messageType?: "clarify" | "code";
 }
 
 interface CritiqueIssue {
@@ -57,12 +59,13 @@ interface IterationCheckpoint {
 type ViewMode = "split" | "preview" | "code";
 
 const PROMPT_SUGGESTIONS = [
-  "A motivational quote rotator with smooth fade animations",
+  "Something to keep track of my daily step count",
+  "A widget to log my water intake each day",
+  "Track my habits and show streaks",
   "A Pomodoro timer with a visual progress ring",
+  "A simple expense tracker for daily spending",
+  "A motivational quote rotator with smooth fade animations",
   "A goal progress tracker with animated bars",
-  "A digital clock with date and weather-style theme",
-  "A sticky note board with draggable colorful cards",
-  "A mini habit streak counter with fire animations",
 ];
 
 const MAX_ITERATIONS = 3;
@@ -334,6 +337,13 @@ ${trimmed}
     setTimeout(() => setGenerationPhase(""), 2000);
   };
 
+  const isWaitingForClarificationAnswers = (): boolean => {
+    if (conversation.length < 1) return false;
+    const last = conversation[conversation.length - 1];
+    if (last.role !== "assistant") return false;
+    return last.messageType === "clarify" || !last.content.trim().startsWith("<!DOCTYPE");
+  };
+
   const generateWidget = useCallback(async (userPrompt: string) => {
     if (!userPrompt.trim() || isGenerating) return;
 
@@ -342,20 +352,61 @@ ${trimmed}
     setLastCritique(null);
     setIframeErrors([]);
 
-    const isFirstGeneration = conversation.length === 0;
+    const isFirstMessage = conversation.length === 0;
+    const answeringClarification = isWaitingForClarificationAnswers();
     const hasExistingCode = !!generatedCode;
 
-    if (isFirstGeneration) {
+    if (isFirstMessage) {
       setOriginalPrompt(userPrompt);
       setCheckpoints([]);
     }
 
-    setConversation(prev => [...prev, { role: "user", content: userPrompt, summary: userPrompt }]);
+    setConversation(prev => [...prev, { role: "user", content: userPrompt, summary: userPrompt.length > 60 ? userPrompt.slice(0, 60) + "…" : userPrompt }]);
 
     try {
       abortRef.current?.abort();
       abortRef.current = new AbortController();
       const signal = abortRef.current.signal;
+
+      // Phase 1: First message → ask clarifying questions (no code yet)
+      if (isFirstMessage && !hasExistingCode) {
+        setGenerationPhase("Asking a few questions so we build exactly what you need...");
+        setConversation(prev => [...prev, { role: "assistant", content: "", summary: "Questions", messageType: "clarify" }]);
+
+        const clarifyText = await streamFromEndpoint({
+          prompt: userPrompt,
+          mode: "clarify",
+          conversationHistory: [],
+        }, signal, (text) => {
+          setConversation(prev => {
+            const next = [...prev];
+            const lastIdx = next.length - 1;
+            if (lastIdx >= 0 && next[lastIdx].role === "assistant" && next[lastIdx].messageType === "clarify") {
+              next[lastIdx] = { ...next[lastIdx], content: text };
+            }
+            return next;
+          });
+        });
+
+        setConversation(prev => {
+          const next = [...prev];
+          const lastIdx = next.length - 1;
+          if (lastIdx >= 0 && next[lastIdx].role === "assistant" && next[lastIdx].messageType === "clarify") {
+            next[lastIdx] = { ...next[lastIdx], content: clarifyText };
+          }
+          return next;
+        });
+        setGenerationPhase("");
+        setPrompt("");
+        setIsGenerating(false);
+        return;
+      }
+
+      // Phase 2: User replied to clarification → build widget with their choices
+      const effectivePrompt = answeringClarification
+        ? `${originalPrompt || userPrompt}\n\nUser's choices:\n${userPrompt}`
+        : userPrompt;
+      const isFirstGeneration = !generatedCode && conversation.filter(m => m.messageType === "code").length === 0;
 
       if (isFirstGeneration && !hasExistingCode) {
         setCurrentIteration(1);
@@ -364,7 +415,7 @@ ${trimmed}
         setViewMode("preview");
 
         const rawCode = await streamFromEndpoint({
-          prompt: userPrompt,
+          prompt: effectivePrompt,
           mode: "generate",
           conversationHistory: [],
         }, signal, (text) => {
@@ -438,7 +489,7 @@ ${trimmed}
         const iterLabel = finalIterationCount === 1
           ? "Built in 1 pass"
           : `Built with ${finalIterationCount} iterations`;
-        setConversation(prev => [...prev, { role: "assistant", content: finalCode, summary: iterLabel }]);
+        setConversation(prev => [...prev, { role: "assistant", content: finalCode, summary: iterLabel, messageType: "code" }]);
 
         if (!widgetTitle) {
           const titleMatch = finalCode.match(/<title>(.*?)<\/title>/i);
@@ -518,7 +569,7 @@ ${trimmed}
           flushPreview(currentCode);
         }
 
-        setConversation(prev => [...prev, { role: "assistant", content: currentCode, summary: "Applied changes" }]);
+        setConversation(prev => [...prev, { role: "assistant", content: currentCode, summary: "Applied changes", messageType: "code" }]);
       }
 
       setViewMode("preview");
@@ -715,7 +766,7 @@ ${trimmed}
           <p className="text-sm text-muted-foreground text-center max-w-md">
             {isEditMode
               ? "Describe the changes you want to make to your widget."
-              : "Describe what you want and AI will build it autonomously. It generates, self-critiques, and iterates up to 3 times until the code passes quality checks."
+              : "Describe your widget in plain language—even vaguely. We'll ask a few questions (how to input data, goals, display), then build it. Like the Replit of widget makers."
             }
           </p>
 
@@ -749,7 +800,7 @@ ${trimmed}
             <Textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder={hasKey ? "Describe your widget in detail... e.g. 'A Pomodoro timer with 25min work / 5min break cycles, a visual ring that fills up, start/pause/reset buttons, and a session counter'" : "Add your OpenAI API key above to get started..."}
+              placeholder={hasKey ? "e.g. 'Something to track my daily steps' or 'A widget to log water intake' — we'll ask how you want to input data and then build it" : "Add your OpenAI API key above to get started..."}
               className="resize-none text-sm min-h-[80px]"
               disabled={isGenerating || !hasKey}
               data-testid="textarea-widget-prompt"
@@ -988,8 +1039,16 @@ ${trimmed}
             {(viewMode === "split" || viewMode === "preview") && (
               <div className={`${viewMode === "split" ? "w-1/2" : "w-full"} min-h-0 border rounded-lg overflow-hidden flex flex-col min-h-[280px]`}>
                 {!previewCode.trim() ? (
-                  <div className="flex-1 min-h-[280px] flex items-center justify-center bg-muted/30 text-muted-foreground text-sm rounded-lg border border-dashed">
-                    Preview will appear here
+                  <div className="flex-1 min-h-[280px] flex flex-col items-center justify-center bg-muted/30 text-muted-foreground text-sm rounded-lg border border-dashed p-4 text-center">
+                    {isWaitingForClarificationAnswers() ? (
+                      <>
+                        <MessageSquare className="h-8 w-8 mb-2 opacity-50" />
+                        <p>Reply with your choices above, or click &quot;Use defaults and build&quot;.</p>
+                        <p className="text-xs mt-1">Your widget preview will appear here after we build it.</p>
+                      </>
+                    ) : (
+                      "Preview will appear here"
+                    )}
                   </div>
                 ) : (
                   <iframe
@@ -1005,14 +1064,43 @@ ${trimmed}
             )}
           </div>
 
-          {userMessages.length > 0 && (
-            <div ref={chatLogRef} className="max-h-[80px] overflow-y-auto rounded-md border px-3 py-2 space-y-1">
-              {userMessages.map((msg, i) => (
-                <div key={i} className="flex items-start gap-2 text-xs flex-wrap">
-                  <MessageSquare className="h-3 w-3 shrink-0 mt-0.5 text-muted-foreground" />
-                  <span className="text-muted-foreground">{msg.summary || msg.content}</span>
+          {(userMessages.length > 0 || conversation.some(m => m.messageType === "clarify")) && (
+            <div ref={chatLogRef} className="max-h-[140px] overflow-y-auto rounded-md border bg-muted/20 px-3 py-2 space-y-2">
+              {conversation.map((msg, i) => (
+                <div
+                  key={i}
+                  className={`flex items-start gap-2 text-xs ${msg.role === "user" ? "justify-end" : ""}`}
+                >
+                  {msg.role === "assistant" && <MessageSquare className="h-3 w-3 shrink-0 mt-0.5 text-muted-foreground" />}
+                  <div
+                    className={`max-w-[85%] rounded-lg px-2.5 py-1.5 ${
+                      msg.role === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : msg.messageType === "clarify"
+                          ? "bg-background border text-foreground whitespace-pre-wrap"
+                          : "text-muted-foreground"
+                    }`}
+                  >
+                    {msg.messageType === "clarify" ? msg.content : (msg.summary || msg.content)}
+                  </div>
+                  {msg.role === "user" && <MessageSquare className="h-3 w-3 shrink-0 mt-0.5 text-primary" />}
                 </div>
               ))}
+              {isWaitingForClarificationAnswers() && !isGenerating && (
+                <div className="flex items-center gap-2 pt-1 flex-wrap">
+                  <span className="text-xs text-muted-foreground">Reply above with your choices, or</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => generateWidget("Use defaults")}
+                    disabled={isGenerating}
+                    data-testid="button-use-defaults"
+                  >
+                    Use defaults and build
+                  </Button>
+                </div>
+              )}
             </div>
           )}
 
@@ -1020,7 +1108,11 @@ ${trimmed}
             <Textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Ask for changes... e.g. 'Make the colors more vibrant' or 'Add a reset button at the bottom'"
+              placeholder={
+                isWaitingForClarificationAnswers()
+                  ? "Type your choices (e.g. 1: Manual entry. 2: Yes 10k steps. 3: Chart) or click 'Use defaults and build'"
+                  : "Ask for changes... e.g. 'Make the colors more vibrant' or 'Add a reset button at the bottom'"
+              }
               className="resize-none text-sm min-h-[44px] max-h-[80px] flex-1"
               disabled={isGenerating}
               data-testid="textarea-widget-refine"
