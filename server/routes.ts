@@ -1397,13 +1397,17 @@ export async function registerRoutes(
       }
 
       // Card is collected upfront; first charge happens after 3-day trial (Stripe default for subscription + trial)
+      const protocol = req.headers["x-forwarded-proto"] || req.protocol || "https";
+      const host = req.get("host");
+      const baseUrl = `${protocol}://${host}`;
+
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         payment_method_types: ["card"],
         line_items: [{ price: priceId, quantity: 1 }],
         mode: "subscription",
-        success_url: `${req.protocol}://${req.get("host")}/?checkout=success`,
-        cancel_url: `${req.protocol}://${req.get("host")}/pricing?checkout=cancel`,
+        success_url: `${baseUrl}/?checkout=success`,
+        cancel_url: `${baseUrl}/pricing?checkout=cancel`,
         subscription_data: {
           trial_period_days: 3,
         },
@@ -1426,9 +1430,11 @@ export async function registerRoutes(
       }
 
       const stripe = await getUncachableStripeClient();
+      const portalProtocol = req.headers["x-forwarded-proto"] || req.protocol || "https";
+      const portalHost = req.get("host");
       const session = await stripe.billingPortal.sessions.create({
         customer: user.stripeCustomerId,
-        return_url: `${req.protocol}://${req.get("host")}/`,
+        return_url: `${portalProtocol}://${portalHost}/`,
       });
 
       res.json({ url: session.url });
