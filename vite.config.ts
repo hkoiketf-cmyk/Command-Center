@@ -37,7 +37,25 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       output: {
-        // No manualChunks: custom splitting was causing react-grid-layout to get undefined React
+        manualChunks: (id) => {
+          if (id.includes("node_modules")) {
+            // React + react-grid-layout + react-resizable MUST be in the SAME chunk
+            // or grid gets undefined React and throws "Cannot set properties of undefined (setting 'Children')"
+            if (
+              id.includes("react-dom") ||
+              id.includes("react/") ||
+              id.includes("react-grid-layout") ||
+              id.includes("react-resizable")
+            ) {
+              return "react";
+            }
+            if (id.includes("@tanstack/react-query")) return "query";
+            if (id.includes("chart.js") || id.includes("react-chartjs")) return "charts";
+            if (id.includes("radix-ui") || id.includes("@radix-ui")) return "radix";
+            if (id.includes("lucide-react")) return "icons";
+            return "vendor";
+          }
+        },
         chunkFileNames: "assets/[name]-[hash].js",
         entryFileNames: "assets/[name]-[hash].js",
         assetFileNames: "assets/[name]-[hash][extname]",
