@@ -4,6 +4,8 @@ import { Wand2, Send, Eye, Code, Loader2, RotateCcw, Check, Key, CheckCircle2, X
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Highlight, themes } from "prism-react-renderer";
@@ -68,7 +70,8 @@ const PROMPT_SUGGESTIONS = [
   "A goal progress tracker with animated bars",
 ];
 
-const MAX_ITERATIONS = 3;
+const MAX_ITERATIONS = 5;
+const MAX_EXTRA_FIX_ROUNDS = 2;
 
 export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitle }: AiWidgetBuilderProps) {
   const [prompt, setPrompt] = useState("");
@@ -93,6 +96,9 @@ export function AiWidgetBuilder({ onAddWidget, onClose, initialCode, initialTitl
   const [lastCritique, setLastCritique] = useState<CritiqueResult | null>(null);
   const [iframeErrors, setIframeErrors] = useState<string[]>([]);
   const [previewCode, setPreviewCode] = useState(initialCode || "");
+  const [askQuestionsFirst, setAskQuestionsFirst] = useState(true);
+  const [lastFailedPrompt, setLastFailedPrompt] = useState<string | null>(null);
+  const [extraFixRoundsDone, setExtraFixRoundsDone] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chatLogRef = useRef<HTMLDivElement>(null);
@@ -359,6 +365,7 @@ ${trimmed}
     if (isFirstMessage) {
       setOriginalPrompt(userPrompt);
       setCheckpoints([]);
+      setExtraFixRoundsDone(0);
     }
 
     setConversation(prev => [...prev, { role: "user", content: userPrompt, summary: userPrompt.length > 60 ? userPrompt.slice(0, 60) + "…" : userPrompt }]);
@@ -368,8 +375,8 @@ ${trimmed}
       abortRef.current = new AbortController();
       const signal = abortRef.current.signal;
 
-      // Phase 1: First message → ask clarifying questions (no code yet)
-      if (isFirstMessage && !hasExistingCode) {
+      // Phase 1: First message → optionally ask clarifying questions, or go straight to build
+      if (isFirstMessage && !hasExistingCode && askQuestionsFirst) {
         setGenerationPhase("Asking a few questions so we build exactly what you need...");
         setConversation(prev => [...prev, { role: "assistant", content: "", summary: "Questions", messageType: "clarify" }]);
 
@@ -402,7 +409,7 @@ ${trimmed}
         return;
       }
 
-      // Phase 2: User replied to clarification → build widget with their choices
+      // Phase 2: Build widget (either after clarification answers, or first message with "skip questions")
       const effectivePrompt = answeringClarification
         ? `${originalPrompt || userPrompt}\n\nUser's choices:\n${userPrompt}`
         : userPrompt;
@@ -410,7 +417,7 @@ ${trimmed}
 
       if (isFirstGeneration && !hasExistingCode) {
         setCurrentIteration(1);
-        setGenerationPhase("Iteration 1/" + MAX_ITERATIONS + ": Building your widget...");
+        setGenerationPhase("Building your widget...");
         setGeneratedCode("");
         setViewMode("preview");
 
@@ -434,7 +441,7 @@ ${trimmed}
           finalIterationCount = i;
           setCurrentIteration(i);
 
-          setGenerationPhase(`Iteration ${i}/${MAX_ITERATIONS}: Quality check...`);
+          setGenerationPhase("Checking quality...");
           const critique = await critiqueCode(currentCode, userPrompt);
           setLastCritique(critique);
 
@@ -461,7 +468,7 @@ ${trimmed}
             .map((iss: CritiqueIssue) => `- [${iss.severity.toUpperCase()}] ${iss.description}: ${iss.fix}`)
             .join("\n");
 
-          setGenerationPhase(`Iteration ${i + 1}/${MAX_ITERATIONS}: Fixing ${actionableIssues.length} issues...`);
+          setGenerationPhase(`Fixing ${actionableIssues.length} issue(s)...`);
           setGeneratedCode("");
 
           const fixPrompt = `Fix these specific issues in the widget code. You MUST output the complete, corrected HTML code - not explanations or descriptions of what to fix. Actually apply the fixes to the code.\n\nISSUES TO FIX:\n${issueList}\n\nPreserve all existing features and styling. Return the COMPLETE fixed HTML starting with <!DOCTYPE html>.`;
@@ -501,7 +508,7 @@ ${trimmed}
           }
         }
       } else {
-        const MAX_REFINE_ITERATIONS = 2;
+        const MAX_REFINE_ITERATIONS = 3;
         setCurrentIteration(1);
         setGenerationPhase("Applying your changes...");
 
@@ -526,7 +533,7 @@ ${trimmed}
           if (signal.aborted) break;
           setCurrentIteration(i);
 
-          setGenerationPhase(`Quality check ${i}/${MAX_REFINE_ITERATIONS}...`);
+          setGenerationPhase("Checking quality...");
           const critique = await critiqueCode(currentCode, originalPrompt || userPrompt);
           setLastCritique(critique);
           addCheckpoint(currentCode, i, critique, i === 1 ? "Refinement" : `Refinement fix ${i}`);
@@ -550,7 +557,7 @@ ${trimmed}
             .map((iss: CritiqueIssue) => `- [${iss.severity.toUpperCase()}] ${iss.description}: ${iss.fix}`)
             .join("\n");
 
-          setGenerationPhase(`Fixing ${actionableIssues.length} issues...`);
+          setGenerationPhase(`Fixing ${actionableIssues.length} issue(s)...`);
           setGeneratedCode("");
 
           const fixedRaw = await streamFromEndpoint({
@@ -574,10 +581,12 @@ ${trimmed}
 
       setViewMode("preview");
       setPrompt("");
+      setLastFailedPrompt(null);
       setTimeout(() => setGenerationPhase(""), 3000);
     } catch (err: any) {
       if (err.name !== "AbortError") {
         setError(err.message || "Generation failed");
+        setLastFailedPrompt(userPrompt);
         setConversation(prev => prev.slice(0, -1));
       }
       setGenerationPhase("");
@@ -585,7 +594,72 @@ ${trimmed}
       setIsGenerating(false);
       setCurrentIteration(0);
     }
-  }, [isGenerating, generatedCode, widgetTitle, conversation, originalPrompt, schedulePreviewUpdate, flushPreview]);
+  }, [isGenerating, generatedCode, widgetTitle, conversation, originalPrompt, askQuestionsFirst, schedulePreviewUpdate, flushPreview]);
+
+  const handleFixRemainingIssues = useCallback(async () => {
+    if (!generatedCode || !lastCritique || isGenerating || extraFixRoundsDone >= MAX_EXTRA_FIX_ROUNDS) return;
+    const actionable = lastCritique.issues.filter(
+      (iss: CritiqueIssue) => iss.severity === "critical" || iss.severity === "major"
+    );
+    if (actionable.length === 0) return;
+
+    setIsGenerating(true);
+    setError("");
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
+    const signal = abortRef.current.signal;
+
+    try {
+      setGenerationPhase("Fixing remaining issues...");
+      const issueList = actionable
+        .map((iss: CritiqueIssue) => `- [${iss.severity.toUpperCase()}] ${iss.description}: ${iss.fix}`)
+        .join("\n");
+      const fixPrompt = `Fix these specific issues in the widget code. You MUST output the complete, corrected HTML code - not explanations. Actually apply the fixes.\n\nISSUES TO FIX:\n${issueList}\n\nPreserve all existing features and styling. Return the COMPLETE fixed HTML starting with <!DOCTYPE html>.`;
+
+      const fixedRaw = await streamFromEndpoint(
+        {
+          prompt: fixPrompt,
+          currentCode: generatedCode,
+          mode: "refine",
+          conversationHistory: [],
+          originalPrompt: originalPrompt || "",
+        },
+        signal,
+        (text) => {
+          setGeneratedCode(ensureFullDocument(cleanCode(text)));
+          schedulePreviewUpdate(ensureFullDocument(cleanCode(text)));
+        }
+      );
+
+      let currentCode = ensureFullDocument(cleanCode(fixedRaw));
+      setGeneratedCode(currentCode);
+      flushPreview(currentCode);
+
+      const critique = await critiqueCode(currentCode, originalPrompt || "");
+      setLastCritique(critique);
+      addCheckpoint(currentCode, checkpoints.length + 1, critique, `Extra fix ${extraFixRoundsDone + 1}`);
+      setExtraFixRoundsDone((r) => r + 1);
+
+      const stillActionable = critique.issues.filter(
+        (i: CritiqueIssue) => i.severity === "critical" || i.severity === "major"
+      ).length;
+      if (critique.passed) {
+        setGenerationPhase(`All issues fixed (score: ${critique.score}/10)`);
+      } else if (stillActionable > 0 && extraFixRoundsDone + 1 < MAX_EXTRA_FIX_ROUNDS) {
+        setGenerationPhase(`${stillActionable} issue(s) remaining. Click "Fix remaining issues" again if needed.`);
+      } else {
+        setGenerationPhase(`Score: ${critique.score}/10. Refine with a message below or add to dashboard.`);
+      }
+      setTimeout(() => setGenerationPhase(""), 5000);
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        setError(err.message || "Fix failed");
+      }
+      setGenerationPhase("");
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [generatedCode, lastCritique, isGenerating, extraFixRoundsDone, originalPrompt, checkpoints.length, schedulePreviewUpdate, flushPreview]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -614,6 +688,7 @@ ${trimmed}
     setViewMode("preview");
     setPrompt("");
     setError("");
+    setLastFailedPrompt(null);
     setGenerationPhase("");
     setConversation([]);
     setOriginalPrompt("");
@@ -622,6 +697,7 @@ ${trimmed}
     setLastCritique(null);
     setCurrentIteration(0);
     setIframeErrors([]);
+    setExtraFixRoundsDone(0);
   };
 
   const handleRestoreCheckpoint = (index: number) => {
@@ -771,8 +847,19 @@ ${trimmed}
           </p>
 
           {error && (
-            <div className="w-full max-w-md rounded-md bg-destructive/10 border border-destructive/20 p-3">
+            <div className="w-full max-w-md rounded-md bg-destructive/10 border border-destructive/20 p-3 space-y-2">
               <p className="text-sm text-destructive">{error}</p>
+              {lastFailedPrompt && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setError(""); setLastFailedPrompt(null); generateWidget(lastFailedPrompt); }}
+                  data-testid="button-retry-generation"
+                >
+                  <RotateCcw className="h-3 w-3 mr-1" />
+                  Try again
+                </Button>
+              )}
             </div>
           )}
 
@@ -796,6 +883,17 @@ ${trimmed}
             </div>
           </div>
 
+          <div className="w-full max-w-md flex items-center justify-between gap-2 py-1">
+            <Label htmlFor="ask-questions-first" className="text-xs text-muted-foreground cursor-pointer flex items-center gap-2">
+              <Switch
+                id="ask-questions-first"
+                checked={askQuestionsFirst}
+                onCheckedChange={setAskQuestionsFirst}
+                data-testid="switch-ask-questions-first"
+              />
+              Ask me a few questions first (recommended for vague ideas)
+            </Label>
+          </div>
           <form onSubmit={handleSubmit} className="w-full max-w-md space-y-2">
             <Textarea
               value={prompt}
@@ -972,12 +1070,26 @@ ${trimmed}
           )}
 
           {lastCritique && !isGenerating && lastCritique.issues.length > 0 && (
-            <div className="rounded-md border px-2 py-1.5 space-y-1 max-h-[60px] overflow-y-auto bg-muted/20">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <Shield className="h-3 w-3 text-muted-foreground shrink-0" />
-                <span className="text-xs font-medium text-muted-foreground">
+            <div className="rounded-md border px-2 py-1.5 space-y-1 max-h-[80px] overflow-y-auto bg-muted/20">
+              <div className="flex items-center gap-1.5 flex-wrap justify-between">
+                <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                  <Shield className="h-3 w-3 shrink-0" />
                   QA: {lastCritique.passed ? "Passed" : "Issues found"} ({lastCritique.score}/10)
                 </span>
+                {!lastCritique.passed &&
+                  lastCritique.issues.some((i) => i.severity === "critical" || i.severity === "major") &&
+                  extraFixRoundsDone < MAX_EXTRA_FIX_ROUNDS && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={handleFixRemainingIssues}
+                      data-testid="button-fix-remaining-issues"
+                    >
+                      <RotateCcw className="h-3 w-3 mr-1" />
+                      Fix remaining issues ({MAX_EXTRA_FIX_ROUNDS - extraFixRoundsDone} left)
+                    </Button>
+                  )}
               </div>
               {lastCritique.issues.filter(i => i.severity !== "minor").slice(0, 3).map((issue, idx) => (
                 <div key={idx} className="flex items-start gap-1.5 text-xs text-muted-foreground flex-wrap">
@@ -995,21 +1107,40 @@ ${trimmed}
           {iframeErrors.length > 0 && (
             <div className="flex items-start gap-2 p-2 rounded-md bg-destructive/10 border border-destructive/20 text-xs flex-wrap" data-testid="ai-error-banner">
               <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
-              <div className="flex-1 space-y-0.5 overflow-hidden">
+              <div className="flex-1 space-y-0.5 overflow-hidden min-w-0">
                 {iframeErrors.map((err, i) => (
                   <div key={i} className="text-destructive truncate">{err}</div>
                 ))}
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="shrink-0"
-                onClick={() => setIframeErrors([])}
-                data-testid="button-dismiss-ai-errors"
-              >
-                <X className="h-3 w-3" />
-              </Button>
+              <div className="flex items-center gap-1 shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const errMsg = iframeErrors[0] || "Runtime error";
+                    setPrompt(`Fix this runtime error in the widget code: ${errMsg}`);
+                    setIframeErrors([]);
+                  }}
+                  data-testid="button-ask-ai-fix-error"
+                >
+                  Ask AI to fix
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIframeErrors([])}
+                  data-testid="button-dismiss-ai-errors"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
             </div>
+          )}
+
+          {generatedCode && !isGenerating && (
+            <p className="text-xs text-muted-foreground text-center">
+              Widget ready. Add it to your dashboard below, or describe changes above to refine.
+            </p>
           )}
 
           <div className={`flex-1 min-h-[320px] ${viewMode === "split" ? "flex gap-2" : "flex flex-col"}`}>

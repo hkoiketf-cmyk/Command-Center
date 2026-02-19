@@ -1786,6 +1786,7 @@ CRITICAL JAVASCRIPT RULES (follow these exactly):
 7. If an API key is needed, include a settings/config section in the widget UI where the user can paste their API key. Store it in a JavaScript closure variable (NOT localStorage). Re-prompt on each page load.
 8. For API calls, use HTTPS endpoints. Handle CORS issues by noting them in the UI if they occur.
 9. Test your logic mentally: trace through every user interaction and verify the code handles it.
+10. Do NOT use fetch() to save or load user-entered data (steps, logs, habits) to any URL. There is no backend. Store all such data in JavaScript variables only.
 
 API KEY PATTERN (use when the widget needs an external API):
 - On first load, show a setup screen with an input field and "Save Key" button
@@ -1800,6 +1801,13 @@ DATA FETCHING PATTERN:
 - Show clear error messages if fetch fails
 - If data needs refreshing, use setInterval and show "Last updated: X" timestamp
 - Keep fetched data in JavaScript variables (no localStorage available)
+
+CRITICAL - IN-MEMORY DATA (trackers, logs, step counters, habits, expenses, etc.):
+- There is NO backend for this widget. Do NOT use fetch() to save or load user data to any URL. Never call example.com, placeholder URLs, or fake APIs. The widget has no server.
+- Store ALL user-entered data in a single in-memory variable (e.g. let entries = [] or let stepData = []). When the user clicks Save/Add/Log, push to that array (or update it), then re-render every view that displays data.
+- EVERY table, list, or chart that shows "user's data" MUST be built from that in-memory array in JavaScript. Do NOT put static sample rows in the HTML (e.g. <tr><td>2023-10-01</td><td>5000</td></tr>). Either render all rows from the array in script (e.g. entries.forEach(...) and appendChild or innerHTML) or show an empty state ("No entries yet"). If you have Day/Week/Month views, each view must compute from the SAME array: day = list entries; week = group by week start, sum; month = group by month, sum. Implement the aggregation logic.
+- Set sensible defaults: e.g. date input to today (new Date().toISOString().slice(0,10)), empty array for data. Initialize the date input in DOMContentLoaded.
+- Prefer in-widget feedback over alert(): e.g. a small "Saved!" message that fades, or update the list immediately so the user sees their entry. Use alert() only for real errors if needed.
 
 QUALITY REQUIREMENTS:
 1. Start with <!DOCTYPE html>. Include complete <html>, <head> (with <title>), and <body>.
@@ -1848,10 +1856,11 @@ RULES:
         messages = [
           {
             role: "system",
-            content: `You are a world-class front-end developer maintaining an HTML widget through iterative improvements. The user has been working with you to build this widget and now wants changes.
+            content: `You are a world-class front-end developer maintaining an HTML widget through iterative improvements. Your goal is to fully address what the user asked for so the widget solves their problem. The user has been working with you to build this widget and now wants changes.
 
 CRITICAL RULES:
 - Output ONLY the complete, updated HTML code. No explanations, no markdown, no code fences (no triple backticks), no comments about what changed. The very first character of your response must be <!DOCTYPE html>.
+- There is NO line or length limit. Output the ENTIRE widget from <!DOCTYPE html> to </html>. Do not truncate or summarize; long widgets (300–600+ lines) are expected.
 - You MUST preserve ALL existing functionality that the user hasn't asked to change.
 - Apply the specific changes the user requests.
 - Keep the same overall design language, color scheme, layout, and features unless asked to change them.
@@ -1875,9 +1884,10 @@ ${currentCode}`
         messages = [
           {
             role: "system",
-            content: `You are a world-class front-end developer who builds stunning, production-quality HTML widgets. You create widgets that look like they belong in a premium SaaS product. Every widget you build is fully functional, beautifully designed, and works perfectly on first try.
+            content: `You are a world-class front-end developer who builds stunning, production-quality HTML widgets. Your goal is to fully solve the user's problem with one complete widget—completeness and correctness over brevity. Every widget you build is fully functional, beautifully designed, and works on first try.
 
 OUTPUT FORMAT (CRITICAL): Output ONLY one single, complete HTML document. No explanations, no markdown, no code fences (no triple backticks), no text before or after the HTML. Start the very first character of your response with <!DOCTYPE html>. The widget must be fully self-contained with inline <style> and <script> tags. The entire response must be valid HTML that can be dropped into an iframe.
+LENGTH: There is NO line or character limit. Produce the COMPLETE widget from <!DOCTYPE html> to </html>. Do not truncate, abbreviate, or "simplify" to keep it short. A full-featured widget can be 300–600+ lines; that is expected and correct.
 
 ${baseConstraints}
 
@@ -1917,35 +1927,60 @@ STRUCTURE YOUR CODE EXACTLY LIKE THIS:
 HANDLING VAGUE PROMPTS:
 If the user's description is vague or short (e.g. "a timer", "todo list", "weather"), interpret it generously and build a fully-featured, polished version. Add sensible features, professional styling, and interactivity. Make reasonable assumptions about what would make the widget useful and complete.
 
-BEFORE YOU WRITE CODE, plan your approach:
-1. What external API or data source does this need? What's the endpoint URL and format?
-2. Does the user need to provide an API key? If so, implement the in-memory key management pattern (no localStorage).
-3. What are ALL the interactive elements and their exact behaviors?
-4. What states does the widget have? (loading, error, empty, populated, settings)
-5. What's the visual layout? (header with title, main content, controls/footer)
+THINK THROUGH THE LOGIC BEFORE CODING (mandatory for trackers, logs, counters, habits, expenses):
+1. Where does user input go? → A single in-memory array/object (e.g. stepData = []). No fetch() to save; no example.com or placeholder API.
+2. When the user clicks Save/Add/Log → Push the new entry (date, value, etc.) to that array, then call a render function that rebuilds ALL views from the array.
+3. If there are multiple views (e.g. Day / Week / Month) → Day view: list entries from the array (maybe sorted by date). Week view: group entries by week (e.g. getWeekStart(date)), sum the values, render rows. Month view: group by month, sum, render. Implement these aggregations in JavaScript; do not hardcode sample rows in HTML.
+4. Empty state → When the array is empty, show a friendly message ("No steps logged yet" / "Add your first entry") instead of an empty table or fake data.
+5. Defaults → Set date input to today on load. Initialize the data array as empty.
 
-Then write the COMPLETE, FULLY WORKING code. Every button must do something. Every function must be called. Every API must be properly connected.`
+BEFORE YOU WRITE CODE, plan your approach:
+1. Does this widget need to store user-entered data? If yes → in-memory array only. No fetch to save. No example.com.
+2. Does it need an external API (e.g. weather)? Only if the user asked for one. Then use a real API with error handling and optional API key in a closure.
+3. What are ALL the interactive elements and their exact behaviors? Every button/input must have a listener that updates state and re-renders what needs to change.
+4. What views/tabs (day/week/month, list/chart) exist? Each must be populated from the same data source with real logic (filter, group, sum as needed).
+5. What's the visual layout? (header, main content, controls, feedback area for "Saved!")
+
+Then write the COMPLETE, FULLY WORKING code. Every button must do something. Every table/list must be driven by the in-memory data. No placeholder APIs. No static sample rows mixed with dynamic data.
+Do not stop early or trim the code for length. Output the entire HTML document; 300–600+ lines is normal for a complete widget.`
           },
           { role: "user", content: prompt }
         ];
       }
 
-      const modelToUse = mode === "clarify" ? "gpt-4o-mini" : "gpt-4o";
+      const modelChain = mode === "clarify"
+        ? ["gpt-5-mini", "gpt-4.1-mini", "gpt-4o-mini"]
+        : ["gpt-5.2", "gpt-4.1", "gpt-4o"];
 
-      const stream = await openai.chat.completions.create({
-        model: modelToUse,
-        stream: true,
-        messages,
-        max_tokens: 16000,
-        temperature: mode === "refine" ? 0.3 : 0.6,
-      });
+      const runStream = async (model: string) => {
+        const stream = await openai.chat.completions.create({
+          model,
+          stream: true,
+          messages,
+          max_tokens: 16384,
+          temperature: mode === "refine" ? 0.3 : 0.6,
+        });
+        for await (const chunk of stream) {
+          const content = chunk.choices[0]?.delta?.content;
+          if (content) {
+            res.write(`data: ${JSON.stringify({ content })}\n\n`);
+          }
+        }
+      };
 
-      for await (const chunk of stream) {
-        const content = chunk.choices[0]?.delta?.content;
-        if (content) {
-          res.write(`data: ${JSON.stringify({ content })}\n\n`);
+      let lastError: any;
+      for (const model of modelChain) {
+        try {
+          await runStream(model);
+          lastError = null;
+          break;
+        } catch (streamError: any) {
+          lastError = streamError;
+          const isModelNotFound = streamError?.code === "model_not_found" || streamError?.message?.toLowerCase().includes("model");
+          if (!isModelNotFound) break;
         }
       }
+      if (lastError) throw lastError;
       res.write(`data: [DONE]\n\n`);
       res.end();
     } catch (error: any) {
@@ -1955,7 +1990,7 @@ Then write the COMPLETE, FULLY WORKING code. Every button must do something. Eve
           return res.status(401).json({ error: "Invalid OpenAI API key. Please check your key in Settings." });
         }
         if (error.message?.includes("model") || error.code === "model_not_found") {
-          return res.status(400).json({ error: "Your API key doesn't have access to GPT-4o. Please ensure your OpenAI account has GPT-4o access, or upgrade your plan at platform.openai.com." });
+          return res.status(400).json({ error: "Your API key doesn't have access to GPT-5.2 / GPT-5-mini. Ensure your OpenAI account has API access to GPT-5 or GPT-4, or upgrade at platform.openai.com." });
         }
         return res.status(500).json({ error: "AI generation failed. Please try again." });
       }
@@ -1964,7 +1999,7 @@ Then write the COMPLETE, FULLY WORKING code. Every button must do something. Eve
     }
   });
 
-  // AI Widget Builder - Critique code quality (uses gpt-4o-mini for cost efficiency)
+  // AI Widget Builder - Critique code quality (prefer gpt-5-mini → gpt-4.1-mini → gpt-4o-mini)
   app.post("/api/ai/critique-widget", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
@@ -1980,8 +2015,8 @@ Then write the COMPLETE, FULLY WORKING code. Every button must do something. Eve
 
       const openai = new OpenAI({ apiKey: settings.openaiApiKey });
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+      const createCritique = (model: string) => openai.chat.completions.create({
+        model,
         messages: [
           {
             role: "system",
@@ -1992,10 +2027,10 @@ The user asked for: "${userPrompt || "a widget"}"
 IMPORTANT CONTEXT: This widget runs in sandbox="allow-scripts" ONLY. localStorage and sessionStorage are NOT available. If the code uses localStorage, that IS a critical bug.
 
 Check these categories:
-1. FUNCTIONALITY: Do all buttons/inputs/interactive elements have working JavaScript event listeners? Are there undefined variables, missing functions, or runtime errors? Are scripts placed AFTER the HTML elements they reference? Are all functions actually called (not just defined)? Does the code try to use localStorage/sessionStorage (which won't work)?
-2. DATA/API: If the widget needs external data (APIs, fetch calls), are they properly implemented with error handling? Is there a way for the user to enter API keys if needed? Do fetch URLs look correct?
-3. VISUAL: Is the layout broken? Is text unreadable? Are colors clashing? Is spacing extremely off?
-4. COMPLETENESS: Does it actually fulfill what the user asked for? Are major requested features missing or non-functional?
+1. FUNCTIONALITY: Do all buttons/inputs have working event listeners? Scripts after HTML? All functions called? No localStorage/sessionStorage (won't work in sandbox)?
+2. DATA/API: CRITICAL - If the code uses fetch() to save or load user data (steps, logs, habits) to any URL, that is a critical bug. There is no backend; example.com, placeholder URLs, or "api/save" are fake. User data must be stored only in JavaScript variables (e.g. an array) and all tables/lists must be rendered from that array in script. Flag: fetch to example.com or placeholder; static HTML table rows with sample data (e.g. <tr><td>2023-10-01</td><td>5000</td></tr>) that are not generated by script from the data array; Day/Week/Month views where week or month are not computed from the same data (e.g. hardcoded "Week 1: 35000" instead of grouping and summing).
+3. VISUAL: Layout broken? Unreadable text? Bad spacing?
+4. COMPLETENESS: Does it fulfill the request? Are views (day/week/month) all driven by real data and aggregation logic?
 
 CRITICAL: For each issue, the "fix" field must contain SPECIFIC, ACTIONABLE code instructions - not vague suggestions. Example:
 - BAD fix: "Add error handling"
@@ -2024,6 +2059,21 @@ Only set passed=false if there are critical or major issues. Minor issues alone 
         temperature: 0.1,
         response_format: { type: "json_object" },
       });
+
+      const critiqueModelChain = ["gpt-5-mini", "gpt-4.1-mini", "gpt-4o-mini"];
+      let response: Awaited<ReturnType<typeof createCritique>> | undefined;
+      let lastCritiqueError: any;
+      for (const model of critiqueModelChain) {
+        try {
+          response = await createCritique(model);
+          break;
+        } catch (err: any) {
+          lastCritiqueError = err;
+          const isModelNotFound = err?.code === "model_not_found" || err?.message?.toLowerCase().includes("model");
+          if (!isModelNotFound) throw err;
+        }
+      }
+      if (!response) throw lastCritiqueError;
 
       const content = response.choices[0]?.message?.content || "";
       try {
