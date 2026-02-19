@@ -36,7 +36,20 @@ async function buildAll() {
   await rm("dist", { recursive: true, force: true });
 
   console.log("building client...");
-  await viteBuild();
+  await viteBuild({
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id: string) {
+            if (id.includes("node_modules")) {
+              if (id.includes("chart.js") || id.includes("react-chartjs")) return "charts";
+              return "vendor";
+            }
+          },
+        },
+      },
+    },
+  });
 
   console.log("building server...");
   const pkg = JSON.parse(await readFile("package.json", "utf-8"));
