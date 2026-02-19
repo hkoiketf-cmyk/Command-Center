@@ -1234,6 +1234,19 @@ export async function registerRoutes(
         return res.status(404).json({ error: "User not found" });
       }
 
+      const adminIds = (process.env.ADMIN_USER_IDS || "").split(",").map(s => s.trim()).filter(Boolean);
+      const userIsAdmin = adminIds.includes(userId) || !!(user?.email && adminIds.includes(user.email));
+      if (userIsAdmin) {
+        if (user.subscriptionEndedAt) {
+          await storage.updateUser(userId, { subscriptionEndedAt: null });
+        }
+        return res.json({
+          status: "active",
+          plan: "free",
+          accessCode: true,
+        });
+      }
+
       if (user.accessCodeId) {
         const code = await storage.getAccessCodeByCode(user.accessCodeId);
         if (code && code.active) {

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +33,8 @@ const features = [
 
 export default function Pricing() {
   const { user } = useAuth();
-  const { subscription } = useSubscription();
+  const { subscription, hasAccess } = useSubscription();
+  const [, setLocation] = useLocation();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [accessCode, setAccessCode] = useState("");
   const [redeemLoading, setRedeemLoading] = useState(false);
@@ -102,18 +104,18 @@ export default function Pricing() {
     <div className="min-h-screen bg-background">
       <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
-          <a href="/" className="flex items-center gap-2 rounded-md hover:opacity-90 transition-opacity" data-testid="link-home">
+          <button onClick={() => hasAccess ? setLocation("/") : undefined} className="flex items-center gap-2 rounded-md hover:opacity-90 transition-opacity cursor-pointer bg-transparent border-0 p-0" data-testid="link-home">
             <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
               <Zap className="h-5 w-5 text-primary-foreground" />
             </div>
             <span className="text-lg font-bold tracking-tight">MallenniumDash</span>
-          </a>
-          <Button variant="outline" size="sm" asChild data-testid="link-back-dashboard">
-            <a href="/">
+          </button>
+          {hasAccess && (
+            <Button variant="outline" size="sm" onClick={() => setLocation("/")} data-testid="link-back-dashboard">
               <Home className="h-4 w-4 mr-1.5" />
-              Home
-            </a>
-          </Button>
+              Dashboard
+            </Button>
+          )}
         </div>
       </nav>
 

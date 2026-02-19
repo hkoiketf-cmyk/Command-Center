@@ -48,6 +48,13 @@ function Router() {
     if (hasAccess) void import("@/pages/dashboard");
   }, [hasAccess]);
 
+  // Redirect to pricing when authenticated but no access
+  useEffect(() => {
+    if (!authLoading && isAuthenticated && !subLoading && !hasAccess && location !== "/pricing") {
+      setLocation("/pricing");
+    }
+  }, [authLoading, isAuthenticated, subLoading, hasAccess, location, setLocation]);
+
   if (authLoading) {
     return <LoadingScreen label="Loading" />;
   }
@@ -65,11 +72,7 @@ function Router() {
   }
 
   if (!hasAccess && location !== "/pricing") {
-    return (
-      <Suspense fallback={<LoadingScreen label="Loading" />}>
-        <Pricing />
-      </Suspense>
-    );
+    return <LoadingScreen label="Loading" />;
   }
 
   return (
