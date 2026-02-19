@@ -25,6 +25,8 @@ export default defineConfig({
       "@shared": path.resolve(import.meta.dirname, "shared"),
       "@assets": path.resolve(import.meta.dirname, "attached_assets"),
     },
+    // Ensure a single React instance so react-grid-layout (and other deps) don't see undefined
+    dedupe: ["react", "react-dom"],
   },
   root: path.resolve(import.meta.dirname, "client"),
   build: {
@@ -35,23 +37,13 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       output: {
-        manualChunks: (id) => {
-          if (id.includes("node_modules")) {
-            if (id.includes("react-dom") || id.includes("react/")) return "react";
-            if (id.includes("@tanstack/react-query")) return "query";
-            // Keep react-grid-layout in vendor (not its own chunk) so it shares the same React instance
-            if (id.includes("chart.js") || id.includes("react-chartjs")) return "charts";
-            if (id.includes("radix-ui") || id.includes("@radix-ui")) return "radix";
-            if (id.includes("lucide-react")) return "icons";
-            return "vendor";
-          }
-        },
+        // No manualChunks: custom splitting was causing react-grid-layout to get undefined React
         chunkFileNames: "assets/[name]-[hash].js",
         entryFileNames: "assets/[name]-[hash].js",
         assetFileNames: "assets/[name]-[hash][extname]",
       },
     },
-    chunkSizeWarningLimit: 600,
+    chunkSizeWarningLimit: 800,
   },
   server: {
     fs: {
