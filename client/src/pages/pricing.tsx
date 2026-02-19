@@ -97,7 +97,8 @@ export default function Pricing() {
     }
   };
 
-  const isActive = subscription?.status === "active";
+  const isAccessCodeUser = subscription?.accessCode === true;
+  const isActive = subscription?.status === "active" && !isAccessCodeUser;
   const isTrial = subscription?.status === "trialing";
 
   return (
@@ -122,14 +123,16 @@ export default function Pricing() {
       <main className="max-w-4xl mx-auto px-4 py-16">
         <div className="text-center mb-12">
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3" data-testid="text-pricing-title">
-            {isActive ? "Manage Your Plan" : "Choose Your Plan"}
+            {isActive ? "Manage Your Plan" : isAccessCodeUser ? "Your Plan" : "Choose Your Plan"}
           </h1>
           <p className="text-muted-foreground text-lg max-w-xl mx-auto">
             {isTrial
               ? "Your free trial is active. You'll be charged when it ends."
               : isActive
                 ? `You're on the ${subscription?.plan || "pro"} plan.`
-                : "Add your card to start your 3-day free trial. You won't be charged until the trial ends."}
+                : isAccessCodeUser
+                  ? "You have free access via access code. You can also subscribe to a paid plan below."
+                  : "Add your card to start your 3-day free trial. You won't be charged until the trial ends."}
           </p>
           {isTrial && subscription?.trialEnd && (
             <p className="mt-2 text-sm text-muted-foreground" data-testid="text-trial-end">
