@@ -401,7 +401,7 @@ export default function Dashboard() {
   // Widget mutations
   const addWidget = useMutation({
     mutationFn: async (data: { type: WidgetType; title: string; content?: Record<string, unknown> }) => {
-      if (!activeDesktopId) throw new Error("No active desktop");
+      if (!activeDesktopId) throw new Error("No active desktop. Please create a dashboard first.");
       const nextY = widgets.length > 0 
         ? Math.max(...widgets.map(w => ((w.layout as LayoutItem)?.y || 0) + ((w.layout as LayoutItem)?.h || 4)))
         : 0;
@@ -426,6 +426,9 @@ export default function Dashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/widgets", activeDesktopId] });
       toast({ title: "Widget added" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to add widget", description: error.message, variant: "destructive" });
     },
   });
 
