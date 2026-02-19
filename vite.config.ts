@@ -39,7 +39,7 @@ export default defineConfig({
           if (id.includes("node_modules")) {
             if (id.includes("react-dom") || id.includes("react/")) return "react";
             if (id.includes("@tanstack/react-query")) return "query";
-            if (id.includes("react-grid-layout") || id.includes("react-resizable")) return "grid";
+            // Keep react-grid-layout in vendor (not its own chunk) so it shares the same React instance
             if (id.includes("chart.js") || id.includes("react-chartjs")) return "charts";
             if (id.includes("radix-ui") || id.includes("@radix-ui")) return "radix";
             if (id.includes("lucide-react")) return "icons";
